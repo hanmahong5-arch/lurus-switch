@@ -1,7 +1,7 @@
 # Lurus Switch 微服务改造计划
 # Microservices Transformation Plan
 
-> **状态 / Status**: Phase 1-5 Completed, Phase 6 Pending
+> **状态 / Status**: Phase 1-6 Completed, Production Ready
 > **创建日期 / Created**: 2026-01-07
 > **更新日期 / Updated**: 2026-01-08
 > **预计工期 / Timeline**: 13-16 weeks (~4 months)
@@ -453,17 +453,19 @@ billing-service/
 
 ---
 
-### Phase 6: 可观测性 + 部署 (2 周)
+### Phase 6: 可观测性 + 部署 (2 周) ✅ COMPLETED
 
 **目标**：完善监控和部署
 
 **任务清单**：
-- [ ] Prometheus metrics 埋点
-- [ ] OpenTelemetry tracing 集成
-- [ ] 结构化日志 (JSON + TraceID)
-- [ ] Grafana 仪表盘
-- [ ] Docker Compose 生产配置
-- [ ] Kubernetes 部署 YAML
+- [x] Prometheus metrics 埋点
+- [x] OpenTelemetry tracing 集成
+- [x] 结构化日志 (JSON + TraceID)
+- [x] Grafana 仪表盘
+- [x] Docker Compose 生产配置
+- [x] Kubernetes 部署 YAML (K3S)
+- [x] GitHub Actions CI/CD 流水线
+- [x] 基础设施监控 (node-exporter, cAdvisor, Vector)
 
 **关键 Metrics**：
 ```
