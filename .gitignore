@@ -1,0 +1,70 @@
+# Lurus Switch Root .gitignore
+
+# Submodules (separate repositories)
+Academic-De-AIGC/
+codeswitch/
+gemini-cli/
+nats/
+new-api/
+
+# Build outputs
+*.exe
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment files (keep examples)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Secrets (never commit actual secrets)
+*.pem
+*.key
+deploy/k3s/secrets/lurus-secrets.yaml
+!deploy/k3s/secrets/lurus-secrets.yaml.example
+
+# Logs
+*.log
+logs/
+
+# Dependencies (use go mod / npm)
+vendor/
+node_modules/
+
+# Test coverage
+coverage/
+*.coverprofile
+coverage.out
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker volumes
+data/
+
+# Build cache
+.cache/
+__pycache__/

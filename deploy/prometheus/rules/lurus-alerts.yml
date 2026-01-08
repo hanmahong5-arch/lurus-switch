@@ -1,0 +1,234 @@
+# Prometheus Alert Rules for Lurus Switch
+# These rules define conditions that trigger alerts
+
+groups:
+  # Service Health Alerts
+  - name: service_health
+    interval: 30s
+    rules:
+      # Service Down
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been unreachable for more than 1 minute."
+
+      # High Error Rate (5xx responses)
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(gateway_requests_total{status=~"5.."}[5m])) by (job)
+          / sum(rate(gateway_requests_total[5m])) by (job) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # High Latency
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_request_duration_seconds_bucket[5m])) by (le, job))
+          > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.job }}"
+          description: "P95 latency is {{ $value | humanizeDuration }}"
+
+  # LLM/Provider Alerts
+  - name: llm_provider
+    interval: 30s
+    rules:
+      # Provider High Error Rate
+      - alert: ProviderHighErrorRate
+        expr: |
+          sum(rate(gateway_provider_errors_total[5m])) by (provider, platform)
+          / sum(rate(gateway_llm_requests_total[5m])) by (provider, platform) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate for provider {{ $labels.provider }}"
+          description: "Provider {{ $labels.provider }} ({{ $labels.platform }}) has {{ $value | humanizePercentage }} error rate"
+          error_rate: "{{ $value | humanizePercentage }}"
+
+      # All Providers Down for a Platform
+      - alert: AllProvidersDown
+        expr: |
+          count(up{job=~".*-service"} == 1) == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "All providers are down"
+          description: "No healthy providers available for requests"
+
+      # High Provider Failover Rate
+      - alert: HighFailoverRate
+        expr: |
+          sum(rate(gateway_provider_failovers_total[10m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High provider failover rate"
+          description: "{{ $value }} failovers in the last 10 minutes"
+
+      # Provider Latency Degradation
+      - alert: ProviderLatencyDegraded
+        expr: |
+          histogram_quantile(0.95, sum(rate(gateway_llm_request_duration_seconds_bucket[5m])) by (le, provider))
+          > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency for provider {{ $labels.provider }}"
+          description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 60s)"
+
+  # Cost and Usage Alerts
+  - name: cost_usage
+    interval: 1m
+    rules:
+      # High Hourly Cost
+      - alert: HighHourlyCost
+        expr: |
+          sum(increase(gateway_cost_usd_total[1h])) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High hourly cost"
+          description: "Spent ${{ $value | printf \"%.2f\" }} in the last hour (threshold: $100)"
+
+      # High Daily Cost
+      - alert: HighDailyCost
+        expr: |
+          sum(increase(gateway_cost_usd_total[24h])) > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High daily cost"
+          description: "Spent ${{ $value | printf \"%.2f\" }} in the last 24 hours (threshold: $1000)"
+
+      # Cost Spike (sudden increase)
+      - alert: CostSpike
+        expr: |
+          sum(rate(gateway_cost_usd_total[5m]))
+          / sum(rate(gateway_cost_usd_total[1h] offset 1h)) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Cost spike detected"
+          description: "Current cost rate is {{ $value | printf \"%.1f\" }}x higher than the previous hour"
+
+      # High Token Usage
+      - alert: HighTokenUsage
+        expr: |
+          sum(increase(gateway_tokens_total[1h])) > 10000000
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "High token usage"
+          description: "{{ $value | humanize }} tokens used in the last hour"
+
+  # Request Rate Alerts
+  - name: request_rate
+    interval: 30s
+    rules:
+      # Request Rate Spike
+      - alert: RequestRateSpike
+        expr: |
+          sum(rate(gateway_llm_requests_total[5m]))
+          / sum(rate(gateway_llm_requests_total[1h])) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Request rate spike"
+          description: "Current request rate is {{ $value | printf \"%.1f\" }}x higher than average"
+
+      # Low Request Rate (potential issue)
+      - alert: LowRequestRate
+        expr: |
+          sum(rate(gateway_llm_requests_total[10m])) < 0.1
+          and sum(rate(gateway_llm_requests_total[1h] offset 1h)) > 1
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Unusually low request rate"
+          description: "Request rate dropped significantly. Current: {{ $value | printf \"%.2f\" }} req/s"
+
+      # Too Many Active Requests (potential bottleneck)
+      - alert: TooManyActiveRequests
+        expr: |
+          sum(gateway_active_requests) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of active requests"
+          description: "{{ $value }} active requests (potential bottleneck)"
+
+  # Cache Alerts
+  - name: cache
+    interval: 1m
+    rules:
+      # Low Cache Hit Rate
+      - alert: LowCacheHitRate
+        expr: |
+          sum(rate(gateway_cache_hits_total[10m]))
+          / (sum(rate(gateway_cache_hits_total[10m])) + sum(rate(gateway_cache_misses_total[10m])))
+          < 0.5
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is {{ $value | humanizePercentage }} (threshold: 50%)"
+
+  # Infrastructure Alerts
+  - name: infrastructure
+    interval: 30s
+    rules:
+      # NATS Connection Issues
+      - alert: NATSConnectionIssues
+        expr: |
+          nats_server_connections < 1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "NATS connection issues"
+          description: "No active NATS connections"
+
+      # High Memory Usage (if available)
+      - alert: HighMemoryUsage
+        expr: |
+          process_resident_memory_bytes / 1024 / 1024 > 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.job }}"
+          description: "Memory usage is {{ $value | printf \"%.0f\" }}MB"
+
+      # High Goroutine Count (potential leak)
+      - alert: HighGoroutineCount
+        expr: |
+          go_goroutines > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High goroutine count on {{ $labels.job }}"
+          description: "{{ $value }} goroutines running (potential leak)"

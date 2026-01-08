@@ -1,0 +1,69 @@
+# Vector Configuration for Lurus Switch
+# Collects Docker container logs and sends to ClickHouse
+
+# ===== Data Directory =====
+data_dir = "/var/lib/vector"
+
+# ===== Sources =====
+
+# Collect logs from Docker containers
+[sources.docker_logs]
+type = "docker_logs"
+docker_host = "unix:///var/run/docker.sock"
+include_containers = ["lurus-*"]
+
+# ===== Transforms =====
+
+# Parse JSON logs from Go services
+[transforms.parse_json]
+type = "remap"
+inputs = ["docker_logs"]
+source = '''
+# Try to parse as JSON
+parsed, err = parse_json(.message)
+if err == null {
+  . = merge(., parsed)
+  .log_type = "structured"
+} else {
+  .log_type = "raw"
+  .raw_message = .message
+}
+
+# Extract common fields
+.timestamp = now()
+.container_name = .container_name
+.service = replace(.container_name, "lurus-", "")
+'''
+
+# Filter out health check logs (reduce noise)
+[transforms.filter_health_checks]
+type = "filter"
+inputs = ["parse_json"]
+condition = '!contains(string!(.message) ?? "", "/health") && !contains(string!(.path) ?? "", "/health")'
+
+# ===== Sinks =====
+
+# Send to ClickHouse
+[sinks.clickhouse]
+type = "clickhouse"
+inputs = ["filter_health_checks"]
+endpoint = "http://clickhouse:8123"
+database = "lurus_logs"
+table = "service_logs"
+auth.strategy = "basic"
+auth.user = "lurus"
+auth.password = "lurus_dev_2024"
+encoding.timestamp_format = "unix"
+healthcheck.enabled = true
+
+# Console output for debugging (optional)
+[sinks.console]
+type = "console"
+inputs = ["filter_health_checks"]
+encoding.codec = "json"
+target = "stdout"
+
+# ===== API =====
+[api]
+enabled = true
+address = "0.0.0.0:8686"

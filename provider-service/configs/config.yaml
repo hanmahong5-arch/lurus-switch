@@ -1,0 +1,38 @@
+# Provider Service Configuration
+
+server:
+  http:
+    addr: 0.0.0.0:18101
+    timeout: 60s
+  grpc:
+    addr: 0.0.0.0:19101
+    timeout: 60s
+
+data:
+  database:
+    driver: postgres
+    source: postgres://lurus:lurus_dev_2024@localhost:5432/provider_service?sslmode=disable
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: 3600s
+  redis:
+    addr: localhost:6379
+    password: ""
+    db: 0
+    read_timeout: 500ms
+    write_timeout: 500ms
+
+consul:
+  address: localhost:8500
+  scheme: http
+  service_name: provider-service
+  health_check: true
+
+observability:
+  tracing:
+    enabled: false
+    endpoint: localhost:4317
+    sample_rate: 1.0
+  metrics:
+    enabled: true
+    path: /metrics

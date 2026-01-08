@@ -1,0 +1,220 @@
+syntax = "proto3";
+
+package log.v1;
+
+option go_package = "github.com/pocketzworld/lurus-switch/api/log/v1;logv1";
+
+import "google/protobuf/timestamp.proto";
+
+// LogService manages request logs and statistics
+service LogService {
+  // WriteLog writes a single log entry
+  rpc WriteLog(WriteLogRequest) returns (WriteLogReply);
+
+  // WriteLogs writes multiple log entries (batch)
+  rpc WriteLogs(WriteLogsRequest) returns (WriteLogsReply);
+
+  // QueryLogs queries logs with filters
+  rpc QueryLogs(QueryLogsRequest) returns (QueryLogsReply);
+
+  // GetStats returns aggregated statistics
+  rpc GetStats(GetStatsRequest) returns (GetStatsReply);
+
+  // GetHourlyStats returns hourly statistics
+  rpc GetHourlyStats(GetHourlyStatsRequest) returns (GetHourlyStatsReply);
+
+  // GetDailyStats returns daily statistics
+  rpc GetDailyStats(GetDailyStatsRequest) returns (GetDailyStatsReply);
+
+  // GetModelUsage returns per-model usage statistics
+  rpc GetModelUsage(GetModelUsageRequest) returns (GetModelUsageReply);
+}
+
+// RequestLog represents an LLM request log entry
+message RequestLog {
+  string id = 1;
+  string trace_id = 2;
+  string request_id = 3;
+  string user_id = 4;
+
+  // Request metadata
+  string platform = 5;
+  string model = 6;
+  string provider = 7;
+  string provider_model = 8;
+  string request_method = 9;
+  string request_path = 10;
+  bool is_stream = 11;
+  string user_agent = 12;
+  string client_ip = 13;
+
+  // Response details
+  int32 http_code = 14;
+  double duration_sec = 15;
+  string finish_reason = 16;
+
+  // Token usage
+  int32 input_tokens = 17;
+  int32 output_tokens = 18;
+  int32 cache_create_tokens = 19;
+  int32 cache_read_tokens = 20;
+  int32 reasoning_tokens = 21;
+
+  // Costs (USD)
+  double input_cost = 22;
+  double output_cost = 23;
+  double cache_create_cost = 24;
+  double cache_read_cost = 25;
+  double total_cost = 26;
+
+  // Error information
+  string error_type = 27;
+  string error_message = 28;
+  string provider_error_code = 29;
+
+  google.protobuf.Timestamp created_at = 30;
+}
+
+// WriteLogRequest
+message WriteLogRequest {
+  RequestLog log = 1;
+}
+
+// WriteLogReply
+message WriteLogReply {
+  bool success = 1;
+}
+
+// WriteLogsRequest
+message WriteLogsRequest {
+  repeated RequestLog logs = 1;
+}
+
+// WriteLogsReply
+message WriteLogsReply {
+  int32 written = 1;
+  int32 failed = 2;
+}
+
+// QueryLogsRequest
+message QueryLogsRequest {
+  // Filters
+  string user_id = 1;
+  string platform = 2;
+  string provider = 3;
+  string model = 4;
+  string trace_id = 5;
+  google.protobuf.Timestamp start_time = 6;
+  google.protobuf.Timestamp end_time = 7;
+
+  // Pagination
+  int32 limit = 8;
+  int32 offset = 9;
+
+  // Sorting
+  string order_by = 10;  // created_at, duration_sec, total_cost
+  bool descending = 11;
+}
+
+// QueryLogsReply
+message QueryLogsReply {
+  repeated RequestLog logs = 1;
+  int64 total = 2;
+}
+
+// GetStatsRequest
+message GetStatsRequest {
+  string user_id = 1;
+  string platform = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// GetStatsReply
+message GetStatsReply {
+  int64 total_requests = 1;
+  int64 success_requests = 2;
+  int64 failed_requests = 3;
+  int64 total_tokens = 4;
+  double total_cost = 5;
+  double avg_latency_ms = 6;
+  double p50_latency_ms = 7;
+  double p95_latency_ms = 8;
+  double p99_latency_ms = 9;
+}
+
+// GetHourlyStatsRequest
+message GetHourlyStatsRequest {
+  string user_id = 1;
+  string platform = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// HourlyStat
+message HourlyStat {
+  google.protobuf.Timestamp hour = 1;
+  string platform = 2;
+  string model = 3;
+  string provider = 4;
+  int64 request_count = 5;
+  int64 success_count = 6;
+  int64 total_tokens = 7;
+  double total_cost = 8;
+  double avg_duration_ms = 9;
+}
+
+// GetHourlyStatsReply
+message GetHourlyStatsReply {
+  repeated HourlyStat stats = 1;
+}
+
+// GetDailyStatsRequest
+message GetDailyStatsRequest {
+  string user_id = 1;
+  string platform = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+}
+
+// DailyStat
+message DailyStat {
+  google.protobuf.Timestamp date = 1;
+  string platform = 2;
+  string model = 3;
+  string provider = 4;
+  int64 request_count = 5;
+  int64 success_count = 6;
+  int64 total_tokens = 7;
+  double total_cost = 8;
+  double avg_duration_ms = 9;
+}
+
+// GetDailyStatsReply
+message GetDailyStatsReply {
+  repeated DailyStat stats = 1;
+}
+
+// GetModelUsageRequest
+message GetModelUsageRequest {
+  string user_id = 1;
+  string platform = 2;
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+  int32 limit = 5;  // Top N models
+}
+
+// ModelUsageStat
+message ModelUsageStat {
+  string model = 1;
+  int64 request_count = 2;
+  int64 token_count = 3;
+  double total_cost = 4;
+  double avg_latency_ms = 5;
+  double error_rate = 6;
+}
+
+// GetModelUsageReply
+message GetModelUsageReply {
+  repeated ModelUsageStat stats = 1;
+}

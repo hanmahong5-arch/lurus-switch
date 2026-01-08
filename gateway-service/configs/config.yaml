@@ -1,0 +1,64 @@
+# Gateway Service Configuration
+# Production configuration for Windows native deployment
+
+server:
+  mode: production
+  http:
+    addr: ":18100"
+    timeout: 300s
+    read_timeout: 30s
+    write_timeout: 300s
+    idle_timeout: 120s
+
+# Provider Service client
+# In NEW-API mode, this is used as fallback
+provider:
+  endpoint: "http://localhost:18101"
+  timeout: 5s
+  cache_ttl: 5m
+
+# Billing Service client
+billing:
+  endpoint: "http://localhost:18103"
+  timeout: 3s
+  enabled: false
+
+# Log configuration
+log:
+  enabled: true
+  batch_size: 10
+  batch_timeout: 100ms
+
+# NATS configuration
+nats:
+  url: "nats://localhost:4222"
+  subjects:
+    log_write: "log.write"
+    billing_usage: "billing.usage"
+
+# Feature flags
+features:
+  new_api_enabled: true
+  new_api_url: "http://localhost:3000"
+  offline_mode: false
+  billing_check: false
+  async_logging: true
+
+# Proxy configuration
+proxy:
+  round_robin: true
+  retry_count: 3
+  request_timeout: 120s
+
+# Metrics
+metrics:
+  enabled: true
+  path: "/metrics"
+
+# Tracing (OpenTelemetry)
+tracing:
+  enabled: true
+  endpoint: "localhost:4317"
+  sample_rate: 0.1
+  service_name: "gateway-service"
+  service_version: "1.0.0"

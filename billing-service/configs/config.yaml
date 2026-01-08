@@ -1,0 +1,55 @@
+# Billing Service Configuration
+
+server:
+  http:
+    addr: ":18103"
+    timeout: 30s
+
+# PostgreSQL configuration
+database:
+  driver: postgres
+  dsn: "host=localhost user=postgres password=postgres dbname=billing port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+  max_idle_conns: 10
+  max_open_conns: 100
+  conn_max_lifetime: 1h
+
+# Redis configuration (for quota caching)
+redis:
+  addr: "localhost:6379"
+  password: ""
+  db: 2
+  pool_size: 10
+
+# NATS configuration (for usage events)
+nats:
+  url: "nats://localhost:4222"
+  subjects:
+    billing_usage: "billing.usage"
+    quota_update: "billing.quota"
+
+# Casdoor OAuth2 configuration
+casdoor:
+  enabled: false
+  endpoint: "http://localhost:8000"
+  client_id: ""
+  client_secret: ""
+  organization: "lurus"
+  application: "codeswitch"
+
+# Billing settings
+billing:
+  # Default quota for new users (in tokens)
+  default_quota: 1000000
+  # Quota reset period (daily, monthly)
+  reset_period: "monthly"
+  # Free tier limits
+  free_tier:
+    enabled: true
+    daily_limit: 100000
+    monthly_limit: 1000000
+  # Pricing (per 1M tokens in USD)
+  pricing:
+    input_tokens: 3.0
+    output_tokens: 15.0
+    cache_read_tokens: 0.3
+    cache_create_tokens: 3.75

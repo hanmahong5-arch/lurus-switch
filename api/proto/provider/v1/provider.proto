@@ -1,0 +1,156 @@
+syntax = "proto3";
+
+package provider.v1;
+
+option go_package = "github.com/pocketzworld/lurus-switch/api/provider/v1;providerv1";
+
+import "google/protobuf/timestamp.proto";
+
+// ProviderService manages LLM provider configurations
+service ProviderService {
+  // GetProviders returns all providers for a platform
+  rpc GetProviders(GetProvidersRequest) returns (GetProvidersReply);
+
+  // GetProvider returns a specific provider by ID
+  rpc GetProvider(GetProviderRequest) returns (GetProviderReply);
+
+  // MatchModel finds providers that support a specific model
+  rpc MatchModel(MatchModelRequest) returns (MatchModelReply);
+
+  // CreateProvider creates a new provider
+  rpc CreateProvider(CreateProviderRequest) returns (CreateProviderReply);
+
+  // UpdateProvider updates an existing provider
+  rpc UpdateProvider(UpdateProviderRequest) returns (UpdateProviderReply);
+
+  // DeleteProvider deletes a provider
+  rpc DeleteProvider(DeleteProviderRequest) returns (DeleteProviderReply);
+
+  // CheckHealth checks provider health
+  rpc CheckHealth(CheckHealthRequest) returns (CheckHealthReply);
+}
+
+// Provider represents an LLM provider configuration
+message Provider {
+  int64 id = 1;
+  string name = 2;
+  string api_url = 3;
+  string api_key = 4;
+  string platform = 5;  // claude, codex, gemini
+  bool enabled = 6;
+  int32 level = 7;  // Priority level (1-10)
+  string site = 8;
+  string icon = 9;
+  string tint = 10;
+  string accent = 11;
+  map<string, bool> supported_models = 12;
+  map<string, string> model_mapping = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp updated_at = 15;
+}
+
+// GetProvidersRequest
+message GetProvidersRequest {
+  string platform = 1;  // Filter by platform (optional)
+  bool enabled_only = 2;  // Only return enabled providers
+}
+
+// GetProvidersReply
+message GetProvidersReply {
+  repeated Provider providers = 1;
+}
+
+// GetProviderRequest
+message GetProviderRequest {
+  int64 id = 1;
+}
+
+// GetProviderReply
+message GetProviderReply {
+  Provider provider = 1;
+}
+
+// MatchModelRequest
+message MatchModelRequest {
+  string platform = 1;
+  string model = 2;
+}
+
+// MatchModelReply
+message MatchModelReply {
+  repeated MatchedProvider providers = 1;
+}
+
+// MatchedProvider represents a provider that matches a model request
+message MatchedProvider {
+  Provider provider = 1;
+  string mapped_model = 2;  // The model name after mapping
+  int32 priority = 3;  // Priority score
+}
+
+// CreateProviderRequest
+message CreateProviderRequest {
+  string name = 1;
+  string api_url = 2;
+  string api_key = 3;
+  string platform = 4;
+  bool enabled = 5;
+  int32 level = 6;
+  string site = 7;
+  string icon = 8;
+  string tint = 9;
+  string accent = 10;
+  map<string, bool> supported_models = 11;
+  map<string, string> model_mapping = 12;
+}
+
+// CreateProviderReply
+message CreateProviderReply {
+  Provider provider = 1;
+}
+
+// UpdateProviderRequest
+message UpdateProviderRequest {
+  int64 id = 1;
+  optional string name = 2;
+  optional string api_url = 3;
+  optional string api_key = 4;
+  optional bool enabled = 5;
+  optional int32 level = 6;
+  optional string site = 7;
+  optional string icon = 8;
+  optional string tint = 9;
+  optional string accent = 10;
+  map<string, bool> supported_models = 11;
+  map<string, string> model_mapping = 12;
+}
+
+// UpdateProviderReply
+message UpdateProviderReply {
+  Provider provider = 1;
+}
+
+// DeleteProviderRequest
+message DeleteProviderRequest {
+  int64 id = 1;
+}
+
+// DeleteProviderReply
+message DeleteProviderReply {
+  bool success = 1;
+}
+
+// CheckHealthRequest
+message CheckHealthRequest {
+  int64 provider_id = 1;
+}
+
+// CheckHealthReply
+message CheckHealthReply {
+  int64 provider_id = 1;
+  string provider_name = 2;
+  bool is_healthy = 3;
+  int64 latency_ms = 4;
+  string error_message = 5;
+  google.protobuf.Timestamp checked_at = 6;
+}

@@ -1,0 +1,77 @@
+# Prometheus configuration for Lurus Switch
+# Production configuration with Docker service names
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'lurus-production'
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Gateway Service (Hertz)
+  - job_name: 'gateway-service'
+    static_configs:
+      - targets: ['gateway-service:18100']
+    metrics_path: /metrics
+
+  # Provider Service (Kratos)
+  - job_name: 'provider-service'
+    static_configs:
+      - targets: ['provider-service:18101']
+    metrics_path: /metrics
+
+  # Log Service (Kratos)
+  - job_name: 'log-service'
+    static_configs:
+      - targets: ['log-service:18102']
+    metrics_path: /metrics
+
+  # Billing Service (Kratos)
+  - job_name: 'billing-service'
+    static_configs:
+      - targets: ['billing-service:18103']
+    metrics_path: /metrics
+
+  # Sync Service (Gin)
+  - job_name: 'sync-service'
+    static_configs:
+      - targets: ['sync-service:8081']
+    metrics_path: /metrics
+
+  # NEW-API
+  - job_name: 'new-api'
+    static_configs:
+      - targets: ['new-api:3000']
+    metrics_path: /api/metrics
+    scrape_timeout: 10s
+
+  # NATS Server
+  - job_name: 'nats'
+    static_configs:
+      - targets: ['nats:8222']
+    metrics_path: /varz
+
+  # Redis (via redis_exporter if added)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # Caddy edge proxy
+  - job_name: 'caddy'
+    static_configs:
+      - targets: ['caddy:2019']
+    metrics_path: /metrics
