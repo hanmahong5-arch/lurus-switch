@@ -21,7 +21,7 @@ provider:
 billing:
   endpoint: "http://localhost:18103"
   timeout: 3s
-  enabled: false
+  enabled: true
 
 # Log configuration
 log:
@@ -41,7 +41,7 @@ features:
   new_api_enabled: true
   new_api_url: "http://localhost:3000"
   offline_mode: false
-  billing_check: false
+  billing_check: true
   async_logging: true
 
 # Proxy configuration

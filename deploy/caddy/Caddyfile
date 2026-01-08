@@ -2,10 +2,13 @@
 # Caddy automatically handles HTTPS via Let's Encrypt
 #
 # Domains:
-#   - api.lurus.cn   → new-api (LLM Gateway)
-#   - ai.lurus.cn    → gateway-service (CLI Proxy)
-#   - portal.lurus.cn → Static files
-#   - grafana.lurus.cn → Grafana Dashboard
+#   - api.lurus.cn       → new-api (LLM Gateway)
+#   - ai.lurus.cn        → gateway-service (CLI Proxy) + Portal UI
+#   - lurus.cn           → ailurus marketing site + API proxy
+#   - platform.lurus.cn  → NEW-API (dashboard/management)
+#   - portal.lurus.cn    → Nuxt SSG frontend
+#   - update.lurus.cn    → Client update files
+#   - grafana.lurus.cn   → Grafana Dashboard
 
 # Global settings
 {
@@ -49,28 +52,32 @@ api.lurus.cn {
 }
 
 # ============================================================
-# ai.lurus.cn - Gateway Service (LLM Proxy for CLI tools)
+# ai.lurus.cn - Gateway Service (LLM Proxy for CLI tools) + Portal UI
 # ============================================================
 ai.lurus.cn {
-    # WebSocket support for streaming
-    reverse_proxy gateway-service:18100 {
-        # Long timeout for streaming responses
-        transport http {
-            response_header_timeout 300s
-            read_timeout 300s
-            write_timeout 300s
+    # API routes - reverse proxy to gateway-service with long timeout for streaming
+    handle /v1/* {
+        reverse_proxy gateway-service:18100 {
+            transport http {
+                response_header_timeout 300s
+                read_timeout 300s
+                write_timeout 300s
+            }
+
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
         }
+    }
 
-        # Health check
-        health_uri /health
-        health_interval 30s
-        health_timeout 10s
-
-        # Headers
-        header_up Host {host}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
+    # Static frontend (Nuxt SSG output)
+    handle {
+        root * /srv/portal
+        try_files {path} /index.html
+        file_server {
+            precompressed gzip br
+        }
     }
 
     # CORS for CLI tools
@@ -90,7 +97,90 @@ ai.lurus.cn {
 }
 
 # ============================================================
-# portal.lurus.cn - Static Frontend (replaces IIS)
+# lurus.cn - Ailurus Marketing Site + API Proxy
+# ============================================================
+lurus.cn, www.lurus.cn {
+    root * /srv/ailurus
+
+    # API routes forward to NEW-API
+    handle /api/* {
+        reverse_proxy new-api:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /v1/* {
+        reverse_proxy new-api:3000 {
+            header_up Host {host}
+            header_up X-Forwarded-For {remote_host}
+        }
+    }
+
+    handle /dashboard* {
+        reverse_proxy new-api:3000 {
+            header_up Host {host}
+            header_up X-Forwarded-For {remote_host}
+        }
+    }
+
+    # Static files with .html extension fallback
+    handle {
+        try_files {path} {path}.html {path}/ /index.html
+        file_server
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        Referrer-Policy strict-origin-when-cross-origin
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/lurus.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+    }
+}
+
+# ============================================================
+# platform.lurus.cn - NEW-API Dashboard (Pure Reverse Proxy)
+# ============================================================
+platform.lurus.cn {
+    reverse_proxy new-api:3000 {
+        # WebSocket support for real-time features
+        transport http {
+            response_header_timeout 120s
+        }
+
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options SAMEORIGIN
+        -Server
+    }
+
+    log {
+        output file /var/log/caddy/platform.log {
+            roll_size 50mb
+            roll_keep 5
+        }
+    }
+}
+
+# ============================================================
+# portal.lurus.cn - Web Portal (Nuxt SSG)
 # ============================================================
 portal.lurus.cn {
     root * /srv/portal
@@ -102,7 +192,7 @@ portal.lurus.cn {
         precompressed gzip br
     }
 
-    # Cache static assets
+    # Cache static assets (long-term caching for hashed filenames)
     @static {
         path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
     }
@@ -122,6 +212,8 @@ portal.lurus.cn {
         }
     }
 }
+
+# update.lurus.cn - 保留在 IIS 上运行，不迁移
 
 # ============================================================
 # grafana.lurus.cn - Monitoring Dashboard
@@ -155,7 +247,7 @@ grafana.lurus.cn {
     reverse_proxy sync-service:8081
 
     # Restrict to internal IPs only
-    @blocked not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+    @blocked not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1
     respond @blocked "Forbidden" 403
 }
 
@@ -163,6 +255,6 @@ grafana.lurus.cn {
 :16686 {
     reverse_proxy jaeger:16686
 
-    @blocked not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16
+    @blocked not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1
     respond @blocked "Forbidden" 403
 }

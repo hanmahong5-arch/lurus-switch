@@ -86,11 +86,11 @@
 
 ---
 
-## 2026-01-08 Windows 原生部署完成 / Windows Native Deployment Completed
+## 2026-01-08 微服务部署完成 / Microservices Deployment Completed
 
 ### 需求分析 / Requirements Analysis
 
-在阿里云 Windows Server 2019 服务器上部署 Lurus Switch 微服务，提供 ai.lurus.cn 和 api.lurus.cn 服务。
+在阿里云 Windows Server 2019 服务器上部署 Lurus Switch 微服务架构，包含 Gateway、Provider、Billing 三个核心服务。
 
 ### 方法设计 / Design Approach
 
@@ -98,16 +98,22 @@
 - 各服务编译为独立 .exe 文件
 - 使用 PowerShell 脚本启动服务
 - Caddy 作为边缘代理处理 Host+Path 路由
+- PostgreSQL 存储 Provider 和 Billing 数据
+- NATS 用于异步事件发布
 
 ### 部署架构 / Deployment Architecture
 
 ```
 Internet → Caddy :80 → ┬─ api.lurus.cn → new-api:3000
                        │
-                       └─ ai.lurus.cn ─┬─ /v1/messages → gateway:18100
-                                       ├─ /responses → gateway:18100
-                                       ├─ /health → gateway:18100
+                       └─ ai.lurus.cn ─┬─ /v1/* → gateway:18100
                                        └─ /* → new-api:3000 (frontend)
+
+Gateway (:18100) ──► Provider Service (:18101) ──► PostgreSQL
+         │
+         ├──► Billing Service (:18103) ──► PostgreSQL
+         │
+         └──► NATS (:4222) ──► log.write, billing.usage events
 ```
 
 ### 服务状态 / Service Status
@@ -118,8 +124,46 @@ Internet → Caddy :80 → ┬─ api.lurus.cn → new-api:3000
 | Redis | 6379 | D:\tools\redis | ✅ 运行中 |
 | NATS | 4222 | D:\services\nats | ✅ 运行中 |
 | new-api | 3000 | D:\services\new-api | ✅ 运行中 |
-| gateway-hertz | 18100 | D:\services\gateway | ✅ 运行中 |
+| gateway-service | 18100 | D:\services\gateway | ✅ 运行中 |
+| provider-service | 18101 | D:\services\provider-service | ✅ 运行中 |
+| billing-service | 18103 | D:\services\billing-service | ✅ 运行中 |
 | Caddy | 80 | D:\services\caddy | ✅ 运行中 |
+
+### 数据库配置 / Database Configuration
+
+```
+用户: lurus / 密码: lurus_dev_2024
+数据库:
+  - lurus_provider (Provider Service)
+  - lurus_billing (Billing Service)
+  - lurus_sync (Sync Service)
+  - lurus_subscription (Subscription Service)
+  - new_api (NEW-API)
+```
+
+### 服务管理脚本 / Service Management Scripts
+
+```powershell
+# 启动所有服务
+D:\services\start-all.ps1
+
+# 停止所有服务
+D:\services\stop-all.ps1
+
+# 查看服务状态
+D:\services\status.ps1
+```
+
+### Caddy 域名路由 / Caddy Domain Routing
+
+| 域名 | 路由目标 |
+|------|---------|
+| api.lurus.cn | → new-api:3000 |
+| ai.lurus.cn /v1/* | → gateway:18100 |
+| ai.lurus.cn /* | → portal 静态文件 |
+| lurus.cn | → ailurus 静态文件 |
+| platform.lurus.cn | → new-api:3000 |
+| portal.lurus.cn | → portal 静态文件 |
 
 ### 技术要点 / Technical Notes
 
@@ -199,6 +243,97 @@ curl http://api.lurus.cn/api/status   # new-api status
 | 告警通知 | 暂不配置 |
 | 证书管理 | cert-manager + Let's Encrypt |
 | 日志采集 | Vector |
+
+---
+
+## 2026-01-08 可观测性完善 + 多客户端同步 API / Observability + Multi-Client Sync
+
+### 需求分析 / Requirements Analysis
+
+完成整个公司产品服务的可观测性，以及多客户端同时登录账户、账务同步所需的接口。
+
+### 方法设计 / Design Approach
+
+1. **可观测性**: 为 Billing Service 添加 Prometheus 业务指标 + NATS 事件发布
+2. **多客户端同步**: 提供 HTTP/SSE/WebSocket 三种同步方式
+3. **Grafana 仪表盘**: 创建服务级监控面板
+
+### 修改摘要 / Changes Summary
+
+#### 1. Billing Service 可观测性增强
+- `billing-service/internal/middleware/metrics.go` - Prometheus 业务指标
+  - billing_http_requests_total
+  - billing_balance_checks_total
+  - billing_usage_records_total
+  - billing_tokens_processed_total
+  - billing_cost_usd_total
+  - billing_quota_updates_total
+  - billing_low_balance_alerts_total
+  - billing_nats_events_published_total
+
+- `billing-service/internal/publisher/nats.go` - NATS 事件发布器
+  - quota.updated - 配额变更
+  - balance.changed - 余额变动
+  - usage.recorded - 用量记录
+  - quota.low - 低配额警告 (≥80%)
+  - quota.exhausted - 配额耗尽
+
+#### 2. HTTP 同步 API 端点
+- `billing-service/internal/server/http.go` - 新增端点:
+  - GET /api/v1/billing/sync/:user_id - 获取同步状态
+  - GET /api/v1/billing/sync/:user_id/stream - SSE 实时流
+
+#### 3. WebSocket 实时同步
+- `codeswitch/sync-service/internal/api/websocket.go` - WebSocket Hub
+  - 多设备并发连接管理
+  - NATS 事件自动转发
+  - 30 秒心跳保活
+  - ping/pong, subscribe, sync_request 消息支持
+
+#### 4. Grafana 服务仪表盘
+- `deploy/grafana/provisioning/dashboards/lurus-services.json`
+  - 服务健康状态面板
+  - 请求速率和 P95 延迟
+  - Billing 业务指标
+  - NATS 事件统计
+
+#### 5. 客户端开发文档
+- `doc/client-sync-api.md` - 多客户端同步 API 完整文档
+  - HTTP REST API 说明
+  - SSE 实时流使用指南
+  - WebSocket 协议规范
+  - NATS 事件类型定义
+  - 数据结构定义
+  - 错误处理指南
+  - 最佳实践
+  - Flutter/Swift/Kotlin 示例代码
+
+### 最终结果 / Final Results
+
+**服务状态**: 全部健康
+
+| 服务 | 端口 | 状态 |
+|------|------|------|
+| Gateway Service | 18100 | ✅ Healthy |
+| Provider Service | 18101 | ✅ Healthy |
+| Billing Service | 18103 | ✅ Healthy (已更新) |
+| NEW-API | 3000 | ✅ Healthy |
+
+**同步 API 测试**:
+```bash
+# 同步状态查询
+curl http://localhost:18103/api/v1/billing/sync/test-user-001
+# 返回: {"user_id":"test-user-001","quota_limit":1000000,"quota_remaining":1000000,...}
+
+# SSE 流式端点
+curl http://localhost:18103/api/v1/billing/sync/test-user-001/stream
+# 返回: SSE 事件流
+```
+
+**交付物**:
+- 更新的 Billing Service 二进制
+- Grafana 仪表盘配置
+- 客户端开发文档 (`doc/client-sync-api.md`)
 
 ---
 

@@ -2,10 +2,13 @@
 # 统一微服务部署配置
 #
 # 域名映射:
-#   - api.lurus.cn  → new-api (:3000)
-#   - ai.lurus.cn   → gateway-service (:18100)
-#   - portal.lurus.cn → lurus-portal (static)
-#   - grafana.lurus.cn → grafana (:3000)
+#   - api.lurus.cn      → new-api (:3000) - LLM Gateway
+#   - ai.lurus.cn       → gateway-service (:18100) + Portal UI - CLI Proxy
+#   - lurus.cn          → Static (ailurus) + API proxy - Marketing Site
+#   - platform.lurus.cn → new-api (:3000) - Dashboard
+#   - portal.lurus.cn   → Static (portal) - Nuxt SSG
+#   - update.lurus.cn   → 保留在 IIS
+#   - grafana.lurus.cn  → grafana (:3000) - Monitoring
 #
 # Usage:
 #   docker-compose -f docker-compose.production.yml up -d
@@ -13,6 +16,7 @@
 # Prerequisites:
 #   - Create .env file with secrets
 #   - Configure DNS records for domains
+#   - Copy static files to ../sites/ directory
 
 version: '3.8'
 
@@ -32,8 +36,10 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
-      # Static files for portal
-      - ./portal-dist:/srv/portal:ro
+      - ./logs/caddy:/var/log/caddy
+      # Static sites (migrated from IIS)
+      - ../sites/ailurus:/srv/ailurus:ro
+      - ../lurus-portal/.output/public:/srv/portal:ro
     environment:
       - ACME_EMAIL=${ACME_EMAIL:-admin@lurus.cn}
     depends_on:

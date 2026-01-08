@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -63,6 +64,10 @@ func (s *HTTPServer) registerRoutes() {
 		// Usage operations
 		v1.POST("/usage", s.recordUsage)
 		v1.GET("/stats/:user_id", s.getUsageStats)
+
+		// Sync endpoints for multi-client support
+		v1.GET("/sync/:user_id", s.syncStatus)
+		v1.GET("/sync/:user_id/stream", s.streamUpdates)
 	}
 }
 
@@ -307,6 +312,103 @@ func (s *HTTPServer) getUsageStats(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, stats)
+}
+
+// syncStatus returns the current sync status for a user
+func (s *HTTPServer) syncStatus(c *gin.Context) {
+	userID := c.Param("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	// Get balance info
+	result, err := s.svc.CheckBalance(c.Request.Context(), userID)
+	if err != nil {
+		s.logger.Error("Failed to get sync status", zap.Error(err), zap.String("user_id", userID))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Build sync response
+	syncResponse := gin.H{
+		"user_id":         userID,
+		"quota_limit":     result.QuotaLimit,
+		"quota_used":      result.QuotaUsed,
+		"quota_remaining": result.QuotaRemaining,
+		"balance":         result.Balance,
+		"allowed":         result.Allowed,
+		"sync_time":       time.Now().UTC().Format(time.RFC3339),
+		"ttl":             30, // Suggested refresh interval in seconds
+	}
+
+	c.JSON(http.StatusOK, syncResponse)
+}
+
+// streamUpdates provides Server-Sent Events for real-time updates
+func (s *HTTPServer) streamUpdates(c *gin.Context) {
+	userID := c.Param("user_id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user_id is required"})
+		return
+	}
+
+	// Set SSE headers
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	c.Header("Access-Control-Allow-Origin", "*")
+	c.Header("X-Accel-Buffering", "no")
+
+	// Create a channel for this client
+	clientChan := make(chan string)
+	defer close(clientChan)
+
+	// Send initial sync data
+	result, err := s.svc.CheckBalance(c.Request.Context(), userID)
+	if err == nil {
+		initialData := gin.H{
+			"type":            "sync",
+			"quota_limit":     result.QuotaLimit,
+			"quota_used":      result.QuotaUsed,
+			"quota_remaining": result.QuotaRemaining,
+			"balance":         result.Balance,
+			"timestamp":       time.Now().UTC().Format(time.RFC3339),
+		}
+		data, _ := json.Marshal(initialData)
+		c.SSEvent("message", string(data))
+		c.Writer.Flush()
+	}
+
+	// Send heartbeat every 30 seconds
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	// Listen for client disconnect
+	ctx := c.Request.Context()
+
+	for {
+		select {
+		case <-ctx.Done():
+			s.logger.Debug("SSE client disconnected", zap.String("user_id", userID))
+			return
+		case <-ticker.C:
+			// Send heartbeat with current status
+			result, err := s.svc.CheckBalance(c.Request.Context(), userID)
+			if err != nil {
+				continue
+			}
+			heartbeat := gin.H{
+				"type":            "heartbeat",
+				"quota_remaining": result.QuotaRemaining,
+				"balance":         result.Balance,
+				"timestamp":       time.Now().UTC().Format(time.RFC3339),
+			}
+			data, _ := json.Marshal(heartbeat)
+			c.SSEvent("message", string(data))
+			c.Writer.Flush()
+		}
+	}
 }
 
 // loggingMiddleware creates a logging middleware

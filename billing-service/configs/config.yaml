@@ -8,7 +8,7 @@ server:
 # PostgreSQL configuration
 database:
   driver: postgres
-  dsn: "host=localhost user=postgres password=postgres dbname=billing port=5432 sslmode=disable TimeZone=Asia/Shanghai"
+  dsn: "host=localhost user=lurus password=lurus_dev_2024 dbname=lurus_billing port=5432 sslmode=disable TimeZone=Asia/Shanghai"
   max_idle_conns: 10
   max_open_conns: 100
   conn_max_lifetime: 1h

@@ -11,7 +11,7 @@ server:
 data:
   database:
     driver: postgres
-    source: postgres://lurus:lurus_dev_2024@localhost:5432/provider_service?sslmode=disable
+    source: postgres://lurus:lurus_dev_2024@localhost:5432/lurus_provider?sslmode=disable
     max_idle_conns: 10
     max_open_conns: 100
     conn_max_lifetime: 3600s
