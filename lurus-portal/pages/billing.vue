@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// Redirect old login URL to new auth/login
+// Redirect old billing URL to dashboard/usage
 definePageMeta({
   middleware: [
     function () {
-      return navigateTo('/auth/login', { redirectCode: 301 })
+      return navigateTo('/dashboard/usage', { redirectCode: 301 })
     }
   ],
 })

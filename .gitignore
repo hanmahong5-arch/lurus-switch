@@ -68,3 +68,13 @@ data/
 # Build cache
 .cache/
 __pycache__/
+
+# Redis dump
+dump.rdb
+
+# Windows null file
+nul
+
+# Standalone projects (not part of main repo)
+lurus-mail/
+sites/

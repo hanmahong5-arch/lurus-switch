@@ -7,7 +7,30 @@ export default defineNuxtConfig({
   modules: [
     '@nuxtjs/tailwindcss',
     '@vueuse/motion/nuxt',
+    '@nuxtjs/supabase',
   ],
+
+  // Supabase configuration
+  supabase: {
+    redirect: false, // We handle redirects manually
+    redirectOptions: {
+      login: '/auth/login',
+      callback: '/auth/callback',
+      exclude: ['/', '/pricing', '/products/*', '/docs/*', '/auth/*'],
+    },
+  },
+
+  // Runtime configuration
+  runtimeConfig: {
+    // Server-side only
+    billingServiceUrl: process.env.BILLING_SERVICE_URL || 'http://localhost:18103',
+    subscriptionServiceUrl: process.env.SUBSCRIPTION_SERVICE_URL || 'http://localhost:18104',
+    newApiUrl: process.env.NEW_API_URL || 'http://localhost:3000',
+    // Public (client-side)
+    public: {
+      siteUrl: process.env.SITE_URL || 'http://localhost:3001',
+    },
+  },
 
   // App configuration
   app: {
@@ -35,7 +58,7 @@ export default defineNuxtConfig({
     configPath: 'tailwind.config.ts',
   },
 
-  // SSG for static deployment
+  // SSR mode for dynamic content
   ssr: true,
   nitro: {
     prerender: {
@@ -45,9 +68,10 @@ export default defineNuxtConfig({
         '/products/codeswitch',
         '/products/gateway',
         '/pricing',
-        '/login',
         '/docs',
         '/docs/quickstart',
+        '/auth/login',
+        '/auth/register',
       ],
       crawlLinks: false,
       failOnError: false,

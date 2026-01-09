@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Icon } from '@iconify/vue'
 
+const user = useSupabaseUser()
 const isScrolled = ref(false)
 const isMobileMenuOpen = ref(false)
 
@@ -58,15 +59,25 @@ onMounted(() => {
 
         <!-- CTA Buttons -->
         <div class="hidden md:flex items-center gap-4">
-          <NuxtLink
-            to="/login"
-            class="text-surface-300 hover:text-white font-medium transition-colors duration-200"
-          >
-            Login
-          </NuxtLink>
-          <NuxtLink to="/products" class="btn-glow text-sm">
-            Get Started
-          </NuxtLink>
+          <template v-if="user">
+            <NuxtLink
+              to="/dashboard"
+              class="text-surface-300 hover:text-white font-medium transition-colors duration-200"
+            >
+              Dashboard
+            </NuxtLink>
+          </template>
+          <template v-else>
+            <NuxtLink
+              to="/auth/login"
+              class="text-surface-300 hover:text-white font-medium transition-colors duration-200"
+            >
+              Login
+            </NuxtLink>
+            <NuxtLink to="/auth/register" class="btn-glow text-sm">
+              Get Started
+            </NuxtLink>
+          </template>
         </div>
 
         <!-- Mobile Menu Button -->
@@ -105,20 +116,31 @@ onMounted(() => {
               {{ link.name }}
             </NuxtLink>
             <div class="flex flex-col gap-3 pt-4 border-t border-surface-700/50">
-              <NuxtLink
-                to="/login"
-                class="text-surface-300 hover:text-white font-medium py-2"
-                @click="isMobileMenuOpen = false"
-              >
-                Login
-              </NuxtLink>
-              <NuxtLink
-                to="/products"
-                class="btn-glow text-center text-sm"
-                @click="isMobileMenuOpen = false"
-              >
-                Get Started
-              </NuxtLink>
+              <template v-if="user">
+                <NuxtLink
+                  to="/dashboard"
+                  class="btn-glow text-center text-sm"
+                  @click="isMobileMenuOpen = false"
+                >
+                  Dashboard
+                </NuxtLink>
+              </template>
+              <template v-else>
+                <NuxtLink
+                  to="/auth/login"
+                  class="text-surface-300 hover:text-white font-medium py-2"
+                  @click="isMobileMenuOpen = false"
+                >
+                  Login
+                </NuxtLink>
+                <NuxtLink
+                  to="/auth/register"
+                  class="btn-glow text-center text-sm"
+                  @click="isMobileMenuOpen = false"
+                >
+                  Get Started
+                </NuxtLink>
+              </template>
             </div>
           </div>
         </div>
