@@ -16,6 +16,9 @@ spec:
       labels:
         app: new-api
     spec:
+      # Schedule to services node in multi-node cluster
+      nodeSelector:
+        lurus.cn/role: services
       containers:
         - name: new-api
           image: ghcr.io/pocketzworld/new-api:latest

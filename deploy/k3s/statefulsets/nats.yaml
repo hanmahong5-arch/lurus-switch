@@ -15,6 +15,9 @@ spec:
       labels:
         app: nats
     spec:
+      # Schedule to data node in multi-node cluster
+      nodeSelector:
+        lurus.cn/role: data
       containers:
         - name: nats
           image: nats:2.10-alpine

@@ -1,0 +1,44 @@
+# ArgoCD Application for Lurus Switch
+# This file configures automatic GitOps deployment
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: lurus-switch
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/pocketzworld/lurus-switch.git
+    targetRevision: main
+    path: deploy/k3s
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: lurus-system
+
+  syncPolicy:
+    automated:
+      prune: true        # Auto-delete resources not in Git
+      selfHeal: true     # Auto-fix drift
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+
+  # Health checks
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas  # Ignore HPA-managed replicas

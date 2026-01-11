@@ -15,6 +15,9 @@ spec:
       labels:
         app: redis
     spec:
+      # Schedule to data node in multi-node cluster
+      nodeSelector:
+        lurus.cn/role: data
       containers:
         - name: redis
           image: redis:7-alpine

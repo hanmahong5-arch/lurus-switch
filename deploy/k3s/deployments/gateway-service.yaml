@@ -20,6 +20,9 @@ spec:
         prometheus.io/port: "18100"
         prometheus.io/path: "/metrics"
     spec:
+      # Schedule to services node in multi-node cluster
+      nodeSelector:
+        lurus.cn/role: services
       containers:
         - name: gateway
           image: ghcr.io/pocketzworld/gateway-service:latest
