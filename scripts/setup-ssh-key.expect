@@ -1,0 +1,24 @@
+#!/usr/bin/expect -f
+# Expect script to setup SSH key authentication
+
+set timeout 30
+set server_ip "115.190.239.146"
+set server_user "root"
+set server_password "GGsuperman1211"
+set ssh_pubkey [exec cat ~/.ssh/id_rsa.pub]
+
+spawn bash -c "cat ~/.ssh/id_rsa.pub | ssh ${server_user}@${server_ip} 'mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys'"
+
+expect {
+    "Are you sure you want to continue connecting" {
+        send "yes\r"
+        exp_continue
+    }
+    "password:" {
+        send "${server_password}\r"
+        exp_continue
+    }
+    eof
+}
+
+puts "\n=== SSH key setup complete ==="
