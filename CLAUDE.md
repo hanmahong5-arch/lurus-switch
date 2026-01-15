@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a monorepo called **Lurus Switch** (Ailurus PaaS), containing multiple projects for AI provider management and multi-device synchronization. The system is evolving from a hybrid monolith to an event-driven microservices architecture.
+This is a monorepo called **Ailurus PaaS** (formerly Lurus Switch), containing multiple projects for AI provider management and multi-device synchronization. The system is evolving from a hybrid monolith to an event-driven microservices architecture.
+
+**GitHub Repository**: [https://github.com/hanmahong5-arch/aquest_switch](https://github.com/hanmahong5-arch/aquest_switch)
 
 ```
 lurus-switch/
