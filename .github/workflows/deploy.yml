@@ -4,13 +4,13 @@ name: Deploy
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Deployment environment'
+        description: "Deployment environment"
         required: true
-        default: 'production'
+        default: "production"
         type: choice
         options:
           - production
@@ -18,7 +18,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  GO_VERSION: '1.24'
+  GO_VERSION: "1.24"
 
 jobs:
   # Build and push Docker images
@@ -30,9 +30,14 @@ jobs:
       packages: write
     strategy:
       matrix:
-        service:
-          - gateway-service
-          - new-api
+        include:
+          - service: gateway-service
+            dockerfile: Dockerfile
+          - service: new-api
+            dockerfile: Dockerfile
+          - service: gateway-service
+            dockerfile: Dockerfile.www
+            tag_suffix: www-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -56,16 +61,16 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/pocketzworld/${{ matrix.service }}
           tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern=${{ matrix.tag_suffix }}{{version}}
+            type=semver,pattern=${{ matrix.tag_suffix }}{{major}}.{{minor}}
+            type=sha,prefix=${{ matrix.tag_suffix }}
+            type=raw,value=${{ matrix.tag_suffix }}latest,enable={{is_default_branch}}
 
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: ./${{ matrix.service }}
-          file: ./${{ matrix.service }}/Dockerfile
+          context: .
+          file: ./${{ matrix.service }}/${{ matrix.dockerfile }}
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
@@ -104,9 +109,15 @@ jobs:
               new-api=${{ env.REGISTRY }}/pocketzworld/new-api:${{ steps.version.outputs.version }} \
               -n lurus-system
 
+            # Update www-gateway image
+            kubectl set image deployment/www-gateway \
+              gateway=${{ env.REGISTRY }}/pocketzworld/gateway-service:www-${{ steps.version.outputs.version }} \
+              -n lurus-system
+
             # Wait for rollout
             kubectl rollout status deployment/gateway-service -n lurus-system --timeout=300s
             kubectl rollout status deployment/new-api -n lurus-system --timeout=300s
+            kubectl rollout status deployment/www-gateway -n lurus-system --timeout=300s
 
             # Verify health
             kubectl get pods -n lurus-system
@@ -163,6 +174,7 @@ jobs:
             ## Docker Images
 
             - `ghcr.io/pocketzworld/gateway-service:${{ github.ref_name }}`
+            - `ghcr.io/pocketzworld/gateway-service:www-${{ github.ref_name }}`
             - `ghcr.io/pocketzworld/new-api:${{ github.ref_name }}`
           draft: false
           prerelease: false

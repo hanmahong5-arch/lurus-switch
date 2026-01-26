@@ -1,8 +1,0 @@
-# Lurus Switch Namespace
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: lurus-system
-  labels:
-    app.kubernetes.io/name: lurus-switch
-    app.kubernetes.io/managed-by: kubectl
