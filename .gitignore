@@ -27,3 +27,7 @@ tmpclaude-*
 
 # Config outputs
 configs/output/
+
+# BMAD framework (lives at root only)
+_bmad/
+nul

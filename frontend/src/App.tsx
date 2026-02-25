@@ -1,9 +1,8 @@
 import './style.css'
 import { Sidebar } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
-import { ClaudePage } from './pages/ClaudePage'
-import { CodexPage } from './pages/CodexPage'
-import { GeminiPage } from './pages/GeminiPage'
+import { DashboardPage } from './pages/DashboardPage'
+import { ToolConfigPage } from './pages/ToolConfigPage'
 import { useConfigStore } from './stores/configStore'
 
 function App() {
@@ -11,14 +10,14 @@ function App() {
 
   const renderPage = () => {
     switch (activeTool) {
+      case 'dashboard':
+        return <DashboardPage />
       case 'claude':
-        return <ClaudePage />
       case 'codex':
-        return <CodexPage />
       case 'gemini':
-        return <GeminiPage />
+        return <ToolConfigPage />
       default:
-        return <ClaudePage />
+        return <DashboardPage />
     }
   }
 

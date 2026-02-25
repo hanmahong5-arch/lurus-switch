@@ -12,15 +12,26 @@ import (
 
 	"lurus-switch/internal/config"
 	"lurus-switch/internal/generator"
+	"lurus-switch/internal/installer"
 	"lurus-switch/internal/packager"
+	"lurus-switch/internal/proxy"
+	"lurus-switch/internal/toolconfig"
+	"lurus-switch/internal/updater"
 	"lurus-switch/internal/validator"
 )
 
+// AppVersion is the current version of Lurus Switch, set at build time via -ldflags
+var AppVersion = "0.1.0"
+
 // App struct
 type App struct {
-	ctx       context.Context
-	store     *config.Store
-	validator *validator.Validator
+	ctx         context.Context
+	store       *config.Store
+	validator   *validator.Validator
+	instMgr     *installer.Manager
+	proxyMgr    *proxy.ProxyManager
+	selfUpdater *updater.SelfUpdater
+	npmChecker  *updater.NpmChecker
 }
 
 // NewApp creates a new App application struct
@@ -31,9 +42,15 @@ func NewApp() *App {
 		fmt.Printf("Warning: failed to initialize config store: %v\n", err)
 	}
 
+	proxyMgr, _ := proxy.NewProxyManager()
+
 	return &App{
-		store:     store,
-		validator: validator.NewValidator(),
+		store:       store,
+		validator:   validator.NewValidator(),
+		instMgr:     installer.NewManager(),
+		proxyMgr:    proxyMgr,
+		selfUpdater: updater.NewSelfUpdater(AppVersion),
+		npmChecker:  updater.NewNpmChecker(),
 	}
 }
 
@@ -334,6 +351,138 @@ func (a *App) CheckBunInstalled() bool {
 // CheckNodeInstalled checks if Node.js is installed
 func (a *App) CheckNodeInstalled() bool {
 	return packager.IsNodeInstalled()
+}
+
+// ============================
+// Tool Installation Methods
+// ============================
+
+// DetectAllTools checks installation status of all CLI tools
+func (a *App) DetectAllTools() (map[string]*installer.ToolStatus, error) {
+	return a.instMgr.DetectAll(a.ctx)
+}
+
+// InstallTool installs a specific CLI tool by name (claude/codex/gemini)
+func (a *App) InstallTool(name string) (*installer.InstallResult, error) {
+	return a.instMgr.InstallTool(a.ctx, name)
+}
+
+// InstallAllTools installs all CLI tools sequentially
+func (a *App) InstallAllTools() []installer.InstallResult {
+	return a.instMgr.InstallAll(a.ctx)
+}
+
+// UpdateTool updates a specific CLI tool to the latest version
+func (a *App) UpdateTool(name string) (*installer.InstallResult, error) {
+	return a.instMgr.UpdateTool(a.ctx, name)
+}
+
+// UpdateAllTools updates all CLI tools to the latest versions
+func (a *App) UpdateAllTools() []installer.InstallResult {
+	return a.instMgr.UpdateAll(a.ctx)
+}
+
+// ============================
+// Update Check Methods
+// ============================
+
+// CheckAllUpdates checks for updates on all installed CLI tools
+func (a *App) CheckAllUpdates() map[string]*updater.UpdateInfo {
+	statuses, _ := a.instMgr.DetectAll(a.ctx)
+	toolVersions := make(map[string]string)
+	for name, status := range statuses {
+		if status.Installed {
+			toolVersions[name] = status.Version
+		}
+	}
+	return a.npmChecker.CheckAllTools(toolVersions)
+}
+
+// CheckSelfUpdate checks if a newer version of Switch is available
+func (a *App) CheckSelfUpdate() (*updater.UpdateInfo, error) {
+	return a.selfUpdater.CheckUpdate()
+}
+
+// ApplySelfUpdate downloads and applies the latest Switch update
+func (a *App) ApplySelfUpdate() error {
+	return a.selfUpdater.ApplyUpdate()
+}
+
+// GetAppVersion returns the current Switch version string
+func (a *App) GetAppVersion() string {
+	return AppVersion
+}
+
+// ============================
+// Proxy / NewAPI Methods
+// ============================
+
+// GetProxySettings returns the saved NewAPI proxy settings
+func (a *App) GetProxySettings() *proxy.ProxySettings {
+	if a.proxyMgr == nil {
+		return &proxy.ProxySettings{}
+	}
+	return a.proxyMgr.GetSettings()
+}
+
+// SaveProxySettings saves NewAPI proxy settings to disk
+func (a *App) SaveProxySettings(s *proxy.ProxySettings) error {
+	if a.proxyMgr == nil {
+		return fmt.Errorf("proxy manager not initialized")
+	}
+	return a.proxyMgr.SaveSettings(s)
+}
+
+// ConfigureAllProxy applies the saved proxy settings to all installed tools
+func (a *App) ConfigureAllProxy() map[string]string {
+	if a.proxyMgr == nil {
+		return map[string]string{"error": "proxy manager not initialized"}
+	}
+	settings := a.proxyMgr.GetSettings()
+	errs := a.instMgr.ConfigureAllProxy(a.ctx, settings.APIEndpoint, settings.APIKey)
+	result := make(map[string]string)
+	for name, err := range errs {
+		result[name] = err.Error()
+	}
+	return result
+}
+
+// ============================
+// Bun Runtime Methods
+// ============================
+
+// InstallBun installs the Bun runtime and returns its path
+func (a *App) InstallBun() (string, error) {
+	return a.instMgr.GetRuntime().InstallBun(a.ctx)
+}
+
+// ============================
+// Tool Config File Methods
+// ============================
+
+// ReadToolConfig reads a tool's real config file from disk (claude/codex/gemini)
+func (a *App) ReadToolConfig(tool string) (*toolconfig.ToolConfigInfo, error) {
+	return toolconfig.ReadConfig(tool)
+}
+
+// SaveToolConfig writes content to a tool's real config file
+func (a *App) SaveToolConfig(tool, content string) error {
+	return toolconfig.WriteConfig(tool, content)
+}
+
+// GetToolConfigPath returns the full path to a tool's config file
+func (a *App) GetToolConfigPath(tool string) (string, error) {
+	return toolconfig.GetConfigPath(tool)
+}
+
+// OpenToolConfigDir opens the config directory of a tool in the file explorer
+func (a *App) OpenToolConfigDir(tool string) error {
+	return toolconfig.OpenConfigDirectory(tool)
+}
+
+// GetAllToolConfigPaths returns the config file paths for all tools
+func (a *App) GetAllToolConfigPaths() map[string]string {
+	return toolconfig.GetAllConfigPaths()
 }
 
 // openDirectory opens a directory in the system file explorer

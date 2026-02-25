@@ -19,6 +19,15 @@ type GeminiConfig struct {
 
 	// Theme and display
 	Display GeminiDisplay `json:"display"`
+
+	// Advanced settings
+	Advanced GeminiAdvanced `json:"advanced"`
+}
+
+// GeminiAdvanced defines advanced configuration settings
+type GeminiAdvanced struct {
+	// Custom API endpoint for proxy/relay
+	APIEndpoint string `json:"apiEndpoint,omitempty"`
 }
 
 // GeminiAuth defines authentication settings

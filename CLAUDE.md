@@ -1,63 +1,34 @@
-# CLAUDE.md - Lurus Switch
+# Lurus Switch
 
-## Project Overview
+Wails desktop app — AI CLI config package generator.
 
-Lurus Switch is a Wails desktop application for generating configuration packages for AI CLI tools (Claude Code, Codex, Gemini CLI).
+Go 1.22+ / Wails v2 / React 18 + TypeScript + Tailwind + Zustand + Monaco Editor.
 
-## Tech Stack
-
-- **Backend**: Go 1.22+ with Wails v2
-- **Frontend**: React 18 + TypeScript + Tailwind CSS
-- **State Management**: Zustand
-- **UI Components**: Radix UI + Lucide Icons
-- **Code Editor**: Monaco Editor
-
-## Key Commands
+## Commands
 
 ```bash
-# Development
-wails dev
-
-# Build
-wails build
-
-# Generate Wails bindings
-wails generate module
-
-# Run Go tests
-go test -v ./...
-
-# Build frontend only
-cd frontend && npm run build
+wails dev                          # Dev with hot reload
+wails build                        # Build
+go test -v ./...                   # Backend tests
+cd frontend && bun run build       # Frontend only
 ```
 
-## Architecture
+## Structure
 
 ```
-app.go          → Exposes Go methods to frontend via Wails
+app.go              # Wails bindings (Go ↔ Frontend)
 internal/
-  config/       → Data models for Claude/Codex/Gemini configs
-  generator/    → Generates config files (JSON/TOML/Markdown)
-  packager/     → Creates standalone executables
-  validator/    → Validates configurations
+  config/           # Data models (Claude/Codex/Gemini configs)
+  generator/        # Config file generation (JSON/TOML/Markdown)
+  packager/         # Standalone executable packaging
+  validator/        # Config validation
 frontend/
-  src/pages/    → ClaudePage, CodexPage, GeminiPage
-  src/stores/   → Zustand store for state management
+  src/pages/        # ClaudePage, CodexPage, GeminiPage
+  src/stores/       # Zustand state management
 ```
 
-## Code Conventions
+## BMAD
 
-- Go: Standard Go formatting (`gofmt`)
-- TypeScript: ESLint + Prettier
-- Comments in English
-- Documentation in Chinese & English
-
-## Testing
-
-```bash
-# Run all Go tests
-go test -v ./...
-
-# Run frontend type check
-cd frontend && npm run build
-```
+| Resource | Path |
+|----------|------|
+| Architecture | `./_bmad-output/planning-artifacts/architecture.md` |

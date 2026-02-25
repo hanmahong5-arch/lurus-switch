@@ -152,8 +152,8 @@ export interface GeminiConfig {
 // Store state types
 interface ConfigState {
   // Current active tool
-  activeTool: 'claude' | 'codex' | 'gemini'
-  setActiveTool: (tool: 'claude' | 'codex' | 'gemini') => void
+  activeTool: 'dashboard' | 'claude' | 'codex' | 'gemini'
+  setActiveTool: (tool: 'dashboard' | 'claude' | 'codex' | 'gemini') => void
 
   // Claude config
   claudeConfig: ClaudeConfig
@@ -185,7 +185,7 @@ interface ConfigState {
 
 export const useConfigStore = create<ConfigState>((set) => ({
   // Active tool
-  activeTool: 'claude',
+  activeTool: 'dashboard',
   setActiveTool: (tool) => set({ activeTool: tool }),
 
   // Claude config

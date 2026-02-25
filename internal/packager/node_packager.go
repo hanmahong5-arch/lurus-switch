@@ -8,70 +8,34 @@ import (
 	"runtime"
 )
 
-// NodePackager handles packaging Gemini CLI with Node.js pkg
+// NodePackager handles packaging Gemini CLI with bun (or npx as fallback)
 type NodePackager struct {
-	npmPath string
-	npxPath string
+	bunPath string
+	npxPath string // fallback when bun is not available
 }
 
 // NewNodePackager creates a new Node packager
 func NewNodePackager() (*NodePackager, error) {
-	npmPath, err := findNpm()
-	if err != nil {
-		return nil, err
+	// Try bun first (preferred)
+	bunPath, bunErr := findBun()
+	if bunErr == nil {
+		return &NodePackager{
+			bunPath: bunPath,
+		}, nil
 	}
 
+	// Fallback to npx
 	npxPath, err := findNpx()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("bun not found - please install Bun (https://bun.sh)")
 	}
 
 	return &NodePackager{
-		npmPath: npmPath,
 		npxPath: npxPath,
 	}, nil
 }
 
-// findNpm locates the npm executable
-func findNpm() (string, error) {
-	// Check PATH first
-	if path, err := exec.LookPath("npm"); err == nil {
-		return path, nil
-	}
-
-	// Check common installation locations
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	var candidates []string
-	switch runtime.GOOS {
-	case "windows":
-		programFiles := os.Getenv("ProgramFiles")
-		candidates = []string{
-			filepath.Join(programFiles, "nodejs", "npm.cmd"),
-			filepath.Join(os.Getenv("APPDATA"), "npm", "npm.cmd"),
-			filepath.Join(home, ".bun", "bin", "npm"),
-		}
-	default:
-		candidates = []string{
-			"/usr/local/bin/npm",
-			"/usr/bin/npm",
-			filepath.Join(home, ".nvm", "current", "bin", "npm"),
-		}
-	}
-
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("npm not found - please install Node.js")
-}
-
-// findNpx locates the npx executable
+// findNpx locates the npx executable (fallback when bun is not available)
 func findNpx() (string, error) {
 	// Check PATH first
 	if path, err := exec.LookPath("npx"); err == nil {
@@ -107,7 +71,7 @@ func findNpx() (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("npx not found - please install Node.js")
+	return "", fmt.Errorf("npx not found - please install Bun (https://bun.sh) or Node.js")
 }
 
 // Package creates a standalone executable for Gemini CLI wrapper
@@ -148,8 +112,13 @@ func (p *NodePackager) Package(configDir, outputPath string) error {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
-	// Package with pkg using npx
-	pkgCmd := exec.Command(p.npxPath, "pkg", ".", "--output", outputPath)
+	// Package with pkg using bunx (or npx as fallback)
+	var pkgCmd *exec.Cmd
+	if p.bunPath != "" {
+		pkgCmd = exec.Command(p.bunPath, "x", "pkg", ".", "--output", outputPath)
+	} else {
+		pkgCmd = exec.Command(p.npxPath, "pkg", ".", "--output", outputPath)
+	}
 	pkgCmd.Dir = tmpDir
 	pkgCmd.Stdout = os.Stdout
 	pkgCmd.Stderr = os.Stderr
@@ -268,18 +237,22 @@ func (p *NodePackager) getPkgTarget() string {
 	return fmt.Sprintf("node18-%s-%s", os, arch)
 }
 
-// GetNpmPath returns the path to npm
-func (p *NodePackager) GetNpmPath() string {
-	return p.npmPath
+// GetBunPath returns the path to bun
+func (p *NodePackager) GetBunPath() string {
+	return p.bunPath
 }
 
-// GetNpxPath returns the path to npx
+// GetNpxPath returns the path to npx (fallback)
 func (p *NodePackager) GetNpxPath() string {
 	return p.npxPath
 }
 
-// IsNodeInstalled checks if Node.js is available
+// IsNodeInstalled checks if bun or Node.js is available
 func IsNodeInstalled() bool {
-	_, err := findNpm()
+	_, err := findBun()
+	if err == nil {
+		return true
+	}
+	_, err = findNpx()
 	return err == nil
 }

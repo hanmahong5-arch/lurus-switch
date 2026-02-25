@@ -24,7 +24,7 @@ AI CLI Configuration Generator - A desktop application for generating configurat
 ### Prerequisites
 
 - Go 1.22+
-- Node.js 18+ (or Bun)
+- Bun 1.x+
 - Wails CLI v2.x
 
 ### Setup
@@ -34,7 +34,7 @@ AI CLI Configuration Generator - A desktop application for generating configurat
 go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 # Install frontend dependencies
-cd frontend && npm install
+cd frontend && bun install
 
 # Run in development mode
 wails dev

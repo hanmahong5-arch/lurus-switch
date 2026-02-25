@@ -7,6 +7,6 @@ go test -v ./...
 
 Write-Host "`nRunning frontend type check..." -ForegroundColor Cyan
 Set-Location frontend
-npm run build
+bun run build
 
 Write-Host "`nAll tests completed!" -ForegroundColor Green

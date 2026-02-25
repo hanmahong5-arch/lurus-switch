@@ -1,4 +1,4 @@
-import { Settings, Zap, Sparkles, Bot } from 'lucide-react'
+import { Settings, Zap, Sparkles, Bot, LayoutDashboard } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useConfigStore } from '../stores/configStore'
 
@@ -16,12 +16,30 @@ export function Sidebar() {
       {/* Logo / Title */}
       <div className="p-4 border-b border-border wails-drag">
         <h1 className="text-lg font-semibold">Lurus Switch</h1>
-        <p className="text-xs text-muted-foreground">AI CLI Config Generator</p>
+        <p className="text-xs text-muted-foreground">AI CLI Manager</p>
       </div>
 
-      {/* Tool Selection */}
+      {/* Navigation */}
       <nav className="flex-1 p-2">
         <div className="space-y-1">
+          {/* Dashboard */}
+          <button
+            onClick={() => setActiveTool('dashboard')}
+            className={cn(
+              'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+              activeTool === 'dashboard'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <LayoutDashboard className={cn('h-5 w-5', activeTool !== 'dashboard' && 'text-purple-500')} />
+            Dashboard
+          </button>
+
+          {/* Separator */}
+          <div className="border-t border-border my-2" />
+
+          {/* Tool pages */}
           {tools.map((tool) => (
             <button
               key={tool.id}
