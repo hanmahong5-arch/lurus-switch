@@ -31,3 +31,4 @@ configs/output/
 # BMAD framework (lives at root only)
 _bmad/
 nul
+frontend/package.json.md5
