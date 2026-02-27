@@ -1,10 +1,11 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
-inputDocuments: ['lurus.yaml', 'CLAUDE.md', 'doc/decisions/0001-single-source-of-truth.md', 'product-brief.md', 'project-context.md', 'prd-gushen.md', 'epics-gushen.md']
+inputDocuments: ['lurus.yaml', 'CLAUDE.md', 'doc/decisions/0001-single-source-of-truth.md', 'product-brief.md', 'project-context.md', 'prd-gushen.md', 'epics-gushen.md', 'prd.md']
 date: 2026-02-02
-regenerated: 2026-02-03
+regenerated: 2026-02-27
 author: Anita (via BMAD Architecture Review)
 sectionsAdded: ['8-implementation-patterns', '9-project-structure-boundaries']
+sectionsUpdated: ['1-system-context', '2-adr', '7-tech-radar', '8-implementation-patterns', '9-project-structure']
 ---
 
 # Architecture Decision Document: Lurus Platform
@@ -24,21 +25,53 @@ sectionsAdded: ['8-implementation-patterns', '9-project-structure-boundaries']
 │  │lurus-api│  │lurus-    │  │lurus-    │  │lurus-   │  │lurus-     │ │
 │  │(Gateway)│  │gushen    │  │webmail   │  │newapi   │  │switch     │ │
 │  │         │  │(Quant)   │  │(Mail)    │  │(LLM Mgr)│  │(Desktop)  │ │
-│  └────┬────┘  └────┬─────┘  └────┬─────┘  └────┬────┘  └───────────┘ │
-│       │            │             │              │                       │
-│  ┌────┴────────────┴─────────────┴──────────────┴────────────────────┐ │
-│  │              Shared Infrastructure Layer                          │ │
+│  └────┬────┘  └────┬─────┘  └────┬─────┘  └────┬────┘  └─────┬─────┘ │
+│       │            │             │              │              │        │
+│  ┌────┴────────────┴─────────────┴──────────────┴────────────┐ │        │
+│  │              Shared Infrastructure Layer                   │ │        │
 │  │  PostgreSQL │ Redis │ NATS JetStream │ MinIO │ Stalwart │ Zitadel│ │
-│  └───────────────────────────────────────────────────────────────────┘ │
-│                                                                         │
-│  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │              Platform Layer (K3s + Tailscale VPN)                  │ │
+│  └───────────────────────────────────────────────────────────┘ │        │
+│                                                                 │        │
+│  ┌───────────────────────────────────────────────────────────┐ │        │
+│  │              Platform Layer (K3s + Tailscale VPN)          │ │        │
 │  │  5 nodes │ Traefik Ingress │ ArgoCD │ Grafana │ Prometheus │ Loki│ │
-│  └───────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────────┘
-         ↕                    ↕                    ↕
-    LLM Providers        Market Data APIs       Email Providers
-    (OpenAI, etc.)       (Eastmoney, Sina)      (SendCloud relay)
+│  └───────────────────────────────────────────────────────────┘ │        │
+└─────────────────────────────────────────────────────────────────┘        │
+         ↕                    ↕                    ↕                       │
+    LLM Providers        Market Data APIs       Email Providers            │
+    (OpenAI, etc.)       (Eastmoney, Sina)      (SendCloud relay)          │
+                                                                           │
+┌──────────────────────────────────────────────────────────────────────────┘
+│
+│  lurus-switch (Desktop App — Wails)
+│  ┌─────────────────────────────────────────────────────────────────────┐
+│  │                                                                     │
+│  │  ┌───────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │  │ Config Editor │  │ CLAUDE.md    │  │ MCP Server Manager       │ │
+│  │  │ (Claude/Codex │  │ Generator    │  │ (Visual config, catalog, │ │
+│  │  │  /Gemini)     │  │ (Static      │  │  cross-tool sync)        │ │
+│  │  │               │  │  analysis +  │  │                          │ │
+│  │  │               │  │  templates)  │  │                          │ │
+│  │  └───────────────┘  └──────────────┘  └──────────────────────────┘ │
+│  │                                                                     │
+│  │  ┌───────────────┐  ┌──────────────┐  ┌──────────────────────────┐ │
+│  │  │ Cost Dashboard│  │ Proxy &      │  │ Prompt Library           │ │
+│  │  │ (via lurus-   │  │ Network      │  │ (Built-in + custom       │ │
+│  │  │  api gateway) │  │ (auto-detect │  │  prompt management)      │ │
+│  │  │               │  │  + GFW)      │  │                          │ │
+│  │  └───────────────┘  └──────────────┘  └──────────────────────────┘ │
+│  │                                                                     │
+│  │                    Distribution Channels                            │
+│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────────────┐       │
+│  │  │  Scoop   │ │ Homebrew │ │  WinGet  │ │ GitHub Releases │       │
+│  │  └──────────┘ └──────────┘ └──────────┘ └─────────────────┘       │
+│  └─────────────────────────────────────────────────────────────────────┘
+│          │                              │
+│          ▼                              ▼
+│   AI CLI Tools                    lurus-api
+│   (Claude Code,                   (Cost data,
+│    Codex, Gemini CLI)              LLM usage)
+│
 ```
 
 ### 1.2 External Dependencies / 外部依赖
@@ -355,6 +388,258 @@ API endpoints (/api/strategies/popular, /trending)
 
 ---
 
+### ADR-012: i18n Strategy (react-i18next, Chinese Default)
+
+**Status**: Accepted (2026-02-27)
+
+**Context**: Lurus Switch targets Chinese developers as the primary audience (P5 in PRD), with English as a secondary language. The desktop app uses React 18 via Wails. UI text must be fully translatable with zero hardcoded strings, and Chinese must be the default locale.
+
+**Decision**: Use `react-i18next` with namespace-based JSON resource files. Chinese (zh-CN) is the default and fallback language; English (en) is supported as a secondary locale.
+
+**Architecture**:
+```
+frontend/src/i18n/
+├── i18n.ts                  # i18next initialization (lng: 'zh-CN', fallbackLng: 'zh-CN')
+├── locales/
+│   ├── zh-CN/
+│   │   ├── common.json      # Shared (nav, buttons, errors)
+│   │   ├── dashboard.json   # Dashboard page
+│   │   ├── config.json      # Config editor
+│   │   ├── claudemd.json    # CLAUDE.md generator
+│   │   ├── mcp.json         # MCP server manager
+│   │   ├── cost.json        # Cost dashboard
+│   │   └── onboarding.json  # Onboarding wizard
+│   └── en/
+│       └── (mirrors zh-CN structure)
+```
+
+**Key Decisions**:
+- Namespace per feature page to enable code-splitting of translation bundles
+- Language persisted in Zustand store (`settings.language`) with `persist` middleware
+- No inline Chinese/English text in components; all strings via `useTranslation()` hook
+- Date/number formatting via `Intl.DateTimeFormat` / `Intl.NumberFormat` with locale parameter
+
+**Consequences**:
+- (+) Clean separation of UI text from component logic
+- (+) Adding new languages requires only new JSON files, no code changes
+- (+) Namespace splitting keeps bundle size small per page
+- (-) Initial setup overhead for extracting all strings
+- (-) Translation key management requires discipline (unused keys accumulate)
+
+---
+
+### ADR-013: app.go Decomposition into Domain-Specific Binding Files
+
+**Status**: Accepted (2026-02-27)
+
+**Context**: The current `app.go` contains all Wails binding methods (Go functions exposed to the frontend). As features grow from MVP (config editing) through Milestone 2 (CLAUDE.md generator, MCP manager, cost dashboard), a single file will become unmaintainable (projected 1500+ lines).
+
+**Decision**: Decompose `app.go` into domain-specific binding files. Each file owns one feature domain's Wails-exported methods. The `App` struct remains in `app.go` as the central composition root.
+
+**Structure**:
+```
+lurus-switch/
+├── app.go                   # App struct, lifecycle (OnStartup/OnShutdown), shared state
+├── bindings_config.go       # Config read/write/validate/snapshot for Claude/Codex/Gemini
+├── bindings_billing.go      # Billing status, subscription check, entitlement queries
+├── bindings_mcp.go          # MCP server CRUD, health check, catalog browse
+├── bindings_tools.go        # Tool detection, install/update/uninstall, health status
+├── bindings_claudemd.go     # Project scanning, CLAUDE.md generation, quality scoring
+├── bindings_cost.go         # Cost data fetch from lurus-api, budget alerts
+├── bindings_proxy.go        # Proxy detection, configuration, connectivity test
+├── bindings_prompt.go       # Prompt library CRUD, import/export
+└── internal/
+    ├── config/              # Config data models & persistence
+    ├── generator/           # CLAUDE.md generation engine
+    ├── analyzer/            # Project structure static analysis
+    ├── mcp/                 # MCP server management logic
+    ├── tools/               # CLI tool detection & management
+    ├── cost/                # Cost data aggregation
+    ├── proxy/               # Proxy detection & configuration
+    ├── keychain/            # OS keychain integration
+    ├── validator/           # Config validation
+    └── packager/            # Executable packaging
+```
+
+**Rules**:
+- `app.go` ONLY contains: `App` struct definition, `NewApp()`, `OnStartup()`, `OnShutdown()`, and shared helpers
+- Each `bindings_*.go` file defines methods on `*App` for one domain
+- Business logic lives in `internal/<domain>/`, NOT in binding files
+- Binding methods are thin wrappers: validate input -> call internal -> return result
+- File naming: `bindings_<domain>.go` (snake_case, `bindings_` prefix)
+
+**Consequences**:
+- (+) Each domain's API surface is isolated and easy to navigate
+- (+) Multiple developers can work on different features without merge conflicts
+- (+) Clear mapping from frontend feature to backend binding file
+- (-) More files to manage (mitigated by consistent naming convention)
+- (-) `App` struct may accumulate many internal service dependencies (mitigated by lazy initialization)
+
+---
+
+### ADR-014: API Key Storage (OS Keychain with Fallback)
+
+**Status**: Accepted (2026-02-27)
+
+**Context**: Lurus Switch manages API keys for multiple AI CLI tools (Anthropic, OpenAI, Google, DeepSeek) and the lurus-api gateway. Keys must be stored securely, survive app reinstalls, and not leak in config exports or logs.
+
+**Decision**: Primary storage via OS keychain (Windows Credential Manager / macOS Keychain / Linux Secret Service). Fallback to AES-256-GCM encrypted file for environments without keychain access.
+
+**Architecture**:
+```
+internal/keychain/
+├── keychain.go              # Interface: Store/Retrieve/Delete/List
+├── keychain_windows.go      # Windows Credential Manager (wincred)
+├── keychain_darwin.go       # macOS Keychain (go-keyring)
+├── keychain_linux.go        # Linux Secret Service D-Bus API
+└── keychain_fallback.go     # AES-256-GCM encrypted JSON file
+
+Service name: "lurus-switch"
+Key naming:   "lurus-switch/<provider>"
+              e.g. "lurus-switch/anthropic", "lurus-switch/openai"
+```
+
+**Key Decisions**:
+- Use `github.com/zalando/go-keyring` as the cross-platform keychain abstraction
+- Fallback file stored at `~/.lurus-switch/credentials.enc`
+- Encryption key derived from machine-specific entropy (machine ID + username hash)
+- Config export always strips API keys; import prompts user to re-enter
+- API keys never appear in log output (masked as `sk-...xxxx`)
+
+**Consequences**:
+- (+) Keys protected by OS-level security (biometric unlock, secure enclave on macOS)
+- (+) Keys survive app reinstall (keychain persists independently)
+- (+) Fallback ensures functionality on headless/containerized environments
+- (-) Cross-platform keychain behavior is inconsistent (Linux D-Bus may not be available)
+- (-) Fallback encryption is only as strong as machine-specific entropy
+- Mitigation: Clear warning in UI when using fallback mode
+
+---
+
+### ADR-015: CLAUDE.md Analysis Engine (Static Analysis of Project Structure)
+
+**Status**: Accepted (2026-02-27)
+
+**Context**: The Smart CLAUDE.md Generator (F5 in PRD) needs to scan a project directory and generate context-aware CLAUDE.md content. This requires understanding the project's technology stack, directory structure, key configuration files, and common patterns — without executing any project code.
+
+**Decision**: Implement a static analysis engine in Go that reads filesystem metadata and known config files to infer project characteristics. No code execution, no AST parsing — purely file-based heuristic analysis.
+
+**Architecture**:
+```
+internal/analyzer/
+├── analyzer.go              # Orchestrator: scan directory -> ProjectProfile
+├── detector_language.go     # Language detection (file extensions, counts)
+├── detector_framework.go    # Framework detection (config file signatures)
+├── detector_tooling.go      # Tooling detection (linter, formatter, CI configs)
+├── detector_structure.go    # Directory structure classification
+├── profile.go               # ProjectProfile struct (analysis output)
+└── rules/
+    ├── rules.go             # Rule engine interface
+    ├── rules_go.go          # Go project best practices
+    ├── rules_react.go       # React/Next.js best practices
+    ├── rules_python.go      # Python best practices
+    ├── rules_rust.go        # Rust best practices
+    └── rules_general.go     # Cross-language best practices
+
+internal/generator/
+├── generator.go             # CLAUDE.md content assembly from ProjectProfile + rules
+├── templates/               # Go text/template files for each section
+├── scorer.go                # Quality scoring (rule compliance check)
+└── optimizer.go             # Optimization suggestions
+```
+
+**Detection Heuristics**:
+
+| Signal File | Inferred Stack |
+|-------------|---------------|
+| `go.mod` | Go (extract module path, Go version) |
+| `package.json` + `next.config.*` | Next.js |
+| `package.json` + `vite.config.*` | Vite + React/Vue |
+| `Cargo.toml` | Rust |
+| `pyproject.toml` / `requirements.txt` | Python |
+| `Dockerfile` | Containerized deployment |
+| `.github/workflows/` | GitHub Actions CI |
+| `tsconfig.json` | TypeScript |
+| `tailwind.config.*` | Tailwind CSS |
+| `wails.json` | Wails desktop app |
+
+**Quality Scoring Criteria**:
+- Command section present (how to build/test/run)
+- Directory structure documented
+- Technology stack specified
+- Coding conventions defined
+- No contradictory rules
+- Appropriate length (not too verbose, not too sparse)
+
+**Consequences**:
+- (+) Fast analysis (filesystem reads only, no code execution)
+- (+) Safe (no risk of executing malicious code from scanned projects)
+- (+) Extensible (add new detectors/rules without changing core logic)
+- (+) Works offline (no AI API calls required for basic generation)
+- (-) Heuristic-based detection has false positives/negatives
+- (-) Cannot understand project-specific business logic or architecture intent
+- Mitigation: Generated content is always presented for user review and editing
+
+---
+
+### ADR-016: Distribution via Package Managers (Scoop / Homebrew / WinGet)
+
+**Status**: Accepted (2026-02-27)
+
+**Context**: PRD F9 requires zero-cost distribution across Windows, macOS, and Linux. GitHub Releases provides the binary hosting baseline, but developers expect `scoop install` / `brew install` / `winget install` for seamless installation and updates.
+
+**Decision**: Maintain package manager manifests in the repository, auto-generated by CI/CD on release. GitHub Releases is the single source of truth for binaries.
+
+**Architecture**:
+```
+lurus-switch/
+├── deploy/
+│   ├── scoop/
+│   │   └── lurus-switch.json       # Scoop manifest (auto-updated by CI)
+│   ├── homebrew/
+│   │   └── lurus-switch.rb          # Homebrew formula (auto-updated by CI)
+│   └── winget/
+│       └── LurusTech.LurusSwitch.yaml  # WinGet manifest (submitted to winget-pkgs)
+
+.github/workflows/
+└── release.yaml                     # Build → GitHub Release → update manifests
+```
+
+**Release Pipeline**:
+```
+git tag v1.0.0
+    ↓
+GitHub Actions (release.yaml)
+    ├── Build: Wails build for windows/amd64, darwin/amd64, darwin/arm64, linux/amd64
+    ├── Sign: Code signing (macOS notarization, Windows Authenticode if available)
+    ├── Upload: Attach binaries to GitHub Release
+    ├── Scoop: Update hash + version in deploy/scoop/lurus-switch.json, commit
+    ├── Homebrew: Update hash + version in deploy/homebrew/lurus-switch.rb, commit
+    └── WinGet: Generate manifest, submit PR to microsoft/winget-pkgs (manual review)
+```
+
+**Scoop Manifest Structure**:
+```json
+{
+  "version": "1.0.0",
+  "architecture": { "64bit": { "url": "https://github.com/.../lurus-switch-windows-amd64.zip", "hash": "sha256:..." } },
+  "bin": "lurus-switch.exe",
+  "checkver": "github",
+  "autoupdate": { "architecture": { "64bit": { "url": "https://github.com/.../lurus-switch-windows-amd64.zip" } } }
+}
+```
+
+**Consequences**:
+- (+) Users install with one command on any platform
+- (+) Auto-update via package manager mechanisms (scoop update, brew upgrade)
+- (+) Zero hosting cost (GitHub Releases + community package repos)
+- (+) Discoverability via package manager search
+- (-) WinGet requires Microsoft review (1-2 week delay)
+- (-) Homebrew tap requires separate GitHub repo (hanmahong5-arch/homebrew-tap)
+- (-) Must maintain CI workflows for manifest generation
+
+---
+
 ## 3. Data Architecture / 数据架构
 
 ### 3.1 Database Schema Map
@@ -517,23 +802,29 @@ Gushen-specific: NextAuth.js with email/password + session-based auth.
 
 ## 7. Technology Radar / 技术雷达
 
-| Technology | Ring | Rationale |
-|-----------|------|-----------|
-| Go + Gin | **Adopt** | Proven, performant, team expertise |
-| Next.js 14 (App Router) | **Adopt** | Modern React, good DX |
-| Bun | **Adopt** | 10-20x faster than npm |
-| Drizzle ORM | **Adopt** | Type-safe, lightweight |
-| K3s | **Adopt** | Lightweight K8s, perfect for small cluster |
-| Vitest | **Adopt** | ESM-native, fast, excellent DX |
-| Decimal.js | **Adopt** | Financial-grade precision, proven in 680+ tests |
-| LangChain/LangGraph | **Adopt** | Multi-agent orchestration, mature ecosystem |
-| Zustand + React Query | **Adopt** | Minimal boilerplate, excellent performance |
-| NATS JetStream | **Trial** | Event streaming, not yet fully utilized |
-| Wails 3 | **Trial** | Desktop apps, still maturing |
-| Stalwart | **Trial** | Self-hosted mail, relatively new |
-| VitePress | **Adopt** | Documentation, simple and effective |
-| Zitadel | **Assess** | OIDC provider, complex setup for 2-person team |
-| vnpy | **Hold** | Python quant framework, consider Go/TS replacement long-term |
+| Technology | Ring | Service(s) | Rationale |
+|-----------|------|------------|-----------|
+| Go + Gin | **Adopt** | Platform-wide | Proven, performant, team expertise |
+| Next.js 14 (App Router) | **Adopt** | gushen | Modern React, good DX |
+| Bun | **Adopt** | Platform-wide | 10-20x faster than npm |
+| Drizzle ORM | **Adopt** | gushen | Type-safe, lightweight |
+| K3s | **Adopt** | Platform-wide | Lightweight K8s, perfect for small cluster |
+| Vitest | **Adopt** | gushen | ESM-native, fast, excellent DX |
+| Decimal.js | **Adopt** | gushen | Financial-grade precision, proven in 680+ tests |
+| LangChain/LangGraph | **Adopt** | gushen | Multi-agent orchestration, mature ecosystem |
+| Zustand | **Adopt** | gushen, switch | Minimal boilerplate, excellent performance |
+| React Query | **Adopt** | gushen | Server state management |
+| Wails v2 | **Adopt** | switch | Desktop app framework, stable release |
+| react-i18next | **Adopt** | switch | i18n with namespace-based code-splitting (ADR-012) |
+| Monaco Editor | **Adopt** | switch | Config preview & editing, VS Code parity |
+| go-keyring | **Adopt** | switch | Cross-platform OS keychain access (ADR-014) |
+| Tailwind CSS | **Adopt** | gushen, switch | Utility-first CSS, consistent design system |
+| NATS JetStream | **Trial** | Platform-wide | Event streaming, not yet fully utilized |
+| Stalwart | **Trial** | webmail | Self-hosted mail, relatively new |
+| VitePress | **Adopt** | Platform-wide | Documentation, simple and effective |
+| Zitadel | **Assess** | Platform-wide | OIDC provider, complex setup for 2-person team |
+| vnpy | **Hold** | gushen | Python quant framework, consider Go/TS replacement long-term |
+| Scoop/Homebrew/WinGet | **Adopt** | switch | Package manager distribution (ADR-016) |
 
 ---
 
@@ -600,7 +891,7 @@ Gushen-specific: NextAuth.js with email/password + session-based auth.
 
 ### 8.2 Structure Patterns / 结构模式
 
-#### Go Service Structure (Binding)
+#### Go Service Structure (Binding — HTTP Services)
 
 ```
 <service>/
@@ -627,6 +918,58 @@ Gushen-specific: NextAuth.js with email/password + session-based auth.
 ```
 
 **Rule**: Tests use co-located `_test.go` files (Go convention). No separate `tests/` directory.
+
+#### Wails Desktop App Structure (Binding — lurus-switch)
+
+```
+lurus-switch/
+├── main.go                      # Wails entry point
+├── app.go                       # App struct, lifecycle (OnStartup/OnShutdown)
+├── bindings_config.go           # Config CRUD for Claude/Codex/Gemini
+├── bindings_billing.go          # Billing & subscription queries
+├── bindings_mcp.go              # MCP server management
+├── bindings_tools.go            # CLI tool detection & lifecycle
+├── bindings_claudemd.go         # CLAUDE.md generation & scoring
+├── bindings_cost.go             # Cost dashboard data (via lurus-api)
+├── bindings_proxy.go            # Proxy detection & configuration
+├── bindings_prompt.go           # Prompt library management
+├── internal/
+│   ├── config/                  # Config data models & file I/O
+│   ├── generator/               # CLAUDE.md generation engine
+│   ├── analyzer/                # Project structure static analysis (ADR-015)
+│   ├── mcp/                     # MCP server management logic
+│   ├── tools/                   # CLI tool detection & management
+│   ├── cost/                    # Cost data aggregation from lurus-api
+│   ├── proxy/                   # Proxy detection & configuration
+│   ├── keychain/                # OS keychain integration (ADR-014)
+│   ├── validator/               # Config validation
+│   └── packager/                # Executable packaging
+├── frontend/                    # React 18 + TypeScript
+│   ├── src/
+│   │   ├── i18n/                # i18n setup + locale JSON files (ADR-012)
+│   │   ├── pages/               # Page components
+│   │   ├── components/          # Shared UI components
+│   │   │   ├── ui/              # Reusable primitives
+│   │   │   ├── onboarding/      # Onboarding wizard flow
+│   │   │   └── error-boundary.tsx
+│   │   ├── stores/              # Zustand state management
+│   │   └── lib/                 # Utilities, types, constants
+│   ├── wailsjs/                 # Auto-generated Wails bindings (DO NOT EDIT)
+│   └── package.json
+├── deploy/
+│   ├── scoop/                   # Scoop manifest (ADR-016)
+│   ├── homebrew/                # Homebrew formula (ADR-016)
+│   └── winget/                  # WinGet manifest (ADR-016)
+├── wails.json                   # Wails project config
+└── CLAUDE.md                    # Service context
+```
+
+**Rules**:
+- `app.go` ONLY contains `App` struct, `NewApp()`, lifecycle methods, and shared helpers
+- Each `bindings_*.go` is a thin wrapper: validate -> delegate to `internal/<domain>` -> return
+- Frontend components organized by feature domain, NOT by component type
+- `frontend/wailsjs/` is auto-generated by Wails; never hand-edit
+- Error boundaries wrap each major page section for graceful degradation
 
 #### TypeScript (Next.js) Structure (Binding)
 
@@ -1202,9 +1545,9 @@ Response streamed to client
 UI Display (components/advisor/advisor-chat.tsx)
 ```
 
-### 9.6 New Feature Placement Guide / 新功能放置指南
+### 9.6 New Feature Placement Guide (gushen-web) / 新功能放置指南
 
-When adding new features, follow this decision tree:
+When adding new features to gushen-web, follow this decision tree:
 
 | New Code Type | Place In | Example |
 |--------------|----------|---------|
@@ -1220,3 +1563,185 @@ When adding new features, follow this decision tree:
 | New error codes | Extend domain-specific error file | `lib/<domain>/errors.ts` |
 | New UI primitive | `src/components/ui/` | Only if reusable across 3+ features |
 | Tests | `__tests__/` co-located with source | `<feature>/__tests__/` |
+
+### 9.7 lurus-switch Component Architecture / lurus-switch 组件架构
+
+#### Frontend Component Tree
+
+```
+frontend/src/
+├── i18n/
+│   ├── i18n.ts                          # Init: lng='zh-CN', ns=['common','dashboard',...]
+│   └── locales/
+│       ├── zh-CN/                       # Default locale (all keys MUST exist here)
+│       │   ├── common.json              # Nav, buttons, generic errors, status labels
+│       │   ├── dashboard.json           # Tool dashboard, status cards
+│       │   ├── config.json              # Config editor (Claude/Codex/Gemini tabs)
+│       │   ├── claudemd.json            # CLAUDE.md generator & scorer
+│       │   ├── mcp.json                 # MCP server manager
+│       │   ├── cost.json                # Cost dashboard, charts, budget
+│       │   ├── onboarding.json          # Onboarding wizard steps
+│       │   └── settings.json            # App settings, proxy, theme
+│       └── en/                          # Secondary locale (mirrors zh-CN keys)
+│
+├── pages/
+│   ├── DashboardPage.tsx                # Tool cards + quick actions + quota widget
+│   ├── ConfigPage.tsx                   # Visual config editor (tabs per tool)
+│   ├── ClaudeMdPage.tsx                 # Smart CLAUDE.md generator
+│   ├── McpPage.tsx                      # MCP server manager
+│   ├── CostPage.tsx                     # Cost dashboard (data from lurus-api)
+│   ├── PromptPage.tsx                   # Prompt library
+│   ├── SettingsPage.tsx                 # App settings (proxy, theme, language, updates)
+│   └── AccountPage.tsx                  # Billing & subscription
+│
+├── components/
+│   ├── ui/                              # Reusable primitives (button, card, input, etc.)
+│   ├── layout/
+│   │   ├── Sidebar.tsx                  # Main navigation sidebar
+│   │   ├── AppLayout.tsx                # Root layout with sidebar + content area
+│   │   └── PageHeader.tsx               # Consistent page header
+│   ├── onboarding/
+│   │   ├── OnboardingWizard.tsx         # Multi-step wizard container
+│   │   ├── StepToolSelect.tsx           # Step 1: Select tools to manage
+│   │   ├── StepToolDetect.tsx           # Step 2: Auto-detect installed tools
+│   │   ├── StepProxyConfig.tsx          # Step 3: Proxy setup (optional, GFW-aware)
+│   │   ├── StepApiKeys.tsx              # Step 4: API key input (stored via keychain)
+│   │   └── StepComplete.tsx             # Step 5: Summary + go to dashboard
+│   ├── config/
+│   │   ├── ClaudeConfigEditor.tsx       # Claude Code settings.json form editor
+│   │   ├── CodexConfigEditor.tsx        # Codex config.toml form editor
+│   │   ├── GeminiConfigEditor.tsx       # Gemini CLI settings form editor
+│   │   ├── ConfigPreview.tsx            # Monaco Editor preview pane
+│   │   ├── ConfigSnapshotManager.tsx    # Save/restore/compare snapshots
+│   │   └── PresetTemplateSelector.tsx   # Quick-start / security / performance presets
+│   ├── claudemd/
+│   │   ├── ProjectScanner.tsx           # Directory picker + scan progress
+│   │   ├── GeneratedPreview.tsx         # Generated CLAUDE.md preview + edit
+│   │   ├── QualityScoreRing.tsx         # Quality score visualization
+│   │   └── OptimizationSuggestions.tsx  # Actionable improvement suggestions
+│   ├── mcp/
+│   │   ├── McpServerList.tsx            # Server list with status badges
+│   │   ├── McpServerForm.tsx            # Add/edit server (form replaces JSON)
+│   │   ├── McpCatalog.tsx              # Browse community servers
+│   │   └── McpHealthPanel.tsx           # Server health & logs
+│   ├── cost/
+│   │   ├── CostTrendChart.tsx           # Daily/weekly/monthly cost chart
+│   │   ├── ModelBreakdown.tsx           # Cost by model/provider
+│   │   ├── BudgetAlertConfig.tsx        # Budget threshold settings
+│   │   └── SavingSuggestions.tsx         # Model downgrade / cache recommendations
+│   ├── tools/
+│   │   ├── ToolCard.tsx                 # Tool status card (version, health, actions)
+│   │   └── ToolInstaller.tsx            # Install/update/uninstall flow
+│   ├── proxy/
+│   │   ├── ProxyDetector.tsx            # Auto-detect system proxy
+│   │   └── ProxyConfigForm.tsx          # Manual proxy configuration
+│   └── error-boundary.tsx               # Global error boundary with fallback UI
+│
+├── stores/
+│   ├── settingsStore.ts                 # Language, theme, proxy config (persisted)
+│   ├── toolStore.ts                     # Detected tools, versions, health status
+│   ├── configStore.ts                   # Active config editor state
+│   ├── onboardingStore.ts               # Onboarding wizard progress
+│   └── costStore.ts                     # Cost data cache
+│
+└── lib/
+    ├── wails.ts                         # Typed wrappers around Wails runtime calls
+    ├── constants.ts                     # App-wide constants
+    └── types.ts                         # Shared TypeScript types
+```
+
+#### i18n Integration Pattern
+
+All components MUST use the `useTranslation` hook. No hardcoded UI strings.
+
+```typescript
+// Correct pattern
+import { useTranslation } from 'react-i18next';
+
+function ToolCard({ tool }: Props) {
+  const { t } = useTranslation('dashboard');
+  return (
+    <Card>
+      <h3>{t('toolCard.title', { name: tool.name })}</h3>
+      <Badge>{t(`toolCard.status.${tool.status}`)}</Badge>
+    </Card>
+  );
+}
+
+// FORBIDDEN: hardcoded strings
+function ToolCard({ tool }: Props) {
+  return <h3>{tool.name} 配置</h3>;  // BAD: untranslatable
+}
+```
+
+#### Error Boundary Strategy
+
+```
+AppLayout
+├── ErrorBoundary (page-level, catches render errors in entire page)
+│   ├── DashboardPage
+│   │   ├── ErrorBoundary (section-level, per tool card)
+│   │   │   └── ToolCard
+│   │   └── ErrorBoundary (section-level, quota widget)
+│   │       └── QuotaWidget
+│   ├── ConfigPage
+│   │   ├── ErrorBoundary (editor section)
+│   │   │   └── ConfigEditor
+│   │   └── ErrorBoundary (preview section)
+│   │       └── ConfigPreview
+│   └── CostPage
+│       └── ErrorBoundary (chart section, API may fail)
+│           └── CostTrendChart
+```
+
+**Rules**:
+- Page-level error boundary: shows "page load failed" with retry button
+- Section-level error boundary: shows inline error message, rest of page remains functional
+- Error fallback UI always shows error code + user-actionable suggestion (in current locale)
+- Wails binding call failures caught at the store/hook level, NOT in components
+
+#### Onboarding Flow State Machine
+
+```
+[start] → StepToolSelect → StepToolDetect → StepProxyConfig → StepApiKeys → StepComplete → [dashboard]
+               │                                    │
+               │ (skip if no tools selected)        │ (skip if not in China / no proxy needed)
+               └────────────────────────────────────┘
+```
+
+- Progress persisted in `onboardingStore` (Zustand + persist middleware)
+- User can quit and resume at any step
+- Completed onboarding sets `settingsStore.onboardingCompleted = true` (never show again)
+
+#### lurus-switch Data Flow / 数据流
+
+```
+Frontend Component
+    ↓ calls Wails binding
+bindings_*.go (thin wrapper)
+    ↓ delegates to
+internal/<domain>/ (business logic)
+    ↓ reads/writes
+Config files on disk (Claude settings.json, Codex config.toml, etc.)
+    OR
+OS Keychain (API keys via internal/keychain)
+    OR
+lurus-api HTTP (cost data, billing status)
+    OR
+Local filesystem (project scanning for CLAUDE.md generator)
+```
+
+#### lurus-switch New Feature Placement Guide
+
+| New Code Type | Backend (Go) | Frontend (React) |
+|--------------|-------------|-----------------|
+| New Wails binding | `bindings_<domain>.go` | Auto-generated in `wailsjs/` |
+| New business logic | `internal/<domain>/` | N/A |
+| New page | N/A | `pages/<Feature>Page.tsx` |
+| New feature UI | N/A | `components/<feature>/` |
+| New Zustand store | N/A | `stores/<feature>Store.ts` |
+| New translations | N/A | `i18n/locales/{zh-CN,en}/<ns>.json` |
+| New UI primitive | N/A | `components/ui/` (reusable across 3+ features) |
+| New config model | `internal/config/` | Types in `lib/types.ts` |
+| Tests (Go) | Co-located `_test.go` | N/A |
+| Tests (React) | N/A | `components/<feature>/__tests__/` |

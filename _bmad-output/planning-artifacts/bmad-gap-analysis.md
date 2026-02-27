@@ -1,9 +1,9 @@
 ---
 date: 2026-02-02
-regenerated: 2026-02-02
+regenerated: 2026-02-27
 author: Anita (via BMAD Gap Analysis)
 framework: BMAD v6.0.0-Beta.5
-scope: Full platform assessment across all 4 BMAD phases
+scope: lurus-switch service assessment across all 4 BMAD phases
 ---
 
 # BMAD Gap Analysis & Improvement Roadmap
@@ -13,17 +13,19 @@ scope: Full platform assessment across all 4 BMAD phases
 
 ## Executive Summary / 执行摘要
 
-对 Lurus 平台基于 BMAD 4 阶段方法论进行了全面审查的 **第二轮更新**。自首次评估（2026-02-02 初始版）以来，项目在 **测试覆盖率**、**文档完整性**、**基础设施** 方面取得了重大进展。主要成就包括：回测引擎 680+ 测试（85%+ 覆盖）、K8s staging 环境部署、工作流系统和策略爬虫上线、完整 BMAD 制品生成。
+对 Lurus Switch 服务基于 BMAD 4 阶段方法论进行全面审查的 **第三轮更新 (2026-02-27)**。本轮重大进展：**完成了 lurus-switch PRD v2.0**，将产品从"无需求定义的内部工具"提升为有明确市场定位和商业模式的桌面产品。同时，深度代码审查发现了多项技术债务：God Object (app.go 1337行)、死代码、缺失的 i18n、无错误边界等。
 
 ### Overall Maturity Score / 整体成熟度评分
 
-| BMAD Phase | Initial Score | Current Score | Grade | Change |
-|-----------|---------------|---------------|-------|--------|
-| Phase 1: Analysis (分析) | 45/100 | 70/100 | B- | +25 |
-| Phase 2: Planning (规划) | 35/100 | 65/100 | C+ | +30 |
-| Phase 3: Solutioning (方案) | 70/100 | 82/100 | B+ | +12 |
-| Phase 4: Implementation (实施) | 55/100 | 75/100 | B | +20 |
-| **Overall / 总分** | **51/100** | **73/100** | **B-** | **+22** |
+| BMAD Phase | Initial Score | Previous Score | Current Score | Grade | Change |
+|-----------|---------------|----------------|---------------|-------|--------|
+| Phase 1: Analysis (分析) | 45/100 | 70/100 | 80/100 | B+ | +10 |
+| Phase 2: Planning (规划) | 35/100 | 65/100 | 78/100 | B | +13 |
+| Phase 3: Solutioning (方案) | 70/100 | 82/100 | 82/100 | B+ | +0 |
+| Phase 4: Implementation (实施) | 55/100 | 75/100 | 60/100 | C+ | -15 |
+| **Overall / 总分** | **51/100** | **73/100** | **75/100** | **B** | **+2** |
+
+> **Note**: Phase 4 score decreased for lurus-switch specifically due to newly discovered technical debt (God Object, dead code, missing error boundaries). The PRD and analysis improvements offset this at the overall level.
 
 ---
 
@@ -55,6 +57,25 @@ scope: Full platform assessment across all 4 BMAD phases
 - Consider lightweight user feedback mechanism (usage analytics)
 - Domain research can be deferred (2-person team, internal tool)
 
+### 1.3 Code Quality Analysis (NEW - 2026-02-27) / 代码质量分析
+
+深度代码审查发现以下技术债务:
+
+| # | Finding | Severity | Category | Detail |
+|---|---------|----------|----------|--------|
+| CQ1 | God Object: `app.go` | Critical | Maintainability | 1337 行, 40+ 重复 CRUD 方法, 违反 SRP |
+| CQ2 | Dead Code: `ClaudePage.tsx` | Medium | Dead Code | 组件存在但从未在路由中引用 |
+| CQ3 | Non-functional Settings | High | UX Debt | 主题切换/语言切换/数据管理 UI 存在但无实际功能 |
+| CQ4 | No i18n Framework | High | Localization | 界面中英文混用, 无 i18n 框架, 字符串硬编码在组件中 |
+| CQ5 | No Onboarding Flow | Medium | UX | 新用户无引导, 直接进入空白仪表盘 |
+| CQ6 | Missing Billing Features | Medium | Feature Gap | 无取消订阅 UI, 支付状态无轮询确认 |
+| CQ7 | No React Error Boundaries | High | Reliability | 任何组件异常导致全应用白屏崩溃 |
+
+**Impact Assessment**:
+- CQ1 (God Object) 直接阻碍新功能开发效率, 每次修改 app.go 都有高回归风险
+- CQ4 (No i18n) 阻碍中国开发者市场拓展, 这是 PRD 定义的核心用户群
+- CQ7 (No Error Boundaries) 在桌面应用中是 P0 级可靠性问题
+
 ---
 
 ## Phase 2: Planning Gaps / 规划阶段差距
@@ -63,15 +84,23 @@ scope: Full platform assessment across all 4 BMAD phases
 
 | Item | Previous | Current | Status |
 |------|----------|---------|--------|
-| Formal PRD | ❌ Missing | ✅ Generated | `prd-gushen.md` with 6 user journeys |
-| Functional requirements | ⚠️ Implicit | ✅ 8 FR categories | FR-1 to FR-8, 60+ requirements tracked |
-| Non-functional requirements | ⚠️ Partial | ✅ 5 NFR categories | Performance, reliability, security, a11y, testing |
-| User journeys | ❌ Missing | ✅ 6 journeys | Core flow, validation, advisor, workspace, workflow, crawler |
-| Acceptance criteria | ❌ Missing | ✅ 30+ ACs | AC-1.1 through AC-6.5 |
+| Formal PRD (gushen) | ❌ Missing | ✅ Generated | `prd-gushen.md` with 6 user journeys |
+| **Formal PRD (lurus-switch)** | **❌ Missing** | **✅ Created (2026-02-27)** | **`prd.md` v2.0 — 10 feature groups, 3 milestones, 3 user personas** |
+| Functional requirements (switch) | ❌ None | ✅ F1-F10 | 50+ requirements across 10 feature groups |
+| Non-functional requirements (switch) | ❌ None | ✅ 4 NFR categories | Performance, reliability, security, compatibility |
+| User personas (switch) | ❌ None | ✅ 3 personas | AI-Assisted Developer, Chinese Developer, Team Lead |
+| User flows (switch) | ❌ None | ✅ 4 flows | First-time setup, configure tool, generate CLAUDE.md, monitor costs |
+| Monetization model (switch) | ❌ None | ✅ Freemium 3-tier | Free / Pro (¥49/月) / Team (¥149/月) |
+| Distribution strategy (switch) | ❌ None | ✅ 5 channels | GitHub Releases, Scoop, WinGet, Homebrew, npm |
+| Success metrics (switch) | ❌ None | ✅ 6 KPIs | Downloads, WAU, config saves, conversion, NPS, stars |
+
+**Resolved Gaps**:
+- ~~📋 No PRD for lurus-switch~~ → **RESOLVED**: `prd.md` v2.0 created 2026-02-27
 
 **Remaining Gaps**:
 - 📋 PRDs for other services (lurus-api, lurus-webmail) not yet created
 - 📋 API documentation (OpenAPI spec) still missing
+- 📋 lurus-switch PRD needs Epics decomposition (in progress)
 
 ### 2.2 UX Design / UX 设计
 
@@ -109,13 +138,15 @@ scope: Full platform assessment across all 4 BMAD phases
 
 | Item | Previous | Current | Status |
 |------|----------|---------|--------|
-| Epic definition | ❌ Missing | ⚠️ Informal | Q2 roadmap has 5 epics in plan.md |
+| Epic definition (gushen) | ❌ Missing | ⚠️ Informal | Q2 roadmap has 5 epics in plan.md |
+| **Epic definition (lurus-switch)** | **❌ Missing** | **⏳ In Progress** | **Epics being created from PRD v2.0** |
 | User stories | ❌ Missing | ⚠️ Implicit | PRD FRs can be decomposed to stories |
 | Sprint planning | ❌ Missing | ✅ Active | 3 sprints planned in doc/plan.md |
 | Backlog grooming | ❌ Missing | ⚠️ Partial | plan.md populated but no formal backlog tool |
 
 **Remaining Gaps**:
 - 📋 Formal epics document for lurus-gushen (`epics-gushen.md`)
+- 📋 lurus-switch epics (`epics.md`) — in progress, derived from PRD v2.0
 - 📋 Story estimation and velocity tracking
 
 ---
@@ -133,6 +164,18 @@ scope: Full platform assessment across all 4 BMAD phases
 | Component architecture | ✅ Good | ✅ Good | React.memo, virtual scroll, hooks |
 | New features | N/A | ✅ Added | Workflow system, strategy crawler, hybrid cache |
 
+#### 4.1.1 lurus-switch Code Quality Issues (NEW - 2026-02-27)
+
+| Item | Status | Assessment |
+|------|--------|------------|
+| Backend architecture | ❌ God Object | `app.go` is 1337 lines with 40+ repetitive CRUD methods; violates SRP, needs decomposition into service layer |
+| Dead code | ⚠️ Present | `ClaudePage.tsx` exists in `frontend/src/pages/` but is never referenced in routing |
+| Error boundaries | ❌ Missing | No React Error Boundaries; any component crash causes full app white-screen |
+| i18n | ❌ Missing | No i18n framework; UI strings hardcoded in components; Chinese/English mixed inconsistently |
+| Onboarding | ❌ Missing | No first-time user guidance; app opens to empty dashboard |
+| Settings functionality | ❌ Non-functional | Theme switch, language switch, data management UI elements exist but are wired to no-ops |
+| Billing completeness | ⚠️ Partial | Subscription creation works; cancel subscription and payment polling not implemented |
+
 ### 4.2 Testing / 测试
 
 | Service | Previous Coverage | Current Coverage | Target | Gap |
@@ -140,7 +183,8 @@ scope: Full platform assessment across all 4 BMAD phases
 | lurus-gushen (backtest/) | ~15% | **85%+ (680 tests)** | 80% | **✅ Exceeded** |
 | lurus-gushen (components) | ~5% | ~25% | 50% | -25% |
 | lurus-api | ~50% | ~50% | 70% | -20% |
-| lurus-switch | ~40% | ~40% | 60% | -20% |
+| lurus-switch (Go backend) | ~40% | ~40% | 60% | -20% |
+| lurus-switch (React frontend) | ~0% | ~0% | 50% | -50% |
 | lurus-webmail | ~5% | ~10% | 50% | -40% |
 | lurus-www | 0% | 0% | 30% | -30% |
 
@@ -192,15 +236,23 @@ scope: Full platform assessment across all 4 BMAD phases
 | R3 | ~~Low test coverage on financial engine~~ | ~~Quality~~ | ~~Critical~~ | ~~Medium~~ | ~~P0~~ | **Resolved (85%+)** |
 | R4 | ~~Empty planning documents~~ | ~~Process~~ | ~~Medium~~ | ~~Already true~~ | ~~P1~~ | **Resolved** |
 | R5 | Single PostgreSQL instance (no HA) | Infrastructure | Critical | Low | **P1** | P1 (unchanged) |
-| R6 | ~~No formal PRD~~ | ~~Process~~ | ~~Medium~~ | ~~Medium~~ | ~~P1~~ | **Resolved** |
-| R7 | Component test coverage < 50% | Quality | Medium | Already true | **P1** | New |
+| R6 | ~~No formal PRD (lurus-switch)~~ | ~~Process~~ | ~~Medium~~ | ~~Medium~~ | ~~P1~~ | **Resolved (2026-02-27)** |
+| R7 | Component test coverage < 50% | Quality | Medium | Already true | **P1** | Unchanged |
 | R8 | No CI mandatory test step | Process | Medium | Already true | **P1** | Elevated |
 | R9 | Office node reliability for messaging | Infrastructure | Medium | Medium | **P2** | P2 (unchanged) |
 | R10 | No API documentation (OpenAPI) | DX | Medium | Already true | **P2** | P2 (unchanged) |
 | R11 | IP reputation for self-hosted mail | Operations | Medium | High | **P2** | P2 (unchanged) |
-| R12 | Crawler rate limiting / GitHub API | Operations | Low | Medium | **P3** | New |
+| R12 | Crawler rate limiting / GitHub API | Operations | Low | Medium | **P3** | Unchanged |
+| **R13** | **God Object `app.go` (1337 lines)** | **Quality** | **High** | **Already true** | **P0** | **New (2026-02-27)** |
+| **R14** | **No React Error Boundaries (lurus-switch)** | **Reliability** | **High** | **Already true** | **P1** | **New (2026-02-27)** |
+| **R15** | **No i18n framework (lurus-switch)** | **UX** | **High** | **Already true** | **P1** | **New (2026-02-27)** |
+| **R16** | **Non-functional settings UI (lurus-switch)** | **UX Debt** | **Medium** | **Already true** | **P1** | **New (2026-02-27)** |
+| **R17** | **Dead code: `ClaudePage.tsx` never routed** | **Quality** | **Low** | **Already true** | **P2** | **New (2026-02-27)** |
+| **R18** | **Missing billing features (cancel/polling)** | **Feature Gap** | **Medium** | **Already true** | **P2** | **New (2026-02-27)** |
+| **R19** | **No onboarding flow (lurus-switch)** | **UX** | **Medium** | **Already true** | **P2** | **New (2026-02-27)** |
 
-**Resolved Risks**: R2 (staging), R3 (test coverage), R4 (empty plans), R6 (no PRD) - 4 out of 10 original risks resolved.
+**Resolved Risks**: R2 (staging), R3 (test coverage), R4 (empty plans), R6 (no PRD) - 4 out of original risks resolved.
+**New Risks**: R13-R19 — 7 new risks identified from lurus-switch deep code review (2026-02-27).
 
 ---
 
@@ -219,34 +271,58 @@ scope: Full platform assessment across all 4 BMAD phases
 9. ✅ **Workflow system launched** → Multi-step strategy development
 10. ✅ **Strategy crawler launched** → GitHub discovery pipeline
 11. ✅ **Hybrid cache implemented** → Redis + in-memory
+12. ✅ **PRD created for lurus-switch** → `prd.md` v2.0 (2026-02-27) — 10 feature groups, 3 milestones, freemium model
+13. ✅ **Deep code analysis for lurus-switch** → 7 technical debt items identified (CQ1-CQ7)
 
-### Immediate (This Sprint) / 立即行动
+### Immediate (This Sprint) / 立即行动 — lurus-switch Focus
 
-1. **Add CI mandatory test step** to all GitHub Actions workflows
-2. **Component tests** for strategy editor and backtest panel
-3. **Monitor worker node** resource usage, plan upgrade path
+1. **Decompose `app.go` God Object** (R13) — Extract into service layer: `internal/app/config_service.go`, `internal/app/tool_service.go`, etc.
+2. **Add React Error Boundaries** (R14) — Wrap top-level routes and critical components
+3. **Remove dead code** (R17) — Delete `ClaudePage.tsx` or wire it into routing
+4. **Create lurus-switch Epics** → `epics.md` from PRD v2.0 (in progress)
 
 ### Short-Term (Next Sprint) / 短期
 
-4. **Create `epics-gushen.md`** with formal epic/story breakdown
-5. **Create `doc/structure.md`** from architecture.md output
-6. **Document rollback procedure** in `doc/runbook/`
-7. **Increase component test coverage** to 40%+
+5. **Implement i18n framework** (R15) — `react-i18next` with CN/EN locale files, extract all hardcoded strings
+6. **Wire up settings** (R16) — Connect theme toggle, language selector, data management to actual functionality
+7. **Add onboarding wizard** (R19) — First-time setup flow per PRD Flow 1
+8. **Complete billing features** (R18) — Cancel subscription UI, payment status polling
+9. **Add CI mandatory test step** to all GitHub Actions workflows
 
 ### Medium-Term (1 Month) / 中期
 
-8. **Create PRDs** for lurus-api and lurus-webmail
-9. **Generate OpenAPI specs** for lurus-api
-10. **Implement sprint retrospective** process
-11. **Achieve 60%+ overall test coverage**
+10. **Implement MVP features per PRD Milestone 1** — F1 (Tool Dashboard), F2 (Visual Config Editor), F3 (Proxy & Network), F4 (Config Persistence)
+11. **Create PRDs** for lurus-api and lurus-webmail
+12. **Generate OpenAPI specs** for lurus-api
+13. **Achieve 60%+ backend test coverage** for lurus-switch
+14. **Frontend component tests** for lurus-switch (target 30%+)
 
 ### Long-Term (Quarter) / 长期
 
-12. **Consider PostgreSQL HA** (CNPG failover testing)
-13. **Upgrade worker node** resources (2C/2G → 4C/4G)
-14. **Formal UX design** using BMAD workflow
-15. **Achieve 70%+ overall test coverage**
-16. **Sprint velocity tracking** and estimation
+15. **Implement Milestone 2 features** — F5 (CLAUDE.md Generator), F6 (MCP Manager), F7 (Cost Dashboard)
+16. **Distribution pipeline** — Scoop, Homebrew, WinGet manifests + CI/CD
+17. **Consider PostgreSQL HA** (CNPG failover testing)
+18. **Achieve 70%+ overall test coverage**
+19. **Sprint velocity tracking** and estimation
+
+---
+
+## Action Plan: lurus-switch Epics / 行动计划
+
+The PRD v2.0 defines 3 milestones. The Epics document (in creation at `_bmad-output/planning-artifacts/epics.md`) will decompose these into:
+
+| Epic | PRD Milestone | Key Features | Priority | Addresses Risks |
+|------|--------------|--------------|----------|----------------|
+| E0: Technical Debt Cleanup | Pre-MVP | God Object decomposition, Error Boundaries, Dead code removal, i18n setup | P0 | R13, R14, R15, R17 |
+| E1: Core Configuration Manager | Milestone 1 | F1 Tool Dashboard, F2 Visual Config Editor, F4 Config Persistence | P0 | — |
+| E2: Proxy & Network | Milestone 1 | F3 Proxy & Network (China developer focus) | P0 | — |
+| E3: Onboarding & Settings | Milestone 1 | F1.4 Onboarding Wizard, Settings functionality, Billing completeness | P1 | R16, R18, R19 |
+| E4: Smart CLAUDE.md Generator | Milestone 2 | F5 CLAUDE.md Generator (core monetization differentiator) | P1 | — |
+| E5: MCP Server Manager | Milestone 2 | F6 MCP Server Manager | P1 | — |
+| E6: Cost Dashboard | Milestone 2 | F7 Cost Dashboard (lurus-api integration) | P2 | — |
+| E7: Ecosystem & Distribution | Milestone 3 | F8 Prompt Library, F9 Distribution, F10 Team Features | P2 | — |
+
+**Key Dependency**: E0 (Tech Debt) must be completed before E1-E3 to avoid compounding the God Object problem with new feature code.
 
 ---
 
@@ -259,29 +335,36 @@ Based on the updated gap analysis, recommended next BMAD workflows:
 | 1 | `generate-project-context` | BMad Master | Project context | ✅ Done (regenerated) |
 | 2 | `create-product-brief` | Mary (Analyst) | Product brief | ✅ Done (regenerated) |
 | 3 | `create-prd` (gushen) | John (PM) | Gushen PRD | ✅ Done (regenerated) |
-| 4 | `create-architecture` | Winston (Architect) | Architecture doc | ✅ Done (regenerated) |
-| 5 | `check-implementation-readiness` | Bob (SM) | Gap analysis | ✅ Done (regenerated) |
-| 6 | `create-epics-and-stories` | Bob (SM) | **Next** - Break PRD into epics |
-| 7 | `sprint-planning` | Bob (SM) | Generate sprint-status.yaml |
-| 8 | `create-prd` (api) | John (PM) | PRD for lurus-api |
-| 9 | `create-prd` (webmail) | John (PM) | PRD for lurus-webmail |
-| 10 | `code-review` | Amelia (Dev) | Adversarial review of critical paths |
+| 4 | `create-prd` (lurus-switch) | John (PM) | Switch PRD | ✅ Done (2026-02-27) — `prd.md` v2.0 |
+| 5 | `create-architecture` | Winston (Architect) | Architecture doc | ✅ Done (regenerated) |
+| 6 | `check-implementation-readiness` | Bob (SM) | Gap analysis | ✅ Done (updated 2026-02-27) |
+| 7 | `create-epics-and-stories` (switch) | Bob (SM) | **In Progress** - Break PRD into epics → `epics.md` |
+| 8 | `sprint-planning` (switch) | Bob (SM) | **Next** - Generate `sprint-status.yaml` |
+| 9 | `create-prd` (api) | John (PM) | PRD for lurus-api |
+| 10 | `create-prd` (webmail) | John (PM) | PRD for lurus-webmail |
+| 11 | `code-review` | Amelia (Dev) | Adversarial review — focus on `app.go` God Object |
 
 ---
 
 ## Conclusion / 结论
 
-Lurus 平台自首次 BMAD 评估以来取得了显著进步：
+Lurus 平台自首次 BMAD 评估以来取得了显著进步，整体成熟度从 C- 提升到 B:
 
-**成就 / Achievements**:
-- 整体成熟度从 **C- (51/100) 提升到 B- (73/100)**
-- 4 个关键风险已解决（staging、测试覆盖、PRD、计划文档）
-- 回测引擎测试覆盖从 15% 提升到 85%+ (680 tests)
-- 完整的 BMAD 制品套件已生成（5 个核心文档）
-- 工作流系统和策略爬虫两个新功能上线
+**本轮成就 (2026-02-27) / Achievements**:
+- 整体成熟度从 **B- (73/100) 提升到 B (75/100)**
+- lurus-switch PRD v2.0 完成 — 产品从无需求定义提升为有完整市场定位、商业模式和 50+ 功能需求
+- 深度代码审查识别 7 项技术债务 (CQ1-CQ7)，为重构提供明确路线图
+- R6 (No PRD for lurus-switch) 风险已解决
+- Analysis (Phase 1) 从 70 提升到 80, Planning (Phase 2) 从 65 提升到 78
+
+**关键发现 / Key Findings**:
+- `app.go` God Object (1337 lines) 是最大技术风险, 必须在新功能开发前解决
+- 缺失 i18n 直接阻碍 PRD 定义的中国开发者目标用户群
+- React 无 Error Boundaries 在桌面应用中是可靠性隐患
+- 多处 UI 元素 (settings) 无实际功能, 损害用户信任
 
 **下一步重点 / Next Focus**:
-- CI 流水线强制测试步骤
-- 组件测试覆盖率提升
-- 正式 Epic/Story 分解
-- Worker 节点资源监控和升级计划
+1. 完成 Epics 分解 (`epics.md`) 和 Sprint 规划 (`sprint-status.yaml`)
+2. E0: 技术债务清理 — God Object 拆分、Error Boundaries、死代码清除
+3. E1-E2: MVP 核心功能实现 — 配置管理器 + 代理网络
+4. 建立 i18n 基础设施, 统一中文界面
