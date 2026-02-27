@@ -2,6 +2,10 @@ package installer
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -9,13 +13,15 @@ import (
 
 func TestConstants_NotEmpty(t *testing.T) {
 	constants := map[string]string{
-		"ClaudeNpmPackage": ClaudeNpmPackage,
-		"CodexNpmPackage":  CodexNpmPackage,
-		"GeminiNpmPackage": GeminiNpmPackage,
-		"NpmRegistryURL":   NpmRegistryURL,
-		"ToolClaude":       ToolClaude,
-		"ToolCodex":        ToolCodex,
-		"ToolGemini":       ToolGemini,
+		"ClaudeNpmPackage":   ClaudeNpmPackage,
+		"CodexNpmPackage":    CodexNpmPackage,
+		"GeminiNpmPackage":   GeminiNpmPackage,
+		"PicoClawPipPackage": PicoClawPipPackage,
+		"NpmRegistryURL":     NpmRegistryURL,
+		"ToolClaude":         ToolClaude,
+		"ToolCodex":          ToolCodex,
+		"ToolGemini":         ToolGemini,
+		"ToolPicoClaw":       ToolPicoClaw,
 	}
 
 	for name, val := range constants {
@@ -74,8 +80,8 @@ func TestNewManager(t *testing.T) {
 	if mgr == nil {
 		t.Fatal("NewManager should return non-nil manager")
 	}
-	if len(mgr.installers) != 3 {
-		t.Errorf("expected 3 installers, got %d", len(mgr.installers))
+	if len(mgr.installers) != 4 {
+		t.Errorf("expected 4 installers, got %d", len(mgr.installers))
 	}
 	if mgr.runtime == nil {
 		t.Error("manager runtime should not be nil")
@@ -91,7 +97,7 @@ func TestManager_DetectAll_ReturnsAllTools(t *testing.T) {
 		t.Fatalf("DetectAll error: %v", err)
 	}
 
-	expected := []string{ToolClaude, ToolCodex, ToolGemini}
+	expected := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw}
 	for _, name := range expected {
 		status, ok := results[name]
 		if !ok {
@@ -306,5 +312,310 @@ func TestGeminiInstaller_ConfigureProxy(t *testing.T) {
 	err := inst.ConfigureProxy(ctx, "https://api.example.com/v1", "test-key")
 	if err != nil {
 		t.Fatalf("ConfigureProxy error: %v", err)
+	}
+}
+
+// === PicoClaw Tests ===
+
+func TestNewPicoClawInstaller(t *testing.T) {
+	inst := NewPicoClawInstaller()
+	if inst == nil {
+		t.Fatal("NewPicoClawInstaller should return non-nil")
+	}
+}
+
+func TestPicoClawInstaller_Detect_ReturnsStatus(t *testing.T) {
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+
+	status, err := inst.Detect(ctx)
+	if err != nil {
+		t.Fatalf("Detect should not error: %v", err)
+	}
+	if status == nil {
+		t.Fatal("Detect should return non-nil status")
+	}
+	if status.Name != ToolPicoClaw {
+		t.Errorf("expected name %q, got %q", ToolPicoClaw, status.Name)
+	}
+}
+
+func TestPicoClawInstaller_ConfigureProxy(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+
+	err := inst.ConfigureProxy(ctx, "https://api.example.com/v1", "sk-test-key")
+	if err != nil {
+		t.Fatalf("ConfigureProxy error: %v", err)
+	}
+}
+
+// === ConfigureProxy Content Verification Tests ===
+
+func TestClaudeInstaller_ConfigureProxy_WritesCorrectContent(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	rt := NewBunRuntime()
+	inst := NewClaudeInstaller(rt)
+	ctx := context.Background()
+
+	endpoint := "https://my-proxy.example.com/v1"
+	apiKey := "sk-ant-my-secret-key"
+	if err := inst.ConfigureProxy(ctx, endpoint, apiKey); err != nil {
+		t.Fatalf("ConfigureProxy error: %v", err)
+	}
+
+	// Read back the written file
+	configPath := filepath.Join(tmpHome, ".claude", "settings.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+
+	var settings map[string]interface{}
+	if err := json.Unmarshal(data, &settings); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	env, ok := settings["env"].(map[string]interface{})
+	if !ok {
+		t.Fatal("missing env block in settings")
+	}
+	if env["ANTHROPIC_BASE_URL"] != endpoint {
+		t.Errorf("ANTHROPIC_BASE_URL = %v", env["ANTHROPIC_BASE_URL"])
+	}
+	if env["ANTHROPIC_API_KEY"] != apiKey {
+		t.Errorf("ANTHROPIC_API_KEY = %v", env["ANTHROPIC_API_KEY"])
+	}
+}
+
+func TestPicoClawInstaller_ConfigureProxy_WritesCorrectContent(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+
+	endpoint := "https://proxy.example.com/v1"
+	apiKey := "sk-test"
+	if err := inst.ConfigureProxy(ctx, endpoint, apiKey); err != nil {
+		t.Fatalf("ConfigureProxy error: %v", err)
+	}
+
+	configPath := filepath.Join(tmpHome, ".picoclaw", "config.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read config: %v", err)
+	}
+
+	var cfg map[string]interface{}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	modelList, ok := cfg["model_list"].([]interface{})
+	if !ok {
+		t.Fatal("missing model_list")
+	}
+	if len(modelList) != 1 {
+		t.Fatalf("model_list length = %d, want 1", len(modelList))
+	}
+
+	entry, ok := modelList[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("model_list[0] is not a map")
+	}
+	if entry["name"] != "code-switch" {
+		t.Errorf("name = %v", entry["name"])
+	}
+	if entry["api_base"] != endpoint {
+		t.Errorf("api_base = %v", entry["api_base"])
+	}
+	if entry["api_key"] != apiKey {
+		t.Errorf("api_key = %v", entry["api_key"])
+	}
+	if entry["model_name"] != DefaultPicoClawModel {
+		t.Errorf("model_name = %v, want %s", entry["model_name"], DefaultPicoClawModel)
+	}
+}
+
+func TestPicoClawInstaller_ConfigureProxy_Upsert(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+
+	// First call creates the entry
+	inst.ConfigureProxy(ctx, "https://old.example.com", "old-key")
+
+	// Second call should update, not duplicate
+	inst.ConfigureProxy(ctx, "https://new.example.com", "new-key")
+
+	configPath := filepath.Join(tmpHome, ".picoclaw", "config.json")
+	data, _ := os.ReadFile(configPath)
+
+	var cfg map[string]interface{}
+	json.Unmarshal(data, &cfg)
+
+	modelList := cfg["model_list"].([]interface{})
+	if len(modelList) != 1 {
+		t.Errorf("upsert should keep 1 entry, got %d", len(modelList))
+	}
+
+	entry := modelList[0].(map[string]interface{})
+	if entry["api_base"] != "https://new.example.com" {
+		t.Errorf("api_base not updated: %v", entry["api_base"])
+	}
+}
+
+func TestPicoClawInstaller_ConfigureProxy_PreservesExistingEntries(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	// Pre-create config with existing model
+	configDir := filepath.Join(tmpHome, ".picoclaw")
+	os.MkdirAll(configDir, 0755)
+	existing := `{"model_list":[{"name":"custom-model","api_base":"https://custom.com","api_key":"custom-key","model_name":"gpt-4"}]}`
+	os.WriteFile(filepath.Join(configDir, "config.json"), []byte(existing), 0600)
+
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+	inst.ConfigureProxy(ctx, "https://proxy.com", "proxy-key")
+
+	data, _ := os.ReadFile(filepath.Join(configDir, "config.json"))
+	var cfg map[string]interface{}
+	json.Unmarshal(data, &cfg)
+
+	modelList := cfg["model_list"].([]interface{})
+	if len(modelList) != 2 {
+		t.Fatalf("should have 2 entries (custom + code-switch), got %d", len(modelList))
+	}
+
+	// Verify custom entry is preserved
+	first := modelList[0].(map[string]interface{})
+	if first["name"] != "custom-model" {
+		t.Errorf("first entry name = %v, custom model should be preserved", first["name"])
+	}
+}
+
+func TestPicoClawInstaller_ConfigureProxy_CorruptExistingFile(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	// Pre-create corrupt config
+	configDir := filepath.Join(tmpHome, ".picoclaw")
+	os.MkdirAll(configDir, 0755)
+	os.WriteFile(filepath.Join(configDir, "config.json"), []byte("{corrupt}}"), 0600)
+
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+
+	// Should not fail; should start fresh
+	err := inst.ConfigureProxy(ctx, "https://api.com", "key")
+	if err != nil {
+		t.Fatalf("should handle corrupt file gracefully: %v", err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(configDir, "config.json"))
+	var cfg map[string]interface{}
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatalf("written file should be valid JSON: %v", err)
+	}
+}
+
+// === File Permission Tests ===
+
+func TestPicoClawInstaller_ConfigureProxy_FilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file permissions not enforced on Windows")
+	}
+
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	inst := NewPicoClawInstaller()
+	ctx := context.Background()
+	inst.ConfigureProxy(ctx, "https://api.com", "key")
+
+	configPath := filepath.Join(tmpHome, ".picoclaw", "config.json")
+	info, err := os.Stat(configPath)
+	if err != nil {
+		t.Fatalf("stat: %v", err)
+	}
+
+	perm := info.Mode().Perm()
+	if perm != 0600 {
+		t.Errorf("file permissions = %o, want 0600", perm)
+	}
+}
+
+// === DefaultPicoClawModel Constant Tests ===
+
+func TestDefaultPicoClawModel_NotEmpty(t *testing.T) {
+	if DefaultPicoClawModel == "" {
+		t.Error("DefaultPicoClawModel should not be empty")
+	}
+}
+
+// === Manager Batch Operation Tests ===
+
+func TestManager_InstallAll_ReturnsResults(t *testing.T) {
+	mgr := NewManager()
+	ctx := context.Background()
+
+	// InstallAll will likely fail (no python/bun in test env) but should return results
+	results := mgr.InstallAll(ctx)
+	if len(results) != 4 {
+		t.Errorf("expected 4 results from InstallAll, got %d", len(results))
+	}
+
+	// Each result should have a tool name
+	for _, r := range results {
+		if r.Tool == "" {
+			t.Error("result should have non-empty Tool")
+		}
+	}
+}
+
+func TestManager_UpdateAll_ReturnsResults(t *testing.T) {
+	mgr := NewManager()
+	ctx := context.Background()
+
+	results := mgr.UpdateAll(ctx)
+	if len(results) != 4 {
+		t.Errorf("expected 4 results from UpdateAll, got %d", len(results))
+	}
+}
+
+func TestManager_ConfigureAllProxy_SkipsUninstalled(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	mgr := NewManager()
+	ctx := context.Background()
+
+	// On a clean system, all tools are uninstalled, so no errors should occur
+	errs := mgr.ConfigureAllProxy(ctx, "https://api.com", "key")
+	// We can't guarantee all tools are uninstalled, but we verify it doesn't crash
+	_ = errs
+}
+
+func TestManager_GetRuntime_NotNil(t *testing.T) {
+	mgr := NewManager()
+	if mgr.GetRuntime() == nil {
+		t.Error("GetRuntime should not return nil")
 	}
 }

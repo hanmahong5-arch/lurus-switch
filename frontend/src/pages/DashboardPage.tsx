@@ -1,8 +1,8 @@
 import { useEffect, useCallback } from 'react'
 import { Download, RefreshCw, Loader2, ArrowUpCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { useDashboardStore } from '../stores/dashboardStore'
-import { useConfigStore } from '../stores/configStore'
+import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
+import { useConfigStore, type ActiveTool } from '../stores/configStore'
 import { ToolCard } from '../components/ToolCard'
 import { ProxyConfigPanel } from '../components/ProxyConfigPanel'
 import {
@@ -19,18 +19,18 @@ import {
   CheckSelfUpdate,
   ApplySelfUpdate,
 } from '../../wailsjs/go/main/App'
-import type { ProxySettings } from '../stores/dashboardStore'
+import { proxy } from '../../wailsjs/go/models'
 
-const TOOL_ORDER = ['claude', 'codex', 'gemini'] as const
+const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw'] as const
 
 export function DashboardPage() {
   const {
     tools, installing, updating, detecting,
     proxySettings, proxySaving, proxyConfiguring,
-    appVersion, selfUpdateInfo, checkingUpdates,
+    appVersion, selfUpdateInfo, checkingUpdates, error,
     setTools, setInstalling, setUpdating, setDetecting,
     setProxySettings, setProxySaving, setProxyConfiguring,
-    setAppVersion, setSelfUpdateInfo, setCheckingUpdates,
+    setAppVersion, setSelfUpdateInfo, setCheckingUpdates, setError,
   } = useDashboardStore()
 
   const { setActiveTool } = useConfigStore()
@@ -39,7 +39,7 @@ export function DashboardPage() {
   useEffect(() => {
     // These are instant — no subprocess calls
     GetAppVersion().then(setAppVersion).catch(() => {})
-    GetProxySettings().then((r) => setProxySettings(r as any)).catch(() => {})
+    GetProxySettings().then((r) => setProxySettings(r)).catch(() => {})
     // Tool detection runs subprocesses — defer slightly so UI renders first
     const timer = setTimeout(() => detectTools(), 100)
     return () => clearTimeout(timer)
@@ -47,11 +47,12 @@ export function DashboardPage() {
 
   const detectTools = useCallback(async () => {
     setDetecting(true)
+    setError(null)
     try {
       const toolStatuses = await DetectAllTools()
-      setTools(toolStatuses as any)
+      setTools(toolStatuses)
     } catch (err) {
-      console.error('Failed to detect tools:', err)
+      setError(`Failed to detect tools: ${err}`)
     } finally {
       setDetecting(false)
     }
@@ -61,8 +62,9 @@ export function DashboardPage() {
     await detectTools()
   }, [])
 
-  const checkUpdates = async (currentTools?: Record<string, any>) => {
+  const checkUpdates = async (currentTools?: Record<string, ToolStatus>) => {
     setCheckingUpdates(true)
+    setError(null)
     try {
       const [toolUpdates, selfUpdate] = await Promise.all([
         CheckAllUpdates(),
@@ -70,8 +72,8 @@ export function DashboardPage() {
       ])
 
       // Merge update info into tool statuses
-      const merged = { ...(currentTools || tools) }
-      for (const [name, update] of Object.entries(toolUpdates as Record<string, any>)) {
+      const merged: Record<string, ToolStatus> = { ...(currentTools || tools) }
+      for (const [name, update] of Object.entries(toolUpdates)) {
         if (merged[name]) {
           merged[name] = {
             ...merged[name],
@@ -80,10 +82,10 @@ export function DashboardPage() {
           }
         }
       }
-      setTools(merged as any)
-      setSelfUpdateInfo(selfUpdate as any)
+      setTools(merged)
+      setSelfUpdateInfo(selfUpdate)
     } catch (err) {
-      console.error('Failed to check updates:', err)
+      setError(`Failed to check updates: ${err}`)
     } finally {
       setCheckingUpdates(false)
     }
@@ -91,28 +93,30 @@ export function DashboardPage() {
 
   const handleInstall = async (toolName: string) => {
     setInstalling(toolName, true)
+    setError(null)
     try {
       await InstallTool(toolName)
       // Refresh detection after install
       const statuses = await DetectAllTools()
-      setTools(statuses as any)
+      setTools(statuses)
     } catch (err) {
-      console.error(`Failed to install ${toolName}:`, err)
+      setError(`Failed to install ${toolName}: ${err}`)
     } finally {
       setInstalling(toolName, false)
     }
   }
 
   const handleInstallAll = async () => {
+    setError(null)
     for (const name of TOOL_ORDER) {
       setInstalling(name, true)
     }
     try {
       await InstallAllTools()
       const statuses = await DetectAllTools()
-      setTools(statuses as any)
+      setTools(statuses)
     } catch (err) {
-      console.error('Failed to install all tools:', err)
+      setError(`Failed to install all tools: ${err}`)
     } finally {
       for (const name of TOOL_ORDER) {
         setInstalling(name, false)
@@ -122,27 +126,29 @@ export function DashboardPage() {
 
   const handleUpdate = async (toolName: string) => {
     setUpdating(toolName, true)
+    setError(null)
     try {
       await UpdateTool(toolName)
       const statuses = await DetectAllTools()
-      setTools(statuses as any)
+      setTools(statuses)
     } catch (err) {
-      console.error(`Failed to update ${toolName}:`, err)
+      setError(`Failed to update ${toolName}: ${err}`)
     } finally {
       setUpdating(toolName, false)
     }
   }
 
   const handleUpdateAll = async () => {
+    setError(null)
     for (const name of TOOL_ORDER) {
       setUpdating(name, true)
     }
     try {
       await UpdateAllTools()
       const statuses = await DetectAllTools()
-      setTools(statuses as any)
+      setTools(statuses)
     } catch (err) {
-      console.error('Failed to update all tools:', err)
+      setError(`Failed to update all tools: ${err}`)
     } finally {
       for (const name of TOOL_ORDER) {
         setUpdating(name, false)
@@ -151,16 +157,17 @@ export function DashboardPage() {
   }
 
   const handleConfigure = (toolName: string) => {
-    setActiveTool(toolName as any)
+    setActiveTool(toolName as ActiveTool)
   }
 
   const handleSaveProxy = async (settings: ProxySettings) => {
     setProxySaving(true)
+    setError(null)
     try {
-      await SaveProxySettings(settings as any)
+      await SaveProxySettings(proxy.ProxySettings.createFrom(settings))
       setProxySettings(settings)
     } catch (err) {
-      console.error('Failed to save proxy settings:', err)
+      setError(`Failed to save proxy settings: ${err}`)
     } finally {
       setProxySaving(false)
     }
@@ -168,25 +175,28 @@ export function DashboardPage() {
 
   const handleConfigureAllProxy = async () => {
     setProxyConfiguring(true)
+    setError(null)
     try {
       // Save first, then apply
-      await SaveProxySettings(proxySettings as any)
+      await SaveProxySettings(proxy.ProxySettings.createFrom(proxySettings))
       const errors = await ConfigureAllProxy()
       if (Object.keys(errors).length > 0) {
-        console.warn('Some tools failed proxy configuration:', errors)
+        const failed = Object.entries(errors).map(([t, e]) => `${t}: ${e}`).join('; ')
+        setError(`Some tools failed proxy configuration: ${failed}`)
       }
     } catch (err) {
-      console.error('Failed to configure proxy:', err)
+      setError(`Failed to configure proxy: ${err}`)
     } finally {
       setProxyConfiguring(false)
     }
   }
 
   const handleSelfUpdate = async () => {
+    setError(null)
     try {
       await ApplySelfUpdate()
     } catch (err) {
-      console.error('Failed to apply self-update:', err)
+      setError(`Failed to apply self-update: ${err}`)
     }
   }
 
@@ -205,8 +215,18 @@ export function DashboardPage() {
           </p>
         </div>
 
+        {/* Error banner */}
+        {error && (
+          <div className="flex items-center justify-between px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
+            <span>{error}</span>
+            <button onClick={() => setError(null)} className="ml-2 hover:text-red-400 font-medium">
+              Dismiss
+            </button>
+          </div>
+        )}
+
         {/* Tool Cards */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {TOOL_ORDER.map((name) => {
             const tool = tools[name] || {
               name,

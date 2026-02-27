@@ -717,6 +717,226 @@ func TestContains(t *testing.T) {
 	}
 }
 
+// === PicoClaw Config Validation Tests ===
+
+func TestValidatePicoClawConfig_Valid(t *testing.T) {
+	v := NewValidator()
+	cfg := config.NewPicoClawConfig()
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if !result.Valid {
+		t.Errorf("expected valid, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidatePicoClawConfig_Nil(t *testing.T) {
+	v := NewValidator()
+	result := v.ValidatePicoClawConfig(nil)
+
+	if result.Valid {
+		t.Error("nil config should be invalid")
+	}
+	if !hasErrorField(result, "config") {
+		t.Error("expected config error")
+	}
+}
+
+func TestValidatePicoClawConfig_EmptyModelList(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("empty model_list should be invalid")
+	}
+	if !hasErrorField(result, "model_list") {
+		t.Error("expected model_list error")
+	}
+}
+
+func TestValidatePicoClawConfig_MissingModelName(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "", APIBase: "https://api.example.com", ModelName: "test"},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("missing model name should be invalid")
+	}
+	if !hasErrorField(result, "model_list[0].name") {
+		t.Error("expected model_list[0].name error")
+	}
+}
+
+func TestValidatePicoClawConfig_DuplicateModelNames(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "default", ModelName: "m1"},
+			{Name: "default", ModelName: "m2"},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("duplicate names should be invalid")
+	}
+	if !hasErrorField(result, "model_list[1].name") {
+		t.Error("expected duplicate name error on second entry")
+	}
+}
+
+func TestValidatePicoClawConfig_InvalidAPIBaseURL(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "test", APIBase: "not-a-url", ModelName: "m1"},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("invalid URL should be invalid")
+	}
+	if !hasErrorField(result, "model_list[0].api_base") {
+		t.Error("expected api_base error")
+	}
+}
+
+func TestValidatePicoClawConfig_EmptyAPIBaseIsValid(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "test", APIBase: "", ModelName: "m1"},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if !result.Valid {
+		t.Errorf("empty api_base should be valid, got errors: %v", result.Errors)
+	}
+}
+
+func TestValidatePicoClawConfig_AgentDefaultNotInList(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "model-a", ModelName: "m1"},
+			{Name: "model-b", ModelName: "m2"},
+		},
+		Agents: config.PicoClawAgentSettings{
+			Defaults: config.PicoClawAgentDefaults{
+				ModelName: "nonexistent-model",
+			},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("agent default referencing non-existent model should be invalid")
+	}
+	if !hasErrorField(result, "agents.defaults.model_name") {
+		t.Error("expected agents.defaults.model_name error")
+	}
+}
+
+func TestValidatePicoClawConfig_AgentDefaultMatchesByModelName(t *testing.T) {
+	// agents.defaults.model_name references the LLM model name (ModelName field)
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "my-proxy", APIBase: "https://api.example.com", ModelName: "claude-sonnet-4"},
+		},
+		Agents: config.PicoClawAgentSettings{
+			Defaults: config.PicoClawAgentDefaults{
+				ModelName: "claude-sonnet-4", // Matches ModelName field
+			},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if !result.Valid {
+		t.Errorf("agent default matching ModelName should be valid, got: %v", result.Errors)
+	}
+}
+
+func TestValidatePicoClawConfig_AgentDefaultMatchesEntryName_NotModelName(t *testing.T) {
+	// agents.defaults.model_name does NOT match by entry Name — it uses ModelName
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "my-proxy", ModelName: "claude-sonnet-4"},
+		},
+		Agents: config.PicoClawAgentSettings{
+			Defaults: config.PicoClawAgentDefaults{
+				ModelName: "my-proxy", // This matches Name but NOT ModelName — should fail
+			},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("agent default matching Name but not ModelName should be invalid")
+	}
+}
+
+func TestValidatePicoClawConfig_EmptyAgentDefault(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "test", ModelName: "m1"},
+		},
+		Agents: config.PicoClawAgentSettings{
+			Defaults: config.PicoClawAgentDefaults{
+				ModelName: "", // Empty is allowed (skips check)
+			},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if !result.Valid {
+		t.Errorf("empty agent default should skip validation, got: %v", result.Errors)
+	}
+}
+
+func TestValidatePicoClawConfig_MultipleErrors(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "", APIBase: "bad-url", ModelName: ""},
+			{Name: "", APIBase: "", ModelName: ""},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if result.Valid {
+		t.Error("config with multiple issues should be invalid")
+	}
+	// Should have errors for both missing names and invalid URL
+	if len(result.Errors) < 3 {
+		t.Errorf("expected at least 3 errors, got %d: %v", len(result.Errors), result.Errors)
+	}
+}
+
+func TestValidatePicoClawConfig_ValidURL(t *testing.T) {
+	v := NewValidator()
+	cfg := &config.PicoClawConfig{
+		ModelList: []config.PicoClawModel{
+			{Name: "test", APIBase: "https://api.example.com/v1", ModelName: "m"},
+		},
+	}
+
+	result := v.ValidatePicoClawConfig(cfg)
+	if !result.Valid {
+		t.Errorf("valid URL should pass: %v", result.Errors)
+	}
+}
+
 // === Test Helpers ===
 
 func hasError(result *ValidationResult, field, message string) bool {

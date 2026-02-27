@@ -6,6 +6,9 @@ const (
 	CodexNpmPackage  = "@openai/codex"
 	GeminiNpmPackage = "@google/gemini-cli"
 
+	// pip package name for PicoClaw
+	PicoClawPipPackage = "picoclaw"
+
 	// npm registry base URL for version checking
 	NpmRegistryURL = "https://registry.npmjs.org"
 
@@ -20,7 +23,11 @@ const (
 	VersionPattern = `(\d+\.\d+\.\d+)`
 
 	// Tool names as constants
-	ToolClaude = "claude"
-	ToolCodex  = "codex"
-	ToolGemini = "gemini"
+	ToolClaude   = "claude"
+	ToolCodex    = "codex"
+	ToolGemini   = "gemini"
+	ToolPicoClaw = "picoclaw"
+
+	// DefaultPicoClawModel is the default model used for PicoClaw proxy configuration
+	DefaultPicoClawModel = "claude-sonnet-4-20250514"
 )

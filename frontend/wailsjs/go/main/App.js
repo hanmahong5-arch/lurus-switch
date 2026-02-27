@@ -6,6 +6,46 @@ export function ApplySelfUpdate() {
   return window['go']['main']['App']['ApplySelfUpdate']();
 }
 
+export function BillingCancelSubscription(arg1) {
+  return window['go']['main']['App']['BillingCancelSubscription'](arg1);
+}
+
+export function BillingCreateTopUp(arg1, arg2) {
+  return window['go']['main']['App']['BillingCreateTopUp'](arg1, arg2);
+}
+
+export function BillingGetPlans() {
+  return window['go']['main']['App']['BillingGetPlans']();
+}
+
+export function BillingGetQuotaSummary() {
+  return window['go']['main']['App']['BillingGetQuotaSummary']();
+}
+
+export function BillingGetSubscriptions() {
+  return window['go']['main']['App']['BillingGetSubscriptions']();
+}
+
+export function BillingGetTopUpInfo() {
+  return window['go']['main']['App']['BillingGetTopUpInfo']();
+}
+
+export function BillingGetUserInfo() {
+  return window['go']['main']['App']['BillingGetUserInfo']();
+}
+
+export function BillingOpenPaymentURL(arg1) {
+  return window['go']['main']['App']['BillingOpenPaymentURL'](arg1);
+}
+
+export function BillingRedeemCode(arg1) {
+  return window['go']['main']['App']['BillingRedeemCode'](arg1);
+}
+
+export function BillingSubscribe(arg1, arg2) {
+  return window['go']['main']['App']['BillingSubscribe'](arg1, arg2);
+}
+
 export function CheckAllUpdates() {
   return window['go']['main']['App']['CheckAllUpdates']();
 }
@@ -38,6 +78,10 @@ export function DeleteGeminiConfig(arg1) {
   return window['go']['main']['App']['DeleteGeminiConfig'](arg1);
 }
 
+export function DeletePicoClawConfig(arg1) {
+  return window['go']['main']['App']['DeletePicoClawConfig'](arg1);
+}
+
 export function DetectAllTools() {
   return window['go']['main']['App']['DetectAllTools']();
 }
@@ -58,6 +102,10 @@ export function ExportGeminiConfig(arg1) {
   return window['go']['main']['App']['ExportGeminiConfig'](arg1);
 }
 
+export function ExportPicoClawConfig(arg1) {
+  return window['go']['main']['App']['ExportPicoClawConfig'](arg1);
+}
+
 export function GenerateClaudeConfig(arg1) {
   return window['go']['main']['App']['GenerateClaudeConfig'](arg1);
 }
@@ -68,6 +116,10 @@ export function GenerateCodexConfig(arg1) {
 
 export function GenerateGeminiConfig(arg1) {
   return window['go']['main']['App']['GenerateGeminiConfig'](arg1);
+}
+
+export function GeneratePicoClawConfig(arg1) {
+  return window['go']['main']['App']['GeneratePicoClawConfig'](arg1);
 }
 
 export function GetAllToolConfigPaths() {
@@ -92,6 +144,10 @@ export function GetDefaultCodexConfig() {
 
 export function GetDefaultGeminiConfig() {
   return window['go']['main']['App']['GetDefaultGeminiConfig']();
+}
+
+export function GetDefaultPicoClawConfig() {
+  return window['go']['main']['App']['GetDefaultPicoClawConfig']();
 }
 
 export function GetProxySettings() {
@@ -126,6 +182,10 @@ export function ListGeminiConfigs() {
   return window['go']['main']['App']['ListGeminiConfigs']();
 }
 
+export function ListPicoClawConfigs() {
+  return window['go']['main']['App']['ListPicoClawConfigs']();
+}
+
 export function LoadClaudeConfig(arg1) {
   return window['go']['main']['App']['LoadClaudeConfig'](arg1);
 }
@@ -136,6 +196,10 @@ export function LoadCodexConfig(arg1) {
 
 export function LoadGeminiConfig(arg1) {
   return window['go']['main']['App']['LoadGeminiConfig'](arg1);
+}
+
+export function LoadPicoClawConfig(arg1) {
+  return window['go']['main']['App']['LoadPicoClawConfig'](arg1);
 }
 
 export function OpenConfigDir() {
@@ -166,6 +230,10 @@ export function SaveGeminiConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveGeminiConfig'](arg1, arg2);
 }
 
+export function SavePicoClawConfig(arg1, arg2) {
+  return window['go']['main']['App']['SavePicoClawConfig'](arg1, arg2);
+}
+
 export function SaveProxySettings(arg1) {
   return window['go']['main']['App']['SaveProxySettings'](arg1);
 }
@@ -192,4 +260,8 @@ export function ValidateCodexConfig(arg1) {
 
 export function ValidateGeminiConfig(arg1) {
   return window['go']['main']['App']['ValidateGeminiConfig'](arg1);
+}
+
+export function ValidatePicoClawConfig(arg1) {
+  return window['go']['main']['App']['ValidatePicoClawConfig'](arg1);
 }

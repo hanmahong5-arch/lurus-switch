@@ -2,6 +2,7 @@ package proxy
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -167,6 +168,126 @@ func TestProxySettings_Fields(t *testing.T) {
 	}
 	if s.RegistrationURL != "https://reg.test.com" {
 		t.Errorf("RegistrationURL = %q", s.RegistrationURL)
+	}
+}
+
+func TestProxyManager_SaveAndLoad_WithNewFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("APPDATA", tmpDir)
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	pm, err := NewProxyManager()
+	if err != nil {
+		t.Fatalf("NewProxyManager error: %v", err)
+	}
+
+	settings := &ProxySettings{
+		APIEndpoint: "https://api.example.com/v1",
+		APIKey:      "sk-test",
+		TenantSlug:  "my-tenant",
+		UserToken:   "jwt-token-abc123",
+	}
+	if err := pm.SaveSettings(settings); err != nil {
+		t.Fatalf("SaveSettings error: %v", err)
+	}
+
+	pm2, err := NewProxyManager()
+	if err != nil {
+		t.Fatalf("reload error: %v", err)
+	}
+	loaded := pm2.GetSettings()
+	if loaded.TenantSlug != "my-tenant" {
+		t.Errorf("TenantSlug = %q, want my-tenant", loaded.TenantSlug)
+	}
+	if loaded.UserToken != "jwt-token-abc123" {
+		t.Errorf("UserToken = %q", loaded.UserToken)
+	}
+}
+
+func TestProxyManager_ConcurrentAccess(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("APPDATA", tmpDir)
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	pm, err := NewProxyManager()
+	if err != nil {
+		t.Fatalf("NewProxyManager error: %v", err)
+	}
+
+	done := make(chan bool, 20)
+
+	// 10 concurrent writers
+	for i := 0; i < 10; i++ {
+		go func(i int) {
+			s := &ProxySettings{
+				APIEndpoint: fmt.Sprintf("https://api%d.example.com", i),
+				APIKey:      fmt.Sprintf("key-%d", i),
+			}
+			pm.SaveSettings(s)
+			done <- true
+		}(i)
+	}
+
+	// 10 concurrent readers
+	for i := 0; i < 10; i++ {
+		go func() {
+			s := pm.GetSettings()
+			_ = s.APIEndpoint // should not panic
+			done <- true
+		}()
+	}
+
+	for i := 0; i < 20; i++ {
+		<-done
+	}
+}
+
+func TestProxyManager_GetSettingsReturnsCopy(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("APPDATA", tmpDir)
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	pm, err := NewProxyManager()
+	if err != nil {
+		t.Fatalf("NewProxyManager error: %v", err)
+	}
+
+	pm.SaveSettings(&ProxySettings{APIEndpoint: "original"})
+
+	// Get a copy and modify it
+	copy := pm.GetSettings()
+	copy.APIEndpoint = "modified"
+
+	// Original should be unchanged
+	original := pm.GetSettings()
+	if original.APIEndpoint != "original" {
+		t.Errorf("modifying copy affected original: got %q", original.APIEndpoint)
+	}
+}
+
+func TestProxyManager_CorruptJSON(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("APPDATA", tmpDir)
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("XDG_CONFIG_HOME", tmpDir)
+
+	// Create corrupt config file
+	configDir := filepath.Join(tmpDir, "lurus-switch", "configs")
+	os.MkdirAll(configDir, 0755)
+	os.WriteFile(filepath.Join(configDir, "proxy.json"), []byte("{invalid json}}}"), 0644)
+
+	pm, err := NewProxyManager()
+	if err != nil {
+		t.Fatalf("should not error on corrupt file: %v", err)
+	}
+
+	// Should fall back to empty defaults
+	settings := pm.GetSettings()
+	if settings.APIEndpoint != "" {
+		t.Errorf("corrupt file should reset to empty, got %q", settings.APIEndpoint)
 	}
 }
 

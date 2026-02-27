@@ -13,6 +13,8 @@ export interface ProxySettings {
   apiEndpoint: string
   apiKey: string
   registrationUrl?: string
+  tenantSlug?: string
+  userToken?: string
 }
 
 export interface UpdateInfo {
@@ -34,6 +36,7 @@ interface DashboardState {
   appVersion: string
   selfUpdateInfo: UpdateInfo | null
   checkingUpdates: boolean
+  error: string | null
 
   setTools: (tools: Record<string, ToolStatus>) => void
   setInstalling: (tool: string, installing: boolean) => void
@@ -45,6 +48,7 @@ interface DashboardState {
   setAppVersion: (version: string) => void
   setSelfUpdateInfo: (info: UpdateInfo | null) => void
   setCheckingUpdates: (checking: boolean) => void
+  setError: (error: string | null) => void
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -58,6 +62,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   appVersion: '',
   selfUpdateInfo: null,
   checkingUpdates: false,
+  error: null,
 
   setTools: (tools) => set({ tools }),
   setInstalling: (tool, installing) =>
@@ -75,4 +80,5 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setAppVersion: (version) => set({ appVersion: version }),
   setSelfUpdateInfo: (info) => set({ selfUpdateInfo: info }),
   setCheckingUpdates: (checking) => set({ checkingUpdates: checking }),
+  setError: (error) => set({ error }),
 }))

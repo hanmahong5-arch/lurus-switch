@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 // Store handles configuration persistence
@@ -105,6 +106,20 @@ func (s *Store) LoadGeminiConfig(name string) (*GeminiConfig, error) {
 	return &config, nil
 }
 
+// SavePicoClawConfig saves a PicoClaw configuration to disk
+func (s *Store) SavePicoClawConfig(name string, config *PicoClawConfig) error {
+	return s.saveConfig("picoclaw", name, config)
+}
+
+// LoadPicoClawConfig loads a PicoClaw configuration from disk
+func (s *Store) LoadPicoClawConfig(name string) (*PicoClawConfig, error) {
+	var config PicoClawConfig
+	if err := s.loadConfig("picoclaw", name, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
 // ListConfigs lists all saved configurations for a given tool
 func (s *Store) ListConfigs(tool string) ([]string, error) {
 	toolDir := filepath.Join(s.configDir, tool)
@@ -120,7 +135,7 @@ func (s *Store) ListConfigs(tool string) ([]string, error) {
 	var names []string
 	for _, entry := range entries {
 		if !entry.IsDir() && filepath.Ext(entry.Name()) == ".json" {
-			name := entry.Name()[:len(entry.Name())-5] // Remove .json extension
+			name := strings.TrimSuffix(entry.Name(), ".json")
 			names = append(names, name)
 		}
 	}
@@ -128,8 +143,28 @@ func (s *Store) ListConfigs(tool string) ([]string, error) {
 	return names, nil
 }
 
+// validateConfigName prevents path traversal in config names
+func validateConfigName(name string) error {
+	if name == "" {
+		return fmt.Errorf("config name must not be empty")
+	}
+	if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+		return fmt.Errorf("config name contains invalid characters: %q", name)
+	}
+	if name != filepath.Base(name) {
+		return fmt.Errorf("config name must not contain path separators: %q", name)
+	}
+	return nil
+}
+
 // DeleteConfig deletes a saved configuration
 func (s *Store) DeleteConfig(tool, name string) error {
+	if err := validateConfigName(tool); err != nil {
+		return fmt.Errorf("invalid tool name: %w", err)
+	}
+	if err := validateConfigName(name); err != nil {
+		return err
+	}
 	configPath := filepath.Join(s.configDir, tool, name+".json")
 	if err := os.Remove(configPath); err != nil {
 		if os.IsNotExist(err) {
@@ -142,6 +177,12 @@ func (s *Store) DeleteConfig(tool, name string) error {
 
 // saveConfig saves a configuration to disk
 func (s *Store) saveConfig(tool, name string, config interface{}) error {
+	if err := validateConfigName(tool); err != nil {
+		return fmt.Errorf("invalid tool name: %w", err)
+	}
+	if err := validateConfigName(name); err != nil {
+		return err
+	}
 	toolDir := filepath.Join(s.configDir, tool)
 	if err := os.MkdirAll(toolDir, 0755); err != nil {
 		return fmt.Errorf("failed to create tool directory: %w", err)
@@ -162,6 +203,12 @@ func (s *Store) saveConfig(tool, name string, config interface{}) error {
 
 // loadConfig loads a configuration from disk
 func (s *Store) loadConfig(tool, name string, config interface{}) error {
+	if err := validateConfigName(tool); err != nil {
+		return fmt.Errorf("invalid tool name: %w", err)
+	}
+	if err := validateConfigName(name); err != nil {
+		return err
+	}
 	configPath := filepath.Join(s.configDir, tool, name+".json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {

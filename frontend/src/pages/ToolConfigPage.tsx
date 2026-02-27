@@ -16,12 +16,14 @@ const TOOL_LABELS: Record<string, string> = {
   claude: 'Claude Code',
   codex: 'Codex CLI',
   gemini: 'Gemini CLI',
+  picoclaw: 'PicoClaw',
 }
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   claude: '~/.claude/settings.json',
   codex: '~/.codex/config.toml',
   gemini: '~/.gemini/settings.json',
+  picoclaw: '~/.picoclaw/config.json',
 }
 
 // Map our language names to Monaco language IDs
@@ -54,6 +56,13 @@ const QUICK_REFERENCE: Record<string, Array<{ key: string; description: string; 
     { key: 'tools.sandbox', description: 'Enable sandboxed tool execution', example: 'false' },
     { key: 'security', description: 'Security settings', example: '{"allowedDomains": [], "blockedDomains": []}' },
     { key: 'mcpServers', description: 'MCP server configurations', example: '{"name":{"command":"npx","args":["server"]}}' },
+  ],
+  picoclaw: [
+    { key: 'model_list[].name', description: 'Unique name for the model endpoint', example: '"default"' },
+    { key: 'model_list[].api_base', description: 'API base URL', example: '"https://api.example.com/v1"' },
+    { key: 'model_list[].api_key', description: 'API key for this endpoint', example: '"sk-..."' },
+    { key: 'model_list[].model_name', description: 'Model identifier to use', example: '"claude-sonnet-4-20250514"' },
+    { key: 'agents.defaults.model_name', description: 'Default model for all agents', example: '"claude-sonnet-4-20250514"' },
   ],
 }
 

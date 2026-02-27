@@ -149,11 +149,30 @@ export interface GeminiConfig {
   display?: GeminiDisplay
 }
 
+// PicoClaw configuration types
+export interface PicoClawModel {
+  name: string
+  api_base: string
+  api_key: string
+  model_name: string
+}
+
+export interface PicoClawAgentDefaults {
+  model_name: string
+}
+
+export interface PicoClawConfig {
+  model_list: PicoClawModel[]
+  agents: { defaults: PicoClawAgentDefaults }
+}
+
 // Store state types
+export type ActiveTool = 'dashboard' | 'claude' | 'codex' | 'gemini' | 'picoclaw' | 'billing'
+
 interface ConfigState {
   // Current active tool
-  activeTool: 'dashboard' | 'claude' | 'codex' | 'gemini'
-  setActiveTool: (tool: 'dashboard' | 'claude' | 'codex' | 'gemini') => void
+  activeTool: ActiveTool
+  setActiveTool: (tool: ActiveTool) => void
 
   // Claude config
   claudeConfig: ClaudeConfig
@@ -169,6 +188,11 @@ interface ConfigState {
   geminiConfig: GeminiConfig
   setGeminiConfig: (config: GeminiConfig) => void
   updateGeminiConfig: (updates: Partial<GeminiConfig>) => void
+
+  // PicoClaw config
+  picoClawConfig: PicoClawConfig
+  setPicoClawConfig: (config: PicoClawConfig) => void
+  updatePicoClawConfig: (updates: Partial<PicoClawConfig>) => void
 
   // Preview
   previewContent: string
@@ -259,6 +283,24 @@ export const useConfigStore = create<ConfigState>((set) => ({
       geminiConfig: { ...state.geminiConfig, ...updates },
     })),
 
+  // PicoClaw config
+  picoClawConfig: {
+    model_list: [
+      {
+        name: 'default',
+        api_base: '',
+        api_key: '',
+        model_name: 'claude-sonnet-4-20250514',
+      },
+    ],
+    agents: { defaults: { model_name: 'claude-sonnet-4-20250514' } },
+  },
+  setPicoClawConfig: (config) => set({ picoClawConfig: config }),
+  updatePicoClawConfig: (updates) =>
+    set((state) => ({
+      picoClawConfig: { ...state.picoClawConfig, ...updates },
+    })),
+
   // Preview
   previewContent: '',
   setPreviewContent: (content) => set({ previewContent: content }),
@@ -272,6 +314,7 @@ export const useConfigStore = create<ConfigState>((set) => ({
     claude: [],
     codex: [],
     gemini: [],
+    picoclaw: [],
   },
   setSavedConfigs: (tool, configs) =>
     set((state) => ({

@@ -2,6 +2,7 @@ package validator
 
 import (
 	"fmt"
+	"net/url"
 	"regexp"
 	"strings"
 
@@ -183,6 +184,58 @@ func (v *Validator) isValidGeminiModel(model string) bool {
 
 	// Allow custom model names
 	return strings.HasPrefix(model, "gemini-")
+}
+
+// ValidatePicoClawConfig validates a PicoClaw configuration
+func (v *Validator) ValidatePicoClawConfig(cfg *config.PicoClawConfig) *ValidationResult {
+	result := &ValidationResult{Valid: true}
+
+	if cfg == nil {
+		result.addError("config", "PicoClaw config must not be nil")
+		return result
+	}
+
+	// model_list must have at least one entry
+	if len(cfg.ModelList) == 0 {
+		result.addError("model_list", "model_list must contain at least one model")
+	}
+
+	// Validate each model entry
+	modelNames := make(map[string]bool)
+	for i, m := range cfg.ModelList {
+		if m.Name == "" {
+			result.addError(fmt.Sprintf("model_list[%d].name", i), "model name is required")
+		} else {
+			if modelNames[m.Name] {
+				result.addError(fmt.Sprintf("model_list[%d].name", i), fmt.Sprintf("duplicate model name: %s", m.Name))
+			}
+			modelNames[m.Name] = true
+		}
+
+		// Validate api_base is a valid URL if provided
+		if m.APIBase != "" {
+			if _, err := url.ParseRequestURI(m.APIBase); err != nil {
+				result.addError(fmt.Sprintf("model_list[%d].api_base", i), fmt.Sprintf("invalid URL: %s", m.APIBase))
+			}
+		}
+	}
+
+	// Validate agents.defaults.model_name exists in model_list
+	defaultModel := cfg.Agents.Defaults.ModelName
+	if defaultModel != "" && len(cfg.ModelList) > 0 {
+		found := false
+		for _, m := range cfg.ModelList {
+			if m.ModelName == defaultModel {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.addError("agents.defaults.model_name", fmt.Sprintf("model_name %q not found in any model_list entry", defaultModel))
+		}
+	}
+
+	return result
 }
 
 // addError adds an error to the validation result

@@ -46,9 +46,10 @@ func NewManager() *Manager {
 	rt := NewBunRuntime()
 	return &Manager{
 		installers: map[string]ToolInstaller{
-			ToolClaude: NewClaudeInstaller(rt),
-			ToolCodex:  NewCodexInstaller(rt),
-			ToolGemini: NewGeminiInstaller(rt),
+			ToolClaude:   NewClaudeInstaller(rt),
+			ToolCodex:    NewCodexInstaller(rt),
+			ToolGemini:   NewGeminiInstaller(rt),
+			ToolPicoClaw: NewPicoClawInstaller(),
 		},
 		runtime: rt,
 	}
@@ -77,14 +78,14 @@ func (m *Manager) DetectAll(ctx context.Context) (map[string]*ToolStatus, error)
 func (m *Manager) InstallTool(ctx context.Context, name string) (*InstallResult, error) {
 	inst, ok := m.installers[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini", name)
+		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw", name)
 	}
 	return inst.Install(ctx)
 }
 
 // InstallAll installs all tools sequentially to avoid bun global install conflicts
 func (m *Manager) InstallAll(ctx context.Context) []InstallResult {
-	order := []string{ToolClaude, ToolCodex, ToolGemini}
+	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw}
 	var results []InstallResult
 	for _, name := range order {
 		result, err := m.installers[name].Install(ctx)
@@ -105,14 +106,14 @@ func (m *Manager) InstallAll(ctx context.Context) []InstallResult {
 func (m *Manager) UpdateTool(ctx context.Context, name string) (*InstallResult, error) {
 	inst, ok := m.installers[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini", name)
+		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw", name)
 	}
 	return inst.Update(ctx)
 }
 
 // UpdateAll updates all tools sequentially
 func (m *Manager) UpdateAll(ctx context.Context) []InstallResult {
-	order := []string{ToolClaude, ToolCodex, ToolGemini}
+	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw}
 	var results []InstallResult
 	for _, name := range order {
 		result, err := m.installers[name].Update(ctx)

@@ -6,8 +6,29 @@ import {config} from '../models';
 import {proxy} from '../models';
 import {toolconfig} from '../models';
 import {validator} from '../models';
+import {billing} from '../models';
 
 export function ApplySelfUpdate():Promise<void>;
+
+export function BillingCancelSubscription(arg1:number):Promise<void>;
+
+export function BillingCreateTopUp(arg1:number,arg2:string):Promise<billing.PaymentResult>;
+
+export function BillingGetPlans():Promise<Array<billing.SubscriptionPlan>>;
+
+export function BillingGetQuotaSummary():Promise<billing.QuotaSummary>;
+
+export function BillingGetSubscriptions():Promise<Array<billing.SubscriptionInfo>>;
+
+export function BillingGetTopUpInfo():Promise<billing.TopUpInfo>;
+
+export function BillingGetUserInfo():Promise<billing.UserInfo>;
+
+export function BillingOpenPaymentURL(arg1:string):Promise<void>;
+
+export function BillingRedeemCode(arg1:string):Promise<number>;
+
+export function BillingSubscribe(arg1:string,arg2:string):Promise<billing.PaymentResult>;
 
 export function CheckAllUpdates():Promise<Record<string, updater.UpdateInfo>>;
 
@@ -25,6 +46,8 @@ export function DeleteCodexConfig(arg1:string):Promise<void>;
 
 export function DeleteGeminiConfig(arg1:string):Promise<void>;
 
+export function DeletePicoClawConfig(arg1:string):Promise<void>;
+
 export function DetectAllTools():Promise<Record<string, installer.ToolStatus>>;
 
 export function DownloadCodexBinary(arg1:string):Promise<string>;
@@ -35,11 +58,15 @@ export function ExportCodexConfig(arg1:config.CodexConfig):Promise<string>;
 
 export function ExportGeminiConfig(arg1:config.GeminiConfig):Promise<Array<string>>;
 
+export function ExportPicoClawConfig(arg1:config.PicoClawConfig):Promise<string>;
+
 export function GenerateClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
 
 export function GenerateCodexConfig(arg1:config.CodexConfig):Promise<string>;
 
 export function GenerateGeminiConfig(arg1:config.GeminiConfig):Promise<string>;
+
+export function GeneratePicoClawConfig(arg1:config.PicoClawConfig):Promise<string>;
 
 export function GetAllToolConfigPaths():Promise<Record<string, string>>;
 
@@ -52,6 +79,8 @@ export function GetDefaultClaudeConfig():Promise<config.ClaudeConfig>;
 export function GetDefaultCodexConfig():Promise<config.CodexConfig>;
 
 export function GetDefaultGeminiConfig():Promise<config.GeminiConfig>;
+
+export function GetDefaultPicoClawConfig():Promise<config.PicoClawConfig>;
 
 export function GetProxySettings():Promise<proxy.ProxySettings>;
 
@@ -69,11 +98,15 @@ export function ListCodexConfigs():Promise<Array<string>>;
 
 export function ListGeminiConfigs():Promise<Array<string>>;
 
+export function ListPicoClawConfigs():Promise<Array<string>>;
+
 export function LoadClaudeConfig(arg1:string):Promise<config.ClaudeConfig>;
 
 export function LoadCodexConfig(arg1:string):Promise<config.CodexConfig>;
 
 export function LoadGeminiConfig(arg1:string):Promise<config.GeminiConfig>;
+
+export function LoadPicoClawConfig(arg1:string):Promise<config.PicoClawConfig>;
 
 export function OpenConfigDir():Promise<void>;
 
@@ -89,6 +122,8 @@ export function SaveCodexConfig(arg1:string,arg2:config.CodexConfig):Promise<voi
 
 export function SaveGeminiConfig(arg1:string,arg2:config.GeminiConfig):Promise<void>;
 
+export function SavePicoClawConfig(arg1:string,arg2:config.PicoClawConfig):Promise<void>;
+
 export function SaveProxySettings(arg1:proxy.ProxySettings):Promise<void>;
 
 export function SaveToolConfig(arg1:string,arg2:string):Promise<void>;
@@ -102,3 +137,5 @@ export function ValidateClaudeConfig(arg1:config.ClaudeConfig):Promise<validator
 export function ValidateCodexConfig(arg1:config.CodexConfig):Promise<validator.ValidationResult>;
 
 export function ValidateGeminiConfig(arg1:config.GeminiConfig):Promise<validator.ValidationResult>;
+
+export function ValidatePicoClawConfig(arg1:config.PicoClawConfig):Promise<validator.ValidationResult>;

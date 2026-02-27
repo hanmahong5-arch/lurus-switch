@@ -143,7 +143,9 @@ func (c *ClaudeInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey s
 	// Load existing settings or start fresh
 	settings := make(map[string]interface{})
 	if data, err := os.ReadFile(settingsPath); err == nil {
-		json.Unmarshal(data, &settings)
+		if err := json.Unmarshal(data, &settings); err != nil {
+			settings = make(map[string]interface{})
+		}
 	}
 
 	// Set API endpoint and key via env section
@@ -164,7 +166,7 @@ func (c *ClaudeInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey s
 		return fmt.Errorf("failed to marshal claude settings: %w", err)
 	}
 
-	if err := os.WriteFile(settingsPath, data, 0644); err != nil {
+	if err := os.WriteFile(settingsPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write claude settings: %w", err)
 	}
 

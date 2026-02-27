@@ -151,7 +151,7 @@ func (g *GeminiInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey s
 `, apiKey, endpoint)
 
 	settingsPath := filepath.Join(configDir, "settings.json")
-	if err := os.WriteFile(settingsPath, []byte(settingsContent), 0644); err != nil {
+	if err := os.WriteFile(settingsPath, []byte(settingsContent), 0600); err != nil {
 		return fmt.Errorf("failed to write gemini settings: %w", err)
 	}
 

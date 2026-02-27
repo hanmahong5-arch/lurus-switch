@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync"
 )
 
 // ProxySettings holds the NewAPI proxy configuration
@@ -13,10 +14,13 @@ type ProxySettings struct {
 	APIEndpoint     string `json:"apiEndpoint"`
 	APIKey          string `json:"apiKey"`
 	RegistrationURL string `json:"registrationUrl,omitempty"`
+	TenantSlug      string `json:"tenantSlug,omitempty"`
+	UserToken       string `json:"userToken,omitempty"`
 }
 
 // ProxyManager handles loading and saving proxy settings
 type ProxyManager struct {
+	mu         sync.RWMutex
 	configPath string
 	settings   *ProxySettings
 }
@@ -35,19 +39,28 @@ func NewProxyManager() (*ProxyManager, error) {
 
 	// Load existing settings (ignore error if file doesn't exist)
 	if data, err := os.ReadFile(configPath); err == nil {
-		json.Unmarshal(data, pm.settings)
+		if err := json.Unmarshal(data, pm.settings); err != nil {
+			// Existing config is corrupt, reset to clean defaults
+			pm.settings = &ProxySettings{}
+		}
 	}
 
 	return pm, nil
 }
 
-// GetSettings returns the current proxy settings
+// GetSettings returns a copy of the current proxy settings
 func (pm *ProxyManager) GetSettings() *ProxySettings {
-	return pm.settings
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	// Return a copy to prevent concurrent mutation
+	copy := *pm.settings
+	return &copy
 }
 
 // SaveSettings persists proxy settings to disk
 func (pm *ProxyManager) SaveSettings(s *ProxySettings) error {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
 	pm.settings = s
 
 	dir := filepath.Dir(pm.configPath)
@@ -60,7 +73,7 @@ func (pm *ProxyManager) SaveSettings(s *ProxySettings) error {
 		return fmt.Errorf("failed to marshal proxy settings: %w", err)
 	}
 
-	if err := os.WriteFile(pm.configPath, data, 0644); err != nil {
+	if err := os.WriteFile(pm.configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write proxy settings: %w", err)
 	}
 

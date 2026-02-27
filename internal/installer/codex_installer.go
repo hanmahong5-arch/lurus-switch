@@ -164,7 +164,7 @@ func (c *CodexInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey st
 		return fmt.Errorf("failed to encode codex config: %w", err)
 	}
 
-	if err := os.WriteFile(configPath, []byte(buf.String()), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(buf.String()), 0600); err != nil {
 		return fmt.Errorf("failed to write codex config: %w", err)
 	}
 

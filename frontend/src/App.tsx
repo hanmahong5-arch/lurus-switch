@@ -3,6 +3,7 @@ import { Sidebar } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { DashboardPage } from './pages/DashboardPage'
 import { ToolConfigPage } from './pages/ToolConfigPage'
+import { BillingPage } from './pages/BillingPage'
 import { useConfigStore } from './stores/configStore'
 
 function App() {
@@ -15,7 +16,10 @@ function App() {
       case 'claude':
       case 'codex':
       case 'gemini':
+      case 'picoclaw':
         return <ToolConfigPage />
+      case 'billing':
+        return <BillingPage />
       default:
         return <DashboardPage />
     }

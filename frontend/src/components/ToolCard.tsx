@@ -1,4 +1,4 @@
-import { Bot, Zap, Sparkles, Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { Bot, Zap, Sparkles, Terminal, Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '../lib/utils'
 import type { ToolStatus } from '../stores/dashboardStore'
 
@@ -6,6 +6,7 @@ const toolMeta: Record<string, { label: string; icon: typeof Bot; color: string;
   claude: { label: 'Claude Code', icon: Bot, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
   codex: { label: 'Codex', icon: Zap, color: 'text-green-500', bgColor: 'bg-green-500/10' },
   gemini: { label: 'Gemini CLI', icon: Sparkles, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  picoclaw: { label: 'PicoClaw', icon: Terminal, color: 'text-pink-500', bgColor: 'bg-pink-500/10' },
 }
 
 interface ToolCardProps {

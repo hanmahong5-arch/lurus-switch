@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"lurus-switch/internal/installer"
 )
 
 // ToolConfigInfo describes a tool's real config file on disk
@@ -38,10 +40,16 @@ func geminiDir() string {
 	return filepath.Join(home, ".gemini")
 }
 
+func picoClawDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".picoclaw")
+}
+
 var toolDefs = map[string]configDef{
-	"claude": {dir: claudeDir, filename: "settings.json", language: "json"},
-	"codex":  {dir: codexDir, filename: "config.toml", language: "toml"},
-	"gemini": {dir: geminiDir, filename: "settings.json", language: "json"},
+	"claude":   {dir: claudeDir, filename: "settings.json", language: "json"},
+	"codex":    {dir: codexDir, filename: "config.toml", language: "toml"},
+	"gemini":   {dir: geminiDir, filename: "settings.json", language: "json"},
+	"picoclaw": {dir: picoClawDir, filename: "config.json", language: "json"},
 }
 
 // Default config templates for when no config file exists yet
@@ -83,13 +91,29 @@ wire_api = "chat"
   }
 }
 `,
+	"picoclaw": `{
+  "model_list": [
+    {
+      "name": "default",
+      "api_base": "",
+      "api_key": "",
+      "model_name": "` + installer.DefaultPicoClawModel + `"
+    }
+  ],
+  "agents": {
+    "defaults": {
+      "model_name": "` + installer.DefaultPicoClawModel + `"
+    }
+  }
+}
+`,
 }
 
 // GetConfigPath returns the full path to a tool's config file
 func GetConfigPath(tool string) (string, error) {
 	def, ok := toolDefs[tool]
 	if !ok {
-		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini", tool)
+		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, picoclaw", tool)
 	}
 	return filepath.Join(def.dir(), def.filename), nil
 }
@@ -136,7 +160,7 @@ func WriteConfig(tool, content string) error {
 	}
 
 	configPath := filepath.Join(configDir, def.filename)
-	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(configPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write config %s: %w", configPath, err)
 	}
 

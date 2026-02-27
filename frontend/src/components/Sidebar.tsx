@@ -1,4 +1,4 @@
-import { Settings, Zap, Sparkles, Bot, LayoutDashboard } from 'lucide-react'
+import { Settings, Zap, Sparkles, Bot, LayoutDashboard, Terminal, CreditCard } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useConfigStore } from '../stores/configStore'
 
@@ -6,6 +6,7 @@ const tools = [
   { id: 'claude' as const, name: 'Claude Code', icon: Bot, color: 'text-orange-500' },
   { id: 'codex' as const, name: 'Codex', icon: Zap, color: 'text-green-500' },
   { id: 'gemini' as const, name: 'Gemini CLI', icon: Sparkles, color: 'text-blue-500' },
+  { id: 'picoclaw' as const, name: 'PicoClaw', icon: Terminal, color: 'text-pink-500' },
 ]
 
 export function Sidebar() {
@@ -58,8 +59,20 @@ export function Sidebar() {
         </div>
       </nav>
 
-      {/* Settings */}
-      <div className="p-2 border-t border-border">
+      {/* Billing & Settings */}
+      <div className="p-2 border-t border-border space-y-1">
+        <button
+          onClick={() => setActiveTool('billing')}
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+            activeTool === 'billing'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground hover:text-foreground'
+          )}
+        >
+          <CreditCard className={cn('h-5 w-5', activeTool !== 'billing' && 'text-emerald-500')} />
+          Billing
+        </button>
         <button className="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
           <Settings className="h-5 w-5" />
           Settings
