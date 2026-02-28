@@ -137,6 +137,21 @@ func (c *Client) RedeemCode(ctx context.Context, code string) (int64, error) {
 	return result.Amount, nil
 }
 
+// GetIdentityOverview retrieves the aggregated identity overview (VIP, wallet, subscription)
+// from lurus-api GET /api/v2/user/identity-overview, which proxies lurus-identity.
+// The endpoint returns a direct JSON object (not wrapped in the standard API envelope).
+func (c *Client) GetIdentityOverview(ctx context.Context, productID string) (*IdentityOverview, error) {
+	path := "/api/v2/user/identity-overview"
+	if productID != "" {
+		path += "?product_id=" + productID
+	}
+	var ov IdentityOverview
+	if err := c.doGetRaw(ctx, path, &ov); err != nil {
+		return nil, fmt.Errorf("get identity overview: %w", err)
+	}
+	return &ov, nil
+}
+
 // doGet performs a GET request and decodes the response data
 func (c *Client) doGet(ctx context.Context, path string, target interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
@@ -158,6 +173,41 @@ func (c *Client) doPost(ctx context.Context, path string, body interface{}, targ
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return c.doRequest(req, target)
+}
+
+// doGetRaw performs a GET request and decodes the response directly (no envelope check).
+// Used for endpoints that return a plain JSON object, not the standard API envelope.
+func (c *Client) doGetRaw(ctx context.Context, path string, target interface{}) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.tenantSlug != "" {
+		req.Header.Set("X-Tenant-Slug", c.tenantSlug)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+	if err != nil {
+		return fmt.Errorf("read response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("api error: HTTP %d", resp.StatusCode)
+	}
+
+	if target != nil {
+		if err := json.Unmarshal(respBody, target); err != nil {
+			return fmt.Errorf("decode response: %w", err)
+		}
+	}
+	return nil
 }
 
 // doRequest executes the HTTP request, checks the API envelope, and decodes data

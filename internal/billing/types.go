@@ -65,6 +65,36 @@ type QuotaSummary struct {
 	Username       string `json:"username"`
 }
 
+// IdentityOverview is the aggregated account overview from lurus-identity,
+// proxied via lurus-api GET /api/v2/user/identity-overview.
+type IdentityOverview struct {
+	Account struct {
+		ID          int64  `json:"id"`
+		LurusID     string `json:"lurus_id"`
+		DisplayName string `json:"display_name"`
+		AvatarURL   string `json:"avatar_url"`
+	} `json:"account"`
+	VIP struct {
+		Level          int16  `json:"level"`
+		LevelName      string `json:"level_name"`
+		LevelEN        string `json:"level_en"`
+		Points         int64  `json:"points"`
+		LevelExpiresAt string `json:"level_expires_at,omitempty"`
+	} `json:"vip"`
+	Wallet struct {
+		Balance float64 `json:"balance"`
+		Frozen  float64 `json:"frozen"`
+	} `json:"wallet"`
+	Subscription *struct {
+		ProductID string `json:"product_id"`
+		PlanCode  string `json:"plan_code"`
+		Status    string `json:"status"`
+		ExpiresAt string `json:"expires_at,omitempty"`
+		AutoRenew bool   `json:"auto_renew"`
+	} `json:"subscription"`
+	TopupURL string `json:"topup_url"`
+}
+
 // apiResponse is the generic lurus-api V2 response envelope
 type apiResponse struct {
 	Success bool            `json:"success"`

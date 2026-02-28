@@ -1,3 +1,214 @@
+export namespace analytics {
+	
+	export class UsageReport {
+	    toolActions: Record<string, any>;
+	    dailyActive: Record<string, number>;
+	    configCounts: Record<string, number>;
+	    promptCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UsageReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.toolActions = source["toolActions"];
+	        this.dailyActive = source["dailyActive"];
+	        this.configCounts = source["configCounts"];
+	        this.promptCount = source["promptCount"];
+	    }
+	}
+
+}
+
+export namespace appconfig {
+	
+	export class AppSettings {
+	    theme: string;
+	    language: string;
+	    autoUpdate: boolean;
+	    editorFontSize: number;
+	    startupPage: string;
+	    onboardingCompleted: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.theme = source["theme"];
+	        this.language = source["language"];
+	        this.autoUpdate = source["autoUpdate"];
+	        this.editorFontSize = source["editorFontSize"];
+	        this.startupPage = source["startupPage"];
+	        this.onboardingCompleted = source["onboardingCompleted"];
+	    }
+	}
+
+}
+
+export namespace billing {
+	
+	export class PaymentResult {
+	    trade_no: string;
+	    payment_url: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PaymentResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.trade_no = source["trade_no"];
+	        this.payment_url = source["payment_url"];
+	        this.message = source["message"];
+	    }
+	}
+	export class QuotaSummary {
+	    quota: number;
+	    used_quota: number;
+	    remaining_quota: number;
+	    daily_quota: number;
+	    daily_used: number;
+	    username: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new QuotaSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.quota = source["quota"];
+	        this.used_quota = source["used_quota"];
+	        this.remaining_quota = source["remaining_quota"];
+	        this.daily_quota = source["daily_quota"];
+	        this.daily_used = source["daily_used"];
+	        this.username = source["username"];
+	    }
+	}
+	export class SubscriptionInfo {
+	    id: number;
+	    plan_code: string;
+	    plan_name: string;
+	    status: string;
+	    expires_at: string;
+	    auto_renew: boolean;
+	    daily_quota: number;
+	    total_quota: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SubscriptionInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.plan_code = source["plan_code"];
+	        this.plan_name = source["plan_name"];
+	        this.status = source["status"];
+	        this.expires_at = source["expires_at"];
+	        this.auto_renew = source["auto_renew"];
+	        this.daily_quota = source["daily_quota"];
+	        this.total_quota = source["total_quota"];
+	    }
+	}
+	export class SubscriptionPlan {
+	    code: string;
+	    name: string;
+	    currency: string;
+	    duration: string;
+	    price: number;
+	    daily_quota: number;
+	    total_quota: number;
+	    features: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new SubscriptionPlan(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.code = source["code"];
+	        this.name = source["name"];
+	        this.currency = source["currency"];
+	        this.duration = source["duration"];
+	        this.price = source["price"];
+	        this.daily_quota = source["daily_quota"];
+	        this.total_quota = source["total_quota"];
+	        this.features = source["features"];
+	    }
+	}
+	export class TopUpInfo {
+	    pay_methods: any[];
+	    amount_options: number[];
+	    min_topup: number;
+	    discount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new TopUpInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pay_methods = source["pay_methods"];
+	        this.amount_options = source["amount_options"];
+	        this.min_topup = source["min_topup"];
+	        this.discount = source["discount"];
+	    }
+	}
+	export class UserInfo {
+	    quota: number;
+	    used_quota: number;
+	    remaining_quota: number;
+	    daily_quota: number;
+	    daily_used: number;
+	    group: string;
+	    username: string;
+	    display_name: string;
+	    aff_code: string;
+	    subscription?: SubscriptionInfo;
+	
+	    static createFrom(source: any = {}) {
+	        return new UserInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.quota = source["quota"];
+	        this.used_quota = source["used_quota"];
+	        this.remaining_quota = source["remaining_quota"];
+	        this.daily_quota = source["daily_quota"];
+	        this.daily_used = source["daily_used"];
+	        this.group = source["group"];
+	        this.username = source["username"];
+	        this.display_name = source["display_name"];
+	        this.aff_code = source["aff_code"];
+	        this.subscription = this.convertValues(source["subscription"], SubscriptionInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace config {
 	
 	export class ClaudeAdvanced {
@@ -506,17 +717,58 @@ export namespace config {
 	
 	
 	
-
-	export class PicoClawModel {
+	export class NullClawAgentDefaults {
+	    model_name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new NullClawAgentDefaults(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model_name = source["model_name"];
+	    }
+	}
+	export class NullClawAgentSettings {
+	    defaults: NullClawAgentDefaults;
+	
+	    static createFrom(source: any = {}) {
+	        return new NullClawAgentSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.defaults = this.convertValues(source["defaults"], NullClawAgentDefaults);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class NullClawModel {
 	    name: string;
 	    api_base: string;
 	    api_key: string;
 	    model_name: string;
-
+	
 	    static createFrom(source: any = {}) {
-	        return new PicoClawModel(source);
+	        return new NullClawModel(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.name = source["name"];
@@ -525,13 +777,46 @@ export namespace config {
 	        this.model_name = source["model_name"];
 	    }
 	}
+	export class NullClawConfig {
+	    model_list: NullClawModel[];
+	    agents: NullClawAgentSettings;
+	
+	    static createFrom(source: any = {}) {
+	        return new NullClawConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model_list = this.convertValues(source["model_list"], NullClawModel);
+	        this.agents = this.convertValues(source["agents"], NullClawAgentSettings);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class PicoClawAgentDefaults {
 	    model_name: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PicoClawAgentDefaults(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.model_name = source["model_name"];
@@ -539,16 +824,16 @@ export namespace config {
 	}
 	export class PicoClawAgentSettings {
 	    defaults: PicoClawAgentDefaults;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PicoClawAgentSettings(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.defaults = this.convertValues(source["defaults"], PicoClawAgentDefaults);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -567,20 +852,38 @@ export namespace config {
 		    return a;
 		}
 	}
+	export class PicoClawModel {
+	    name: string;
+	    api_base: string;
+	    api_key: string;
+	    model_name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PicoClawModel(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.api_base = source["api_base"];
+	        this.api_key = source["api_key"];
+	        this.model_name = source["model_name"];
+	    }
+	}
 	export class PicoClawConfig {
 	    model_list: PicoClawModel[];
 	    agents: PicoClawAgentSettings;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PicoClawConfig(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.model_list = this.convertValues(source["model_list"], PicoClawModel);
 	        this.agents = this.convertValues(source["agents"], PicoClawAgentSettings);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -598,196 +901,61 @@ export namespace config {
 		    }
 		    return a;
 		}
+	}
+	
+
+}
+
+export namespace docmgr {
+	
+	export class ContextFile {
+	    tool: string;
+	    scope: string;
+	    path: string;
+	    content: string;
+	    exists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ContextFile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool = source["tool"];
+	        this.scope = source["scope"];
+	        this.path = source["path"];
+	        this.content = source["content"];
+	        this.exists = source["exists"];
+	    }
 	}
 
 }
 
-export namespace billing {
-
-	export class SubscriptionInfo {
-	    id: number;
-	    plan_code: string;
-	    plan_name: string;
-	    status: string;
-	    expires_at: string;
-	    auto_renew: boolean;
-	    daily_quota: number;
-	    total_quota: number;
-
+export namespace envmgr {
+	
+	export class KeyEntry {
+	    tool: string;
+	    key: string;
+	    maskedValue: string;
+	    source: string;
+	
 	    static createFrom(source: any = {}) {
-	        return new SubscriptionInfo(source);
+	        return new KeyEntry(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.plan_code = source["plan_code"];
-	        this.plan_name = source["plan_name"];
-	        this.status = source["status"];
-	        this.expires_at = source["expires_at"];
-	        this.auto_renew = source["auto_renew"];
-	        this.daily_quota = source["daily_quota"];
-	        this.total_quota = source["total_quota"];
-	    }
-	}
-	export class UserInfo {
-	    quota: number;
-	    used_quota: number;
-	    remaining_quota: number;
-	    daily_quota: number;
-	    daily_used: number;
-	    group: string;
-	    username: string;
-	    display_name: string;
-	    aff_code: string;
-	    subscription?: SubscriptionInfo;
-
-	    static createFrom(source: any = {}) {
-	        return new UserInfo(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.quota = source["quota"];
-	        this.used_quota = source["used_quota"];
-	        this.remaining_quota = source["remaining_quota"];
-	        this.daily_quota = source["daily_quota"];
-	        this.daily_used = source["daily_used"];
-	        this.group = source["group"];
-	        this.username = source["username"];
-	        this.display_name = source["display_name"];
-	        this.aff_code = source["aff_code"];
-	        this.subscription = this.convertValues(source["subscription"], SubscriptionInfo);
-	    }
-
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
-	export class QuotaSummary {
-	    quota: number;
-	    used_quota: number;
-	    remaining_quota: number;
-	    daily_quota: number;
-	    daily_used: number;
-	    username: string;
-
-	    static createFrom(source: any = {}) {
-	        return new QuotaSummary(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.quota = source["quota"];
-	        this.used_quota = source["used_quota"];
-	        this.remaining_quota = source["remaining_quota"];
-	        this.daily_quota = source["daily_quota"];
-	        this.daily_used = source["daily_used"];
-	        this.username = source["username"];
-	    }
-	}
-	export class SubscriptionPlan {
-	    code: string;
-	    name: string;
-	    currency: string;
-	    duration: string;
-	    price: number;
-	    daily_quota: number;
-	    total_quota: number;
-	    features: string[];
-
-	    static createFrom(source: any = {}) {
-	        return new SubscriptionPlan(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.code = source["code"];
-	        this.name = source["name"];
-	        this.currency = source["currency"];
-	        this.duration = source["duration"];
-	        this.price = source["price"];
-	        this.daily_quota = source["daily_quota"];
-	        this.total_quota = source["total_quota"];
-	        this.features = source["features"];
-	    }
-	}
-	export class TopUpInfo {
-	    pay_methods: Record<string, string>[];
-	    amount_options: number[];
-	    min_topup: number;
-	    discount: number;
-
-	    static createFrom(source: any = {}) {
-	        return new TopUpInfo(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.pay_methods = source["pay_methods"];
-	        this.amount_options = source["amount_options"];
-	        this.min_topup = source["min_topup"];
-	        this.discount = source["discount"];
-	    }
-	}
-	export class PaymentResult {
-	    trade_no: string;
-	    payment_url: string;
-	    message: string;
-
-	    static createFrom(source: any = {}) {
-	        return new PaymentResult(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.trade_no = source["trade_no"];
-	        this.payment_url = source["payment_url"];
-	        this.message = source["message"];
+	        this.tool = source["tool"];
+	        this.key = source["key"];
+	        this.maskedValue = source["maskedValue"];
+	        this.source = source["source"];
 	    }
 	}
 
 }
 
 export namespace installer {
-
-	export class ToolStatus {
-	    name: string;
-	    installed: boolean;
-	    version: string;
-	    latestVersion: string;
-	    updateAvailable: boolean;
-	    path: string;
-
-	    static createFrom(source: any = {}) {
-	        return new ToolStatus(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.name = source["name"];
-	        this.installed = source["installed"];
-	        this.version = source["version"];
-	        this.latestVersion = source["latestVersion"];
-	        this.updateAvailable = source["updateAvailable"];
-	        this.path = source["path"];
-	    }
-	}
-
+	
 	export class InstallResult {
 	    tool: string;
 	    success: boolean;
@@ -809,19 +977,163 @@ export namespace installer {
 
 }
 
-export namespace proxy {
+export namespace main {
+	
+	export class SystemInfo {
+	    appVersion: string;
+	    goos: string;
+	    goarch: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appVersion = source["appVersion"];
+	        this.goos = source["goos"];
+	        this.goarch = source["goarch"];
+	    }
+	}
 
+}
+
+export namespace mcp {
+	
+	export class MCPServer {
+	    name: string;
+	    command?: string;
+	    args?: string[];
+	    env?: Record<string, string>;
+	    url?: string;
+	    type: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new MCPServer(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.command = source["command"];
+	        this.args = source["args"];
+	        this.env = source["env"];
+	        this.url = source["url"];
+	        this.type = source["type"];
+	    }
+	}
+	export class MCPPreset {
+	    id: string;
+	    name: string;
+	    description: string;
+	    server: MCPServer;
+	    tags: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new MCPPreset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.server = this.convertValues(source["server"], MCPServer);
+	        this.tags = source["tags"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace process {
+	
+	export class ProcessInfo {
+	    pid: number;
+	    tool: string;
+	    command: string;
+	    status: string;
+	    memory: number;
+	    since: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProcessInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pid = source["pid"];
+	        this.tool = source["tool"];
+	        this.command = source["command"];
+	        this.status = source["status"];
+	        this.memory = source["memory"];
+	        this.since = source["since"];
+	    }
+	}
+
+}
+
+export namespace promptlib {
+	
+	export class Prompt {
+	    id: string;
+	    name: string;
+	    category: string;
+	    tags: string[];
+	    content: string;
+	    targetTools: string[];
+	    createdAt: string;
+	    updatedAt: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Prompt(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.category = source["category"];
+	        this.tags = source["tags"];
+	        this.content = source["content"];
+	        this.targetTools = source["targetTools"];
+	        this.createdAt = source["createdAt"];
+	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+
+}
+
+export namespace proxy {
+	
 	export class ProxySettings {
 	    apiEndpoint: string;
 	    apiKey: string;
 	    registrationUrl?: string;
 	    tenantSlug?: string;
 	    userToken?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ProxySettings(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.apiEndpoint = source["apiEndpoint"];
@@ -829,6 +1141,56 @@ export namespace proxy {
 	        this.registrationUrl = source["registrationUrl"];
 	        this.tenantSlug = source["tenantSlug"];
 	        this.userToken = source["userToken"];
+	    }
+	}
+
+}
+
+export namespace proxydetect {
+	
+	export class DetectedProxy {
+	    source: string;
+	    host: string;
+	    port: number;
+	    type: string;
+	    url: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new DetectedProxy(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.host = source["host"];
+	        this.port = source["port"];
+	        this.type = source["type"];
+	        this.url = source["url"];
+	    }
+	}
+
+}
+
+export namespace snapshot {
+	
+	export class SnapshotMeta {
+	    id: string;
+	    tool: string;
+	    label: string;
+	    createdAt: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SnapshotMeta(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.tool = source["tool"];
+	        this.label = source["label"];
+	        this.createdAt = source["createdAt"];
+	        this.size = source["size"];
 	    }
 	}
 
@@ -859,6 +1221,27 @@ export namespace toolconfig {
 
 }
 
+export namespace toolhealth {
+	
+	export class HealthResult {
+	    tool: string;
+	    status: string;
+	    issues: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new HealthResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool = source["tool"];
+	        this.status = source["status"];
+	        this.issues = source["issues"];
+	    }
+	}
+
+}
+
 export namespace updater {
 	
 	export class UpdateInfo {
@@ -879,6 +1262,27 @@ export namespace updater {
 	        this.latestVersion = source["latestVersion"];
 	        this.updateAvailable = source["updateAvailable"];
 	        this.downloadUrl = source["downloadUrl"];
+	    }
+	}
+
+}
+
+export namespace preset {
+
+	export class Preset {
+	    id: string;
+	    name: string;
+	    description: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Preset(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
 	    }
 	}
 
