@@ -1,0 +1,157 @@
+# Sprint Status - Lurus Switch
+# Updated: 2026-02-27
+
+current_sprint:
+  number: 2
+  name: "Onboarding & Dashboard"
+  start: "2026-02-27"
+  end: "2026-02-27"
+  goal: "New user experience, dashboard redesign"
+  status: completed
+
+sprints:
+  - number: 1
+    name: "Foundation Cleanup & Quality"
+    epic: E1
+    start: "2026-02-27"
+    end: "2026-02-27"
+    goal: "Remove tech debt, implement i18n, fix broken features"
+    status: completed
+    stories:
+      - id: S1.1
+        title: "Remove dead code (ClaudePage.tsx, unused configStore types)"
+        status: done
+        points: 3
+      - id: S1.2
+        title: "Decompose app.go God Object into domain-specific binding files"
+        status: done
+        points: 8
+      - id: S1.3
+        title: "Implement i18n (react-i18next, zh-CN default)"
+        status: done
+        points: 5
+      - id: S1.4
+        title: "Fix non-functional Settings (theme, language, data management)"
+        status: done
+        points: 5
+      - id: S1.5
+        title: "Add React error boundaries"
+        status: done
+        points: 2
+
+  - number: 2
+    name: "Onboarding & Dashboard"
+    epic: E2
+    start: "2026-02-27"
+    end: "2026-02-27"
+    goal: "New user experience, dashboard redesign"
+    status: completed
+    stories:
+      - id: S2.5
+        title: "Proxy auto-detection for Chinese developers"
+        status: done
+        points: 5
+      - id: S2.4
+        title: "Tool health indicators"
+        status: done
+        points: 3
+      - id: S2.3
+        title: "Quota widget integration"
+        status: done
+        points: 3
+      - id: S2.1
+        title: "First-time setup wizard"
+        status: done
+        points: 5
+      - id: S2.2
+        title: "Dashboard redesign with ToolCard components"
+        status: done
+        points: 5
+
+  - number: 3
+    name: "Visual Config Editor V2"
+    epic: E3
+    start: "2026-02-28"
+    end: "2026-02-28"
+    goal: "Form-based editors with presets and validation"
+    status: completed
+    stories:
+      - id: S3.1
+        title: "Claude Code form-based editor"
+        status: done
+        points: 5
+      - id: S3.2
+        title: "Codex CLI form-based editor"
+        status: done
+        points: 3
+      - id: S3.3
+        title: "Gemini CLI form-based editor"
+        status: done
+        points: 3
+      - id: S3.4
+        title: "Preset templates (Quick Start/Security/Performance/Budget)"
+        status: done
+        points: 5
+      - id: S3.5
+        title: "Config validation with actionable errors"
+        status: done
+        points: 3
+      - id: S3.6
+        title: "Snapshot management improvements"
+        status: done
+        points: 2
+
+  - number: 4
+    name: "Smart CLAUDE.md Generator"
+    epic: E4
+    start: "2026-04-24"
+    end: "2026-05-07"
+    goal: "Automated CLAUDE.md generation and optimization"
+    status: planned
+
+  - number: 5
+    name: "MCP Server Manager"
+    epic: E5
+    start: "2026-05-08"
+    end: "2026-05-21"
+    goal: "Visual MCP configuration and catalog"
+    status: planned
+
+  - number: 6
+    name: "Cost Dashboard"
+    epic: E6
+    start: "2026-05-22"
+    end: "2026-06-04"
+    goal: "Usage tracking and cost optimization"
+    status: planned
+
+  - number: 7
+    name: "Distribution"
+    epic: E7
+    start: "2026-06-05"
+    end: "2026-06-18"
+    goal: "Package manager manifests and auto-update"
+    status: planned
+
+  - number: 8
+    name: "Team & Ecosystem"
+    epic: E8
+    start: "2026-06-19"
+    end: "2026-07-02"
+    goal: "Config sharing and community features"
+    status: planned
+
+velocity:
+  target_points_per_sprint: 15
+  completed_points: 65
+  total_planned_points: 117
+
+risks:
+  - id: R1
+    description: "Wails v2 WebView inconsistencies across OS"
+    mitigation: "Test on Windows/macOS/Linux each sprint"
+    status: monitoring
+  - id: R2
+    description: "i18n retrofit may touch all frontend files"
+    mitigation: "Dedicated Sprint 1 story, systematic approach"
+    status: planned
