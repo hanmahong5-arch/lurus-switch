@@ -121,6 +121,34 @@ func (g *GeminiInstaller) Update(ctx context.Context) (*InstallResult, error) {
 	}, nil
 }
 
+// Uninstall removes Gemini CLI via bun
+func (g *GeminiInstaller) Uninstall(ctx context.Context) (*InstallResult, error) {
+	bunPath, err := g.runtime.EnsureBun(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("bun required for uninstall: %w", err)
+	}
+
+	uninstallCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(uninstallCtx, bunPath, "uninstall", "-g", GeminiNpmPackage)
+	hideWindow(cmd)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return &InstallResult{
+			Tool:    ToolGemini,
+			Success: false,
+			Message: fmt.Sprintf("uninstall failed: %s", strings.TrimSpace(string(output))),
+		}, nil
+	}
+
+	return &InstallResult{
+		Tool:    ToolGemini,
+		Success: true,
+		Message: "uninstalled successfully",
+	}, nil
+}
+
 // ConfigureProxy writes NewAPI proxy settings for Gemini CLI
 func (g *GeminiInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey string) error {
 	// Gemini CLI uses environment variables for API configuration.

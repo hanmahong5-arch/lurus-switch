@@ -126,6 +126,78 @@ func (a *App) BillingGetIdentityOverview(productID string) (*billing.IdentityOve
 	return c.GetIdentityOverview(a.ctx, productID)
 }
 
+// FetchCloudPresets fetches configuration presets for the given tool from the Lurus cloud.
+// No authentication is required. Returns an empty slice on error (graceful degradation).
+func (a *App) FetchCloudPresets(tool string) []billing.ConfigPreset {
+	if a.proxyMgr == nil {
+		return nil
+	}
+	settings := a.proxyMgr.GetSettings()
+	if settings.APIEndpoint == "" {
+		return nil
+	}
+	c := billing.NewClient(settings.APIEndpoint, settings.TenantSlug, "")
+	presets, err := c.FetchPresets(a.ctx, tool)
+	if err != nil {
+		return nil
+	}
+	return presets
+}
+
+// BillingValidateToken creates a temporary billing client with the given endpoint and token
+// and validates the token by fetching the identity overview. Used in the setup wizard
+// to verify a Lurus account connection before saving proxy settings.
+func (a *App) BillingValidateToken(endpoint, token string) (*billing.IdentityOverview, error) {
+	if endpoint == "" {
+		return nil, fmt.Errorf("endpoint is required")
+	}
+	if token == "" {
+		return nil, fmt.Errorf("token is required")
+	}
+	c := billing.NewClient(endpoint, "", token)
+	return c.GetIdentityOverview(a.ctx, "")
+}
+
+// GetRecommendedConfig returns tool config recommendations based on user's subscription plan.
+// free → conservative model, pro/enterprise → optimal model.
+func (a *App) GetRecommendedConfig(tool string) map[string]interface{} {
+	c, err := a.ensureBillingClient()
+	if err != nil {
+		return recommendedConfigForPlan(tool, "free")
+	}
+	ov, err := c.GetIdentityOverview(a.ctx, "")
+	if err != nil || ov.Subscription == nil {
+		return recommendedConfigForPlan(tool, "free")
+	}
+	return recommendedConfigForPlan(tool, ov.Subscription.PlanCode)
+}
+
+// recommendedConfigForPlan maps a plan code to suggested tool config values.
+func recommendedConfigForPlan(tool, planCode string) map[string]interface{} {
+	isPro := planCode == "pro" || planCode == "enterprise"
+	switch tool {
+	case "claude":
+		model := "claude-haiku-4-5"
+		if isPro {
+			model = "claude-sonnet-4-5"
+		}
+		return map[string]interface{}{"model": model}
+	case "codex":
+		model := "gpt-4o-mini"
+		if isPro {
+			model = "gpt-4o"
+		}
+		return map[string]interface{}{"model": model}
+	case "gemini":
+		model := "gemini-2.0-flash"
+		if isPro {
+			model = "gemini-2.5-pro"
+		}
+		return map[string]interface{}{"model": model}
+	}
+	return nil
+}
+
 // BillingOpenTopup opens the lurus-identity top-up page in the user's default browser.
 // The raw topup URL from IdentityOverview is validated and a redirect parameter is appended.
 func (a *App) BillingOpenTopup(topupURL string) error {

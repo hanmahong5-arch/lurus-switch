@@ -126,6 +126,34 @@ func (c *ClaudeInstaller) Update(ctx context.Context) (*InstallResult, error) {
 	}, nil
 }
 
+// Uninstall removes Claude Code via bun
+func (c *ClaudeInstaller) Uninstall(ctx context.Context) (*InstallResult, error) {
+	bunPath, err := c.runtime.EnsureBun(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("bun required for uninstall: %w", err)
+	}
+
+	uninstallCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(uninstallCtx, bunPath, "uninstall", "-g", ClaudeNpmPackage)
+	hideWindow(cmd)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return &InstallResult{
+			Tool:    ToolClaude,
+			Success: false,
+			Message: fmt.Sprintf("uninstall failed: %s", strings.TrimSpace(string(output))),
+		}, nil
+	}
+
+	return &InstallResult{
+		Tool:    ToolClaude,
+		Success: true,
+		Message: "uninstalled successfully",
+	}, nil
+}
+
 // ConfigureProxy writes NewAPI proxy settings into Claude's config
 func (c *ClaudeInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey string) error {
 	home, err := os.UserHomeDir()

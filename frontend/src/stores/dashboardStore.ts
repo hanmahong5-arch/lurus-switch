@@ -25,6 +25,12 @@ export interface UpdateInfo {
   downloadUrl?: string
 }
 
+export interface ToolHealthResult {
+  tool: string
+  status: string // "green" | "yellow" | "red"
+  issues: string[]
+}
+
 interface DashboardState {
   tools: Record<string, ToolStatus>
   installing: Record<string, boolean>
@@ -37,6 +43,7 @@ interface DashboardState {
   selfUpdateInfo: UpdateInfo | null
   checkingUpdates: boolean
   error: string | null
+  toolHealth: Record<string, ToolHealthResult>
 
   setTools: (tools: Record<string, ToolStatus>) => void
   setInstalling: (tool: string, installing: boolean) => void
@@ -49,6 +56,7 @@ interface DashboardState {
   setSelfUpdateInfo: (info: UpdateInfo | null) => void
   setCheckingUpdates: (checking: boolean) => void
   setError: (error: string | null) => void
+  setToolHealth: (h: Record<string, ToolHealthResult>) => void
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
@@ -63,6 +71,7 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   selfUpdateInfo: null,
   checkingUpdates: false,
   error: null,
+  toolHealth: {},
 
   setTools: (tools) => set({ tools }),
   setInstalling: (tool, installing) =>
@@ -81,4 +90,5 @@ export const useDashboardStore = create<DashboardState>((set) => ({
   setSelfUpdateInfo: (info) => set({ selfUpdateInfo: info }),
   setCheckingUpdates: (checking) => set({ checkingUpdates: checking }),
   setError: (error) => set({ error }),
+  setToolHealth: (h) => set({ toolHealth: h }),
 }))

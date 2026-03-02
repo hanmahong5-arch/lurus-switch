@@ -30,6 +30,10 @@ export function BillingCreateTopUp(arg1, arg2) {
   return window['go']['main']['App']['BillingCreateTopUp'](arg1, arg2);
 }
 
+export function BillingGetIdentityOverview(arg1) {
+  return window['go']['main']['App']['BillingGetIdentityOverview'](arg1);
+}
+
 export function BillingGetPlans() {
   return window['go']['main']['App']['BillingGetPlans']();
 }
@@ -54,12 +58,20 @@ export function BillingOpenPaymentURL(arg1) {
   return window['go']['main']['App']['BillingOpenPaymentURL'](arg1);
 }
 
+export function BillingOpenTopup(arg1) {
+  return window['go']['main']['App']['BillingOpenTopup'](arg1);
+}
+
 export function BillingRedeemCode(arg1) {
   return window['go']['main']['App']['BillingRedeemCode'](arg1);
 }
 
 export function BillingSubscribe(arg1, arg2) {
   return window['go']['main']['App']['BillingSubscribe'](arg1, arg2);
+}
+
+export function BillingValidateToken(arg1, arg2) {
+  return window['go']['main']['App']['BillingValidateToken'](arg1, arg2);
 }
 
 export function CheckAllToolHealth() {
@@ -102,6 +114,10 @@ export function ConfigureAllProxy() {
   return window['go']['main']['App']['ConfigureAllProxy']();
 }
 
+export function ConfigureAllToolsRelay() {
+  return window['go']['main']['App']['ConfigureAllToolsRelay']();
+}
+
 export function DeleteClaudeConfig(arg1) {
   return window['go']['main']['App']['DeleteClaudeConfig'](arg1);
 }
@@ -126,12 +142,20 @@ export function DeleteNullClawConfig(arg1) {
   return window['go']['main']['App']['DeleteNullClawConfig'](arg1);
 }
 
+export function DeleteOpenClawConfig(arg1) {
+  return window['go']['main']['App']['DeleteOpenClawConfig'](arg1);
+}
+
 export function DeletePicoClawConfig(arg1) {
   return window['go']['main']['App']['DeletePicoClawConfig'](arg1);
 }
 
 export function DeletePrompt(arg1) {
   return window['go']['main']['App']['DeletePrompt'](arg1);
+}
+
+export function DeleteZeroClawConfig(arg1) {
+  return window['go']['main']['App']['DeleteZeroClawConfig'](arg1);
 }
 
 export function DetectAllTools() {
@@ -166,12 +190,20 @@ export function ExportNullClawConfig(arg1) {
   return window['go']['main']['App']['ExportNullClawConfig'](arg1);
 }
 
+export function ExportOpenClawConfig(arg1) {
+  return window['go']['main']['App']['ExportOpenClawConfig'](arg1);
+}
+
 export function ExportPicoClawConfig(arg1) {
   return window['go']['main']['App']['ExportPicoClawConfig'](arg1);
 }
 
 export function ExportPrompts() {
   return window['go']['main']['App']['ExportPrompts']();
+}
+
+export function ExportZeroClawConfig(arg1) {
+  return window['go']['main']['App']['ExportZeroClawConfig'](arg1);
 }
 
 export function GenerateClaudeConfig(arg1) {
@@ -190,8 +222,20 @@ export function GenerateNullClawConfig(arg1) {
   return window['go']['main']['App']['GenerateNullClawConfig'](arg1);
 }
 
+export function GenerateOpenClawConfig(arg1) {
+  return window['go']['main']['App']['GenerateOpenClawConfig'](arg1);
+}
+
 export function GeneratePicoClawConfig(arg1) {
   return window['go']['main']['App']['GeneratePicoClawConfig'](arg1);
+}
+
+export function GenerateZeroClawConfig(arg1) {
+  return window['go']['main']['App']['GenerateZeroClawConfig'](arg1);
+}
+
+export function FetchCloudPresets(arg1) {
+  return window['go']['main']['App']['FetchCloudPresets'](arg1);
 }
 
 export function GetAllToolConfigPaths() {
@@ -210,24 +254,20 @@ export function GetBuiltinMCPPresets() {
   return window['go']['main']['App']['GetBuiltinMCPPresets']();
 }
 
-export function GetClaudePresets() {
-  return window['go']['main']['App']['GetClaudePresets']();
-}
-
-export function GetCodexPresets() {
-  return window['go']['main']['App']['GetCodexPresets']();
-}
-
-export function GetGeminiPresets() {
-  return window['go']['main']['App']['GetGeminiPresets']();
-}
-
 export function GetBuiltinPrompts() {
   return window['go']['main']['App']['GetBuiltinPrompts']();
 }
 
 export function GetClaudeHooks() {
   return window['go']['main']['App']['GetClaudeHooks']();
+}
+
+export function GetClaudePresets() {
+  return window['go']['main']['App']['GetClaudePresets']();
+}
+
+export function GetCodexPresets() {
+  return window['go']['main']['App']['GetCodexPresets']();
 }
 
 export function GetConfigDir() {
@@ -254,12 +294,28 @@ export function GetDefaultNullClawConfig() {
   return window['go']['main']['App']['GetDefaultNullClawConfig']();
 }
 
+export function GetDefaultOpenClawConfig() {
+  return window['go']['main']['App']['GetDefaultOpenClawConfig']();
+}
+
 export function GetDefaultPicoClawConfig() {
   return window['go']['main']['App']['GetDefaultPicoClawConfig']();
 }
 
+export function GetDefaultZeroClawConfig() {
+  return window['go']['main']['App']['GetDefaultZeroClawConfig']();
+}
+
+export function GetGeminiPresets() {
+  return window['go']['main']['App']['GetGeminiPresets']();
+}
+
 export function GetProxySettings() {
   return window['go']['main']['App']['GetProxySettings']();
+}
+
+export function GetRecommendedConfig(arg1) {
+  return window['go']['main']['App']['GetRecommendedConfig'](arg1);
 }
 
 export function GetSystemInfo() {
@@ -284,6 +340,14 @@ export function ImportPrompts() {
 
 export function InstallAllTools() {
   return window['go']['main']['App']['InstallAllTools']();
+}
+
+export function CheckDependencies() {
+  return window['go']['main']['App']['CheckDependencies']();
+}
+
+export function InstallDependency(arg1) {
+  return window['go']['main']['App']['InstallDependency'](arg1);
 }
 
 export function InstallBun() {
@@ -334,12 +398,20 @@ export function ListNullClawConfigs() {
   return window['go']['main']['App']['ListNullClawConfigs']();
 }
 
+export function ListOpenClawConfigs() {
+  return window['go']['main']['App']['ListOpenClawConfigs']();
+}
+
 export function ListPicoClawConfigs() {
   return window['go']['main']['App']['ListPicoClawConfigs']();
 }
 
 export function ListPrompts(arg1) {
   return window['go']['main']['App']['ListPrompts'](arg1);
+}
+
+export function ListZeroClawConfigs() {
+  return window['go']['main']['App']['ListZeroClawConfigs']();
 }
 
 export function LoadClaudeConfig(arg1) {
@@ -358,8 +430,16 @@ export function LoadNullClawConfig(arg1) {
   return window['go']['main']['App']['LoadNullClawConfig'](arg1);
 }
 
+export function LoadOpenClawConfig(arg1) {
+  return window['go']['main']['App']['LoadOpenClawConfig'](arg1);
+}
+
 export function LoadPicoClawConfig(arg1) {
   return window['go']['main']['App']['LoadPicoClawConfig'](arg1);
+}
+
+export function LoadZeroClawConfig(arg1) {
+  return window['go']['main']['App']['LoadZeroClawConfig'](arg1);
 }
 
 export function OpenAdminPanel() {
@@ -426,6 +506,10 @@ export function SaveNullClawConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveNullClawConfig'](arg1, arg2);
 }
 
+export function SaveOpenClawConfig(arg1, arg2) {
+  return window['go']['main']['App']['SaveOpenClawConfig'](arg1, arg2);
+}
+
 export function SavePicoClawConfig(arg1, arg2) {
   return window['go']['main']['App']['SavePicoClawConfig'](arg1, arg2);
 }
@@ -440,6 +524,10 @@ export function SaveProxySettings(arg1) {
 
 export function SaveToolConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveToolConfig'](arg1, arg2);
+}
+
+export function SaveZeroClawConfig(arg1, arg2) {
+  return window['go']['main']['App']['SaveZeroClawConfig'](arg1, arg2);
 }
 
 export function StopToolSession(arg1) {
@@ -486,6 +574,50 @@ export function ValidateNullClawConfig(arg1) {
   return window['go']['main']['App']['ValidateNullClawConfig'](arg1);
 }
 
+export function ValidateOpenClawConfig(arg1) {
+  return window['go']['main']['App']['ValidateOpenClawConfig'](arg1);
+}
+
 export function ValidatePicoClawConfig(arg1) {
   return window['go']['main']['App']['ValidatePicoClawConfig'](arg1);
+}
+
+export function ValidateZeroClawConfig(arg1) {
+  return window['go']['main']['App']['ValidateZeroClawConfig'](arg1);
+}
+
+export function EnsureServerBinary() {
+  return window['go']['main']['App']['EnsureServerBinary']();
+}
+
+export function GetServerAdminToken() {
+  return window['go']['main']['App']['GetServerAdminToken']();
+}
+
+export function GetServerConfig() {
+  return window['go']['main']['App']['GetServerConfig']();
+}
+
+export function GetServerStatus() {
+  return window['go']['main']['App']['GetServerStatus']();
+}
+
+export function GetServerURL() {
+  return window['go']['main']['App']['GetServerURL']();
+}
+
+export function OpenServerAdminPanel() {
+  return window['go']['main']['App']['OpenServerAdminPanel']();
+}
+
+export function SaveServerConfig(arg1) {
+  return window['go']['main']['App']['SaveServerConfig'](arg1);
+}
+
+export function StartServer() {
+  return window['go']['main']['App']['StartServer']();
+}
+
+export function StopServer() {
+  return window['go']['main']['App']['StopServer']();
 }

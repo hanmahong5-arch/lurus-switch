@@ -18,6 +18,7 @@ import (
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promptlib"
 	"lurus-switch/internal/proxy"
+	"lurus-switch/internal/serverctl"
 	"lurus-switch/internal/snapshot"
 	"lurus-switch/internal/updater"
 	"lurus-switch/internal/validator"
@@ -53,6 +54,9 @@ type App struct {
 	docMgr       *docmgr.Manager
 	envMgr       *envmgr.Manager
 	tracker      *analytics.Tracker
+
+	// Embedded gateway server manager
+	serverMgr *serverctl.Manager
 }
 
 // NewApp creates a new App application struct
@@ -84,6 +88,9 @@ func NewApp() *App {
 		fmt.Printf("Warning: failed to initialize analytics tracker: %v\n", err)
 	}
 
+	appDataDir := appDataBaseDir()
+	svrMgr := serverctl.NewManager(appDataDir)
+
 	return &App{
 		store:       store,
 		validator:   validator.NewValidator(),
@@ -98,6 +105,7 @@ func NewApp() *App {
 		docMgr:      docmgr.NewManager(),
 		envMgr:      envmgr.NewManager(),
 		tracker:     tracker,
+		serverMgr:   svrMgr,
 	}
 }
 
@@ -105,6 +113,17 @@ func NewApp() *App {
 // so we can call the runtime methods
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+
+	// Auto-start gateway server if configured to do so.
+	if a.serverMgr != nil {
+		if cfg := a.serverMgr.GetConfig(); cfg.AutoStart {
+			go func() {
+				if err := a.serverMgr.Start(ctx); err != nil {
+					fmt.Printf("Warning: auto-start gateway server failed: %v\n", err)
+				}
+			}()
+		}
+	}
 }
 
 // GetSystemInfo returns basic system information

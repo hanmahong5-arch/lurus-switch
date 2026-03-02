@@ -123,6 +123,34 @@ func (c *CodexInstaller) Update(ctx context.Context) (*InstallResult, error) {
 	}, nil
 }
 
+// Uninstall removes Codex via bun
+func (c *CodexInstaller) Uninstall(ctx context.Context) (*InstallResult, error) {
+	bunPath, err := c.runtime.EnsureBun(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("bun required for uninstall: %w", err)
+	}
+
+	uninstallCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(uninstallCtx, bunPath, "uninstall", "-g", CodexNpmPackage)
+	hideWindow(cmd)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return &InstallResult{
+			Tool:    ToolCodex,
+			Success: false,
+			Message: fmt.Sprintf("uninstall failed: %s", strings.TrimSpace(string(output))),
+		}, nil
+	}
+
+	return &InstallResult{
+		Tool:    ToolCodex,
+		Success: true,
+		Message: "uninstalled successfully",
+	}, nil
+}
+
 // ConfigureProxy writes NewAPI proxy settings into Codex's config
 func (c *CodexInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey string) error {
 	home, err := os.UserHomeDir()

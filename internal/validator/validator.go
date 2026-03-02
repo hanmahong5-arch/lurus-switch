@@ -3,7 +3,6 @@ package validator
 import (
 	"fmt"
 	"net/url"
-	"regexp"
 	"strings"
 
 	"lurus-switch/internal/config"
@@ -62,6 +61,19 @@ func (v *Validator) ValidateClaudeConfig(cfg *config.ClaudeConfig) *ValidationRe
 		}
 	}
 
+	// Advanced: API endpoint must be a valid http/https URL if set
+	if cfg.Advanced.APIEndpoint != "" {
+		u, err := url.Parse(cfg.Advanced.APIEndpoint)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			result.addError("advanced.apiEndpoint", "must be a valid http:// or https:// URL")
+		}
+	}
+
+	// Advanced: timeout must be in a reasonable range if non-zero
+	if cfg.Advanced.Timeout != 0 && (cfg.Advanced.Timeout < 5 || cfg.Advanced.Timeout > 3600) {
+		result.addError("advanced.timeout", "timeout must be between 5 and 3600 seconds")
+	}
+
 	return result
 }
 
@@ -102,6 +114,26 @@ func (v *Validator) ValidateCodexConfig(cfg *config.CodexConfig) *ValidationResu
 		result.addError("security.networkAccess", fmt.Sprintf("invalid network access: %s", cfg.Security.NetworkAccess))
 	}
 
+	// API key format: OpenAI keys start with "sk-"
+	if cfg.APIKey != "" && !strings.HasPrefix(cfg.APIKey, "sk-") {
+		result.addError("apiKey", "OpenAI API key should start with sk-")
+	}
+
+	// History max entries bounds
+	if cfg.History.MaxEntries < 0 {
+		result.addError("history.maxEntries", "maxEntries must not be negative")
+	} else if cfg.History.MaxEntries > 100000 {
+		result.addError("history.maxEntries", "maxEntries must not exceed 100000")
+	}
+
+	// Provider base URL must be valid when set
+	if cfg.Provider.BaseURL != "" {
+		u, err := url.Parse(cfg.Provider.BaseURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			result.addError("provider.baseUrl", "must be a valid http:// or https:// URL")
+		}
+	}
+
 	return result
 }
 
@@ -122,11 +154,10 @@ func (v *Validator) ValidateGeminiConfig(cfg *config.GeminiConfig) *ValidationRe
 		result.addError("auth.type", fmt.Sprintf("invalid auth type: %s", cfg.Auth.Type))
 	}
 
-	// API key validation (if using api_key auth)
+	// API key format hint (if using api_key auth)
 	if cfg.Auth.Type == "api_key" && cfg.APIKey != "" {
-		if !regexp.MustCompile(`^[A-Za-z0-9_-]{39}$`).MatchString(cfg.APIKey) {
-			// Google API keys are typically 39 characters
-			result.addError("apiKey", "invalid API key format")
+		if !strings.HasPrefix(cfg.APIKey, "AIza") {
+			result.addError("apiKey", "Google API key typically starts with AIza")
 		}
 	}
 
@@ -233,6 +264,103 @@ func (v *Validator) ValidatePicoClawConfig(cfg *config.PicoClawConfig) *Validati
 		if !found {
 			result.addError("agents.defaults.model_name", fmt.Sprintf("model_name %q not found in any model_list entry", defaultModel))
 		}
+	}
+
+	return result
+}
+
+// ValidateNullClawConfig validates a NullClaw configuration
+func (v *Validator) ValidateNullClawConfig(cfg *config.NullClawConfig) *ValidationResult {
+	result := &ValidationResult{Valid: true}
+
+	if cfg == nil {
+		result.addError("config", "NullClaw config must not be nil")
+		return result
+	}
+
+	// model_list must have at least one entry
+	if len(cfg.ModelList) == 0 {
+		result.addError("model_list", "model_list must contain at least one model")
+	}
+
+	// Validate each model entry
+	modelNames := make(map[string]bool)
+	for i, m := range cfg.ModelList {
+		if m.Name == "" {
+			result.addError(fmt.Sprintf("model_list[%d].name", i), "model name is required")
+		} else {
+			if modelNames[m.Name] {
+				result.addError(fmt.Sprintf("model_list[%d].name", i), fmt.Sprintf("duplicate model name: %s", m.Name))
+			}
+			modelNames[m.Name] = true
+		}
+
+		// Validate api_base is a valid URL if provided
+		if m.APIBase != "" {
+			if _, err := url.ParseRequestURI(m.APIBase); err != nil {
+				result.addError(fmt.Sprintf("model_list[%d].api_base", i), fmt.Sprintf("invalid URL: %s", m.APIBase))
+			}
+		}
+	}
+
+	// Validate agents.defaults.model_name exists in model_list
+	defaultModel := cfg.Agents.Defaults.ModelName
+	if defaultModel != "" && len(cfg.ModelList) > 0 {
+		found := false
+		for _, m := range cfg.ModelList {
+			if m.ModelName == defaultModel {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result.addError("agents.defaults.model_name", fmt.Sprintf("model_name %q not found in any model_list entry", defaultModel))
+		}
+	}
+
+	return result
+}
+
+// ValidateZeroClawConfig validates a ZeroClaw configuration
+func (v *Validator) ValidateZeroClawConfig(cfg *config.ZeroClawConfig) *ValidationResult {
+	result := &ValidationResult{Valid: true}
+
+	if cfg == nil {
+		result.addError("config", "ZeroClaw config must not be nil")
+		return result
+	}
+
+	// gateway.port must be in valid range when set
+	if cfg.Gateway.Port != 0 && (cfg.Gateway.Port < 1 || cfg.Gateway.Port > 65535) {
+		result.addError("gateway.port", fmt.Sprintf("port must be in range 1–65535, got %d", cfg.Gateway.Port))
+	}
+
+	// advisory: api_key should be set
+	if cfg.Provider.APIKey == "" {
+		result.addError("provider.api_key", "api_key is recommended; ensure it is set or provided via environment variable")
+	}
+
+	return result
+}
+
+// ValidateOpenClawConfig validates an OpenClaw configuration
+func (v *Validator) ValidateOpenClawConfig(cfg *config.OpenClawConfig) *ValidationResult {
+	result := &ValidationResult{Valid: true}
+
+	if cfg == nil {
+		result.addError("config", "OpenClaw config must not be nil")
+		return result
+	}
+
+	// gateway.port must be in valid range
+	if cfg.Gateway.Port < 1 || cfg.Gateway.Port > 65535 {
+		result.addError("gateway.port", fmt.Sprintf("port must be in range 1–65535, got %d", cfg.Gateway.Port))
+	}
+
+	// provider.type must be a known value when set
+	validProviders := []string{"anthropic", "openai", "custom"}
+	if cfg.Provider.Type != "" && !contains(validProviders, cfg.Provider.Type) {
+		result.addError("provider.type", fmt.Sprintf("invalid provider type %q (expected: anthropic, openai, custom)", cfg.Provider.Type))
 	}
 
 	return result

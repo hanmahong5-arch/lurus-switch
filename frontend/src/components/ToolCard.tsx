@@ -1,27 +1,55 @@
-import { Bot, Zap, Sparkles, Terminal, Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import {
+  Bot, Zap, Sparkles, Terminal, Cpu, Globe,
+  Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle, Trash2,
+} from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
-import type { ToolStatus } from '../stores/dashboardStore'
+import type { ToolStatus, ToolHealthResult } from '../stores/dashboardStore'
 
-const toolMeta: Record<string, { label: string; icon: typeof Bot; color: string; bgColor: string }> = {
-  claude: { label: 'Claude Code', icon: Bot, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
-  codex: { label: 'Codex', icon: Zap, color: 'text-green-500', bgColor: 'bg-green-500/10' },
-  gemini: { label: 'Gemini CLI', icon: Sparkles, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
-  picoclaw: { label: 'PicoClaw', icon: Terminal, color: 'text-pink-500', bgColor: 'bg-pink-500/10' },
+type DepType = 'bun' | 'standalone'
+
+const toolMeta: Record<string, { label: string; icon: typeof Bot; color: string; bgColor: string; dep: DepType }> = {
+  claude:   { label: 'Claude Code', icon: Bot,      color: 'text-orange-500', bgColor: 'bg-orange-500/10', dep: 'bun' },
+  codex:    { label: 'Codex',       icon: Zap,      color: 'text-green-500',  bgColor: 'bg-green-500/10',  dep: 'bun' },
+  gemini:   { label: 'Gemini CLI',  icon: Sparkles, color: 'text-blue-500',   bgColor: 'bg-blue-500/10',   dep: 'bun' },
+  picoclaw: { label: 'PicoClaw',    icon: Terminal, color: 'text-pink-500',   bgColor: 'bg-pink-500/10',   dep: 'standalone' },
+  nullclaw: { label: 'NullClaw',    icon: Terminal, color: 'text-cyan-500',   bgColor: 'bg-cyan-500/10',   dep: 'standalone' },
+  zeroclaw: { label: 'ZeroClaw',    icon: Cpu,      color: 'text-violet-500', bgColor: 'bg-violet-500/10', dep: 'standalone' },
+  openclaw: { label: 'OpenClaw',    icon: Globe,    color: 'text-teal-500',   bgColor: 'bg-teal-500/10',   dep: 'bun' },
+}
+
+const healthDotColor: Record<string, string> = {
+  green: 'bg-green-500',
+  yellow: 'bg-amber-400',
+  red: 'bg-red-500',
 }
 
 interface ToolCardProps {
   tool: ToolStatus
   installing: boolean
   updating: boolean
+  uninstalling?: boolean
+  health?: ToolHealthResult
   onInstall: () => void
   onUpdate: () => void
   onConfigure: () => void
+  onUninstall?: () => void
 }
 
-export function ToolCard({ tool, installing, updating, onInstall, onUpdate, onConfigure }: ToolCardProps) {
-  const meta = toolMeta[tool.name] || { label: tool.name, icon: Bot, color: 'text-gray-500', bgColor: 'bg-gray-500/10' }
+export function ToolCard({
+  tool, installing, updating, uninstalling = false, health,
+  onInstall, onUpdate, onConfigure, onUninstall,
+}: ToolCardProps) {
+  const { t } = useTranslation()
+  const meta = toolMeta[tool.name] || {
+    label: tool.name, icon: Bot, color: 'text-gray-500', bgColor: 'bg-gray-500/10', dep: 'standalone' as DepType,
+  }
   const Icon = meta.icon
-  const busy = installing || updating
+  const busy = installing || updating || uninstalling
+
+  const healthTooltip = health?.issues?.length
+    ? health.issues.join('; ')
+    : health?.status === 'green' ? t('dashboard.healthOk') : ''
 
   return (
     <div className="border border-border rounded-lg p-4 flex flex-col gap-3 bg-card">
@@ -33,28 +61,43 @@ export function ToolCard({ tool, installing, updating, onInstall, onUpdate, onCo
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-sm">{meta.label}</h3>
           {tool.installed ? (
-            <p className="text-xs text-muted-foreground truncate">v{tool.version || 'unknown'}</p>
+            <p className="text-xs text-muted-foreground truncate">v{tool.version || '?'}</p>
           ) : (
-            <p className="text-xs text-muted-foreground">Not installed</p>
+            <div>
+              <p className="text-xs text-muted-foreground">{t('dashboard.notInstalled')}</p>
+              <p className="text-[10px] text-muted-foreground/70">
+                {meta.dep === 'bun'
+                  ? t('dashboard.deps.depRequires', { runtime: 'Bun' })
+                  : t('dashboard.deps.depStandalone')}
+              </p>
+            </div>
           )}
         </div>
-        {/* Status indicator */}
-        {tool.installed ? (
-          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-        ) : (
-          <XCircle className="h-4 w-4 text-muted-foreground shrink-0" />
-        )}
+        {/* Status + health indicator */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {health && tool.installed && (
+            <span
+              className={cn('w-2 h-2 rounded-full', healthDotColor[health.status] || 'bg-gray-400')}
+              title={healthTooltip}
+            />
+          )}
+          {tool.installed ? (
+            <CheckCircle2 className="h-4 w-4 text-green-500" />
+          ) : (
+            <XCircle className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
       </div>
 
       {/* Update available badge */}
       {tool.updateAvailable && tool.latestVersion && (
         <div className="text-xs bg-amber-500/10 text-amber-600 rounded px-2 py-1">
-          Update available: v{tool.latestVersion}
+          {t('dashboard.updateAvailable')}: v{tool.latestVersion}
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-2 mt-auto">
+      <div className="flex gap-2 mt-auto flex-wrap">
         {!tool.installed ? (
           <button
             onClick={onInstall}
@@ -70,7 +113,7 @@ export function ToolCard({ tool, installing, updating, onInstall, onUpdate, onCo
             ) : (
               <Download className="h-3.5 w-3.5" />
             )}
-            {installing ? 'Installing...' : 'Install'}
+            {installing ? t('dashboard.installing') : t('dashboard.install')}
           </button>
         ) : (
           <>
@@ -89,7 +132,7 @@ export function ToolCard({ tool, installing, updating, onInstall, onUpdate, onCo
                 ) : (
                   <RefreshCw className="h-3.5 w-3.5" />
                 )}
-                {updating ? 'Updating...' : 'Update'}
+                {updating ? t('dashboard.updating') : t('dashboard.update')}
               </button>
             )}
             <button
@@ -97,12 +140,30 @@ export function ToolCard({ tool, installing, updating, onInstall, onUpdate, onCo
               className={cn(
                 'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                 'border border-border hover:bg-muted',
-                tool.updateAvailable ? '' : 'flex-1'
+                !tool.updateAvailable && !onUninstall ? 'flex-1' : ''
               )}
             >
               <Settings className="h-3.5 w-3.5" />
-              Configure
+              {t('dashboard.config')}
             </button>
+            {onUninstall && (
+              <button
+                onClick={onUninstall}
+                disabled={busy}
+                title={t('dashboard.uninstallTool')}
+                className={cn(
+                  'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                  'border border-red-500/30 text-red-500 hover:bg-red-500/10',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
+                )}
+              >
+                {uninstalling ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-3.5 w-3.5" />
+                )}
+              </button>
+            )}
           </>
         )}
       </div>

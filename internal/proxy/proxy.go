@@ -80,6 +80,15 @@ func (pm *ProxyManager) SaveSettings(s *ProxySettings) error {
 	return nil
 }
 
+// BuildToolAPIKey returns the relay API key to use for tool configurations.
+// Uses the stored APIKey if available, otherwise falls back to UserToken.
+func (s *ProxySettings) BuildToolAPIKey() string {
+	if s.APIKey != "" {
+		return s.APIKey
+	}
+	return s.UserToken
+}
+
 // getProxyConfigPath returns the platform-specific path for proxy.json
 func getProxyConfigPath() (string, error) {
 	var baseDir string

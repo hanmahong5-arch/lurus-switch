@@ -45,11 +45,29 @@ func picoClawDir() string {
 	return filepath.Join(home, ".picoclaw")
 }
 
+func nullClawDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".nullclaw")
+}
+
+func zeroClawDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".zeroclaw")
+}
+
+func openClawDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".openclaw")
+}
+
 var toolDefs = map[string]configDef{
 	"claude":   {dir: claudeDir, filename: "settings.json", language: "json"},
 	"codex":    {dir: codexDir, filename: "config.toml", language: "toml"},
 	"gemini":   {dir: geminiDir, filename: "settings.json", language: "json"},
 	"picoclaw": {dir: picoClawDir, filename: "config.json", language: "json"},
+	"nullclaw": {dir: nullClawDir, filename: "config.json", language: "json"},
+	"zeroclaw": {dir: zeroClawDir, filename: "config.toml", language: "toml"},
+	"openclaw": {dir: openClawDir, filename: "openclaw.json", language: "json"},
 }
 
 // Default config templates for when no config file exists yet
@@ -107,13 +125,66 @@ wire_api = "chat"
   }
 }
 `,
+	"nullclaw": `{
+  "model_list": [
+    {
+      "name": "code-switch",
+      "api_base": "",
+      "api_key": "",
+      "model_name": "` + installer.DefaultNullClawModel + `"
+    }
+  ],
+  "agents": {
+    "defaults": {
+      "model_name": "` + installer.DefaultNullClawModel + `"
+    }
+  }
+}
+`,
+	"zeroclaw": `[provider]
+type = "anthropic"
+api_key = ""
+model = "` + installer.DefaultZeroClawModel + `"
+base_url = ""
+
+[gateway]
+host = "127.0.0.1"
+port = 8765
+auth_token = ""
+
+[memory]
+backend = "sqlite"
+path = ""
+
+[security]
+sandbox = false
+audit_log = false
+`,
+	"openclaw": `{
+  "gateway": {
+    "port": 18789,
+    "auth_token": ""
+  },
+  "provider": {
+    "type": "anthropic",
+    "api_key": "",
+    "model": "` + installer.DefaultOpenClawModel + `"
+  },
+  "channels": {
+    "dm_policy": "all"
+  },
+  "skills": {
+    "enabled": []
+  }
+}
+`,
 }
 
 // GetConfigPath returns the full path to a tool's config file
 func GetConfigPath(tool string) (string, error) {
 	def, ok := toolDefs[tool]
 	if !ok {
-		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, picoclaw", tool)
+		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, picoclaw, nullclaw, zeroclaw, openclaw", tool)
 	}
 	return filepath.Join(def.dir(), def.filename), nil
 }

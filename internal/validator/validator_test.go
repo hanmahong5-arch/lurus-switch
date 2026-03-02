@@ -956,3 +956,85 @@ func hasErrorField(result *ValidationResult, field string) bool {
 	}
 	return false
 }
+
+// === ZeroClaw Config Validation Tests ===
+
+func TestValidateZeroClawConfig_Nil(t *testing.T) {
+	v := NewValidator()
+	result := v.ValidateZeroClawConfig(nil)
+	if result.Valid {
+		t.Error("expected invalid result for nil config")
+	}
+}
+
+func TestValidateZeroClawConfig_InvalidPort(t *testing.T) {
+	v := NewValidator()
+	cfg := config.NewZeroClawConfig()
+	cfg.Gateway.Port = 99999
+
+	result := v.ValidateZeroClawConfig(cfg)
+	if result.Valid {
+		t.Error("expected invalid result for out-of-range port")
+	}
+	if !hasErrorField(result, "gateway.port") {
+		t.Error("expected gateway.port error field")
+	}
+}
+
+func TestValidateZeroClawConfig_MissingAPIKey_IsAdvisory(t *testing.T) {
+	v := NewValidator()
+	cfg := config.NewZeroClawConfig()
+	cfg.Provider.APIKey = ""
+
+	result := v.ValidateZeroClawConfig(cfg)
+	// api_key missing is advisory (not truly invalid)
+	_ = result
+}
+
+// === OpenClaw Config Validation Tests ===
+
+func TestValidateOpenClawConfig_Nil(t *testing.T) {
+	v := NewValidator()
+	result := v.ValidateOpenClawConfig(nil)
+	if result.Valid {
+		t.Error("expected invalid result for nil config")
+	}
+}
+
+func TestValidateOpenClawConfig_InvalidPort(t *testing.T) {
+	v := NewValidator()
+	cfg := config.NewOpenClawConfig()
+	cfg.Gateway.Port = 0 // invalid
+
+	result := v.ValidateOpenClawConfig(cfg)
+	if result.Valid {
+		t.Error("expected invalid result for port=0")
+	}
+	if !hasErrorField(result, "gateway.port") {
+		t.Error("expected gateway.port error field")
+	}
+}
+
+func TestValidateOpenClawConfig_InvalidProviderType(t *testing.T) {
+	v := NewValidator()
+	cfg := config.NewOpenClawConfig()
+	cfg.Provider.Type = "bogus-provider"
+
+	result := v.ValidateOpenClawConfig(cfg)
+	if result.Valid {
+		t.Error("expected invalid result for unknown provider type")
+	}
+	if !hasErrorField(result, "provider.type") {
+		t.Error("expected provider.type error field")
+	}
+}
+
+func TestValidateOpenClawConfig_ValidDefaults(t *testing.T) {
+	v := NewValidator()
+	cfg := config.NewOpenClawConfig()
+
+	result := v.ValidateOpenClawConfig(cfg)
+	if !result.Valid {
+		t.Errorf("expected valid result for default config, got errors: %v", result.Errors)
+	}
+}

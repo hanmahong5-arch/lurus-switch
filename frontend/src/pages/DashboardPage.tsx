@@ -1,46 +1,59 @@
-import { useEffect, useCallback } from 'react'
-import { Download, RefreshCw, Loader2, ArrowUpCircle } from 'lucide-react'
+import { useEffect, useCallback, useState } from 'react'
+import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap } from 'lucide-react'
+import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
 import { useConfigStore, type ActiveTool } from '../stores/configStore'
 import { ToolCard } from '../components/ToolCard'
 import { ProxyConfigPanel } from '../components/ProxyConfigPanel'
+import { DashboardQuotaWidget } from '../components/DashboardQuotaWidget'
+import { DepTreePanel } from '../components/DepTreePanel'
 import {
   DetectAllTools,
   InstallTool,
   InstallAllTools,
   UpdateTool,
   UpdateAllTools,
+  UninstallTool,
   CheckAllUpdates,
+  CheckAllToolHealth,
   GetProxySettings,
   SaveProxySettings,
   ConfigureAllProxy,
+  ConfigureAllToolsRelay,
   GetAppVersion,
   CheckSelfUpdate,
   ApplySelfUpdate,
+  SaveAppSettings,
+  GetAppSettings,
 } from '../../wailsjs/go/main/App'
-import { proxy } from '../../wailsjs/go/models'
+import { proxy, appconfig } from '../../wailsjs/go/models'
 
-const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw'] as const
+const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw'] as const
 
 export function DashboardPage() {
+  const { t } = useTranslation()
   const {
     tools, installing, updating, detecting,
     proxySettings, proxySaving, proxyConfiguring,
     appVersion, selfUpdateInfo, checkingUpdates, error,
+    toolHealth,
     setTools, setInstalling, setUpdating, setDetecting,
     setProxySettings, setProxySaving, setProxyConfiguring,
     setAppVersion, setSelfUpdateInfo, setCheckingUpdates, setError,
+    setToolHealth,
   } = useDashboardStore()
 
   const { setActiveTool } = useConfigStore()
 
+  // Uninstall state
+  const [uninstalling, setUninstalling] = useState<Record<string, boolean>>({})
+  const [confirmUninstall, setConfirmUninstall] = useState<string | null>(null)
+
   // Load fast data immediately (version + proxy settings), then detect tools in background
   useEffect(() => {
-    // These are instant — no subprocess calls
     GetAppVersion().then(setAppVersion).catch(() => {})
     GetProxySettings().then((r) => setProxySettings(r)).catch(() => {})
-    // Tool detection runs subprocesses — defer slightly so UI renders first
     const timer = setTimeout(() => detectTools(), 100)
     return () => clearTimeout(timer)
   }, [])
@@ -51,16 +64,23 @@ export function DashboardPage() {
     try {
       const toolStatuses = await DetectAllTools()
       setTools(toolStatuses)
+      // Also fetch health data
+      try {
+        const health = await CheckAllToolHealth()
+        setToolHealth(health)
+      } catch {
+        // Health check is non-critical
+      }
     } catch (err) {
-      setError(`Failed to detect tools: ${err}`)
+      setError(`${t('dashboard.title')}: ${err}`)
     } finally {
       setDetecting(false)
     }
-  }, [])
+  }, [t, setDetecting, setError, setTools, setToolHealth])
 
   const loadAll = useCallback(async () => {
     await detectTools()
-  }, [])
+  }, [detectTools])
 
   const checkUpdates = async (currentTools?: Record<string, ToolStatus>) => {
     setCheckingUpdates(true)
@@ -71,7 +91,6 @@ export function DashboardPage() {
         CheckSelfUpdate(),
       ])
 
-      // Merge update info into tool statuses
       const merged: Record<string, ToolStatus> = { ...(currentTools || tools) }
       for (const [name, update] of Object.entries(toolUpdates)) {
         if (merged[name]) {
@@ -85,7 +104,7 @@ export function DashboardPage() {
       setTools(merged)
       setSelfUpdateInfo(selfUpdate)
     } catch (err) {
-      setError(`Failed to check updates: ${err}`)
+      setError(`${err}`)
     } finally {
       setCheckingUpdates(false)
     }
@@ -96,11 +115,10 @@ export function DashboardPage() {
     setError(null)
     try {
       await InstallTool(toolName)
-      // Refresh detection after install
       const statuses = await DetectAllTools()
       setTools(statuses)
     } catch (err) {
-      setError(`Failed to install ${toolName}: ${err}`)
+      setError(`${err}`)
     } finally {
       setInstalling(toolName, false)
     }
@@ -116,7 +134,7 @@ export function DashboardPage() {
       const statuses = await DetectAllTools()
       setTools(statuses)
     } catch (err) {
-      setError(`Failed to install all tools: ${err}`)
+      setError(`${err}`)
     } finally {
       for (const name of TOOL_ORDER) {
         setInstalling(name, false)
@@ -132,7 +150,7 @@ export function DashboardPage() {
       const statuses = await DetectAllTools()
       setTools(statuses)
     } catch (err) {
-      setError(`Failed to update ${toolName}: ${err}`)
+      setError(`${err}`)
     } finally {
       setUpdating(toolName, false)
     }
@@ -148,7 +166,7 @@ export function DashboardPage() {
       const statuses = await DetectAllTools()
       setTools(statuses)
     } catch (err) {
-      setError(`Failed to update all tools: ${err}`)
+      setError(`${err}`)
     } finally {
       for (const name of TOOL_ORDER) {
         setUpdating(name, false)
@@ -160,6 +178,27 @@ export function DashboardPage() {
     setActiveTool(toolName as ActiveTool)
   }
 
+  const handleUninstallRequest = (toolName: string) => {
+    setConfirmUninstall(toolName)
+  }
+
+  const handleUninstallConfirm = async () => {
+    const toolName = confirmUninstall
+    if (!toolName) return
+    setConfirmUninstall(null)
+    setUninstalling((prev) => ({ ...prev, [toolName]: true }))
+    setError(null)
+    try {
+      await UninstallTool(toolName)
+      const statuses = await DetectAllTools()
+      setTools(statuses)
+    } catch (err) {
+      setError(`${err}`)
+    } finally {
+      setUninstalling((prev) => ({ ...prev, [toolName]: false }))
+    }
+  }
+
   const handleSaveProxy = async (settings: ProxySettings) => {
     setProxySaving(true)
     setError(null)
@@ -167,7 +206,7 @@ export function DashboardPage() {
       await SaveProxySettings(proxy.ProxySettings.createFrom(settings))
       setProxySettings(settings)
     } catch (err) {
-      setError(`Failed to save proxy settings: ${err}`)
+      setError(`${err}`)
     } finally {
       setProxySaving(false)
     }
@@ -177,15 +216,30 @@ export function DashboardPage() {
     setProxyConfiguring(true)
     setError(null)
     try {
-      // Save first, then apply
       await SaveProxySettings(proxy.ProxySettings.createFrom(proxySettings))
       const errors = await ConfigureAllProxy()
       if (Object.keys(errors).length > 0) {
         const failed = Object.entries(errors).map(([t, e]) => `${t}: ${e}`).join('; ')
-        setError(`Some tools failed proxy configuration: ${failed}`)
+        setError(failed)
       }
     } catch (err) {
-      setError(`Failed to configure proxy: ${err}`)
+      setError(`${err}`)
+    } finally {
+      setProxyConfiguring(false)
+    }
+  }
+
+  const handleConfigureRelay = async () => {
+    setProxyConfiguring(true)
+    setError(null)
+    try {
+      const errors = await ConfigureAllToolsRelay()
+      if (Object.keys(errors).length > 0) {
+        const failed = Object.entries(errors).map(([t, e]) => `${t}: ${e}`).join('; ')
+        setError(failed)
+      }
+    } catch (err) {
+      setError(`${err}`)
     } finally {
       setProxyConfiguring(false)
     }
@@ -196,23 +250,52 @@ export function DashboardPage() {
     try {
       await ApplySelfUpdate()
     } catch (err) {
-      setError(`Failed to apply self-update: ${err}`)
+      setError(`${err}`)
+    }
+  }
+
+  const handleRunWizard = async () => {
+    try {
+      const settings = await GetAppSettings()
+      await SaveAppSettings(appconfig.AppSettings.createFrom({ ...settings, onboardingCompleted: false }))
+      window.location.reload()
+    } catch {
+      // Ignore
     }
   }
 
   const anyInstalling = Object.values(installing).some(Boolean)
   const anyUpdating = Object.values(updating).some(Boolean)
   const hasUpdates = TOOL_ORDER.some((name) => tools[name]?.updateAvailable)
+  const anyInstalled = TOOL_ORDER.some((name) => tools[name]?.installed)
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
-        <div>
-          <h2 className="text-lg font-semibold">Dashboard</h2>
-          <p className="text-sm text-muted-foreground">
-            Manage AI CLI tools installation and configuration
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">{t('dashboard.title')}</h2>
+            <p className="text-sm text-muted-foreground">
+              {t('dashboard.subtitle')}
+            </p>
+          </div>
+          <button
+            onClick={loadAll}
+            disabled={detecting}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+              'border border-border hover:bg-muted',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          >
+            {detecting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+            {t('dashboard.refresh')}
+          </button>
         </div>
 
         {/* Error banner */}
@@ -220,38 +303,97 @@ export function DashboardPage() {
           <div className="flex items-center justify-between px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
             <span>{error}</span>
             <button onClick={() => setError(null)} className="ml-2 hover:text-red-400 font-medium">
-              Dismiss
+              {t('dashboard.dismiss')}
             </button>
           </div>
         )}
 
-        {/* Tool Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {TOOL_ORDER.map((name) => {
-            const tool = tools[name] || {
-              name,
-              installed: false,
-              version: '',
-              latestVersion: '',
-              updateAvailable: false,
-              path: '',
-            }
-            return (
-              <ToolCard
-                key={name}
-                tool={tool}
-                installing={installing[name] || false}
-                updating={updating[name] || false}
-                onInstall={() => handleInstall(name)}
-                onUpdate={() => handleUpdate(name)}
-                onConfigure={() => handleConfigure(name)}
-              />
-            )
-          })}
-        </div>
+        {/* Uninstall Confirmation Modal */}
+        {confirmUninstall && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-card border border-border rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <Trash2 className="h-5 w-5 text-red-500" />
+                <h3 className="font-semibold">{t('dashboard.uninstallTitle', { tool: confirmUninstall })}</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                <Trans
+                  i18nKey="dashboard.uninstallDesc"
+                  values={{ tool: confirmUninstall }}
+                  components={{ bold: <strong /> }}
+                />
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmUninstall(null)}
+                  className="flex-1 px-4 py-2 rounded-md text-sm border border-border hover:bg-muted transition-colors"
+                >
+                  {t('dashboard.uninstallCancel')}
+                </button>
+                <button
+                  onClick={handleUninstallConfirm}
+                  className="flex-1 px-4 py-2 rounded-md text-sm bg-red-500 text-white hover:bg-red-600 transition-colors"
+                >
+                  {t('dashboard.uninstallConfirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Quota Widget */}
+        <DashboardQuotaWidget />
+
+        {/* Runtime Dependencies */}
+        <DepTreePanel />
+
+        {/* Tool Cards or Empty State */}
+        {!detecting && !anyInstalled && Object.keys(tools).length > 0 ? (
+          <div className="border border-dashed border-border rounded-lg p-8 flex flex-col items-center gap-3 text-center">
+            <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
+            <p className="text-xs text-muted-foreground">{t('dashboard.noToolsDesc')}</p>
+            <button
+              onClick={handleRunWizard}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                'bg-primary text-primary-foreground hover:bg-primary/90'
+              )}
+            >
+              <Wand2 className="h-4 w-4" />
+              {t('dashboard.runWizard')}
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {TOOL_ORDER.map((name) => {
+              const tool = tools[name] || {
+                name,
+                installed: false,
+                version: '',
+                latestVersion: '',
+                updateAvailable: false,
+                path: '',
+              }
+              return (
+                <ToolCard
+                  key={name}
+                  tool={tool}
+                  installing={installing[name] || false}
+                  updating={updating[name] || false}
+                  uninstalling={uninstalling[name] || false}
+                  health={toolHealth[name]}
+                  onInstall={() => handleInstall(name)}
+                  onUpdate={() => handleUpdate(name)}
+                  onConfigure={() => handleConfigure(name)}
+                  onUninstall={tool.installed ? () => handleUninstallRequest(name) : undefined}
+                />
+              )
+            })}
+          </div>
+        )}
 
         {/* Bulk actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={handleInstallAll}
             disabled={anyInstalling || detecting}
@@ -266,7 +408,7 @@ export function DashboardPage() {
             ) : (
               <Download className="h-4 w-4" />
             )}
-            Install All
+            {t('dashboard.installAll')}
           </button>
 
           {hasUpdates && (
@@ -284,40 +426,49 @@ export function DashboardPage() {
               ) : (
                 <ArrowUpCircle className="h-4 w-4" />
               )}
-              Update All
+              {t('dashboard.updateAll')}
             </button>
           )}
-
-          <button
-            onClick={loadAll}
-            disabled={detecting}
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-              'border border-border hover:bg-muted',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
-          >
-            {detecting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
-            Refresh
-          </button>
         </div>
 
-        {/* Proxy Configuration */}
-        <ProxyConfigPanel
-          settings={proxySettings}
-          saving={proxySaving}
-          configuring={proxyConfiguring}
-          onSave={handleSaveProxy}
-          onConfigureAll={handleConfigureAllProxy}
-        />
+        {/* Proxy Configuration (collapsible) */}
+        <details className="group">
+          <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-2">
+            <span className="text-xs transition-transform group-open:rotate-90">&#9654;</span>
+            {t('dashboard.proxyConfig')}
+          </summary>
+          <div className="mt-3 space-y-3">
+            <ProxyConfigPanel
+              settings={proxySettings}
+              saving={proxySaving}
+              configuring={proxyConfiguring}
+              onSave={handleSaveProxy}
+              onConfigureAll={handleConfigureAllProxy}
+            />
+            {proxySettings.apiEndpoint && (proxySettings.userToken || proxySettings.apiKey) && (
+              <button
+                onClick={handleConfigureRelay}
+                disabled={proxyConfiguring}
+                className={cn(
+                  'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                  'bg-primary text-primary-foreground hover:bg-primary/90',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
+                )}
+              >
+                {proxyConfiguring ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4" />
+                )}
+                {t('dashboard.configureLurusRelay')}
+              </button>
+            )}
+          </div>
+        </details>
 
         {/* App version and self-update */}
         <div className="flex items-center justify-between text-xs text-muted-foreground border-t border-border pt-4">
-          <span>Lurus Switch v{appVersion || '...'}</span>
+          <span>{t('dashboard.version', { version: appVersion || '...' })}</span>
           <div className="flex items-center gap-2">
             {selfUpdateInfo?.updateAvailable ? (
               <button
@@ -325,19 +476,19 @@ export function DashboardPage() {
                 className="flex items-center gap-1 text-primary hover:underline"
               >
                 <ArrowUpCircle className="h-3.5 w-3.5" />
-                Update to v{selfUpdateInfo.latestVersion}
+                {t('dashboard.updateTo', { version: selfUpdateInfo.latestVersion })}
               </button>
             ) : checkingUpdates ? (
               <span className="flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                Checking...
+                {t('dashboard.checking')}
               </span>
             ) : (
               <button
                 onClick={() => checkUpdates()}
                 className="hover:text-foreground transition-colors"
               >
-                Check for updates
+                {t('dashboard.checkUpdates')}
               </button>
             )}
           </div>

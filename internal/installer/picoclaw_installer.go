@@ -7,12 +7,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
-	"strings"
 	"time"
 )
 
-// PicoClawInstaller handles PicoClaw CLI installation and configuration via pip
+// PicoClawInstaller handles PicoClaw CLI installation via GitHub Releases binary download
 type PicoClawInstaller struct{}
 
 // NewPicoClawInstaller creates a new PicoClawInstaller
@@ -20,17 +18,26 @@ func NewPicoClawInstaller() *PicoClawInstaller {
 	return &PicoClawInstaller{}
 }
 
+func (p *PicoClawInstaller) binaryConfig() BinaryToolConfig {
+	return BinaryToolConfig{
+		Name:         ToolPicoClaw,
+		GitHubOwner:  PicoClawGitHubOwner,
+		GitHubRepo:   PicoClawGitHubRepo,
+		BinaryName:   PicoClawBinaryName,
+		DefaultModel: DefaultPicoClawModel,
+	}
+}
+
 // Detect checks if PicoClaw is installed and returns its status
 func (p *PicoClawInstaller) Detect(ctx context.Context) (*ToolStatus, error) {
 	status := &ToolStatus{Name: ToolPicoClaw, Installed: false}
 
-	path, err := p.findExecutable()
+	path, err := findBinaryExecutable(PicoClawBinaryName)
 	if err != nil {
 		return status, nil
 	}
 	status.Path = path
 
-	// Get version
 	verCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	verCmd := exec.CommandContext(verCtx, path, "--version")
@@ -49,82 +56,46 @@ func (p *PicoClawInstaller) Detect(ctx context.Context) (*ToolStatus, error) {
 	return status, nil
 }
 
-// Install installs PicoClaw globally via pip
+// Install downloads the PicoClaw binary from GitHub Releases
 func (p *PicoClawInstaller) Install(ctx context.Context) (*InstallResult, error) {
-	pythonPath, err := p.findPython()
-	if err != nil {
-		return nil, fmt.Errorf("python required for installation: %w", err)
-	}
-
 	installCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(installCtx, pythonPath, "-m", "pip", "install", PicoClawPipPackage)
-	hideWindow(cmd)
-	output, err := cmd.CombinedOutput()
+	result, err := downloadAndInstallBinary(installCtx, p.binaryConfig())
 	if err != nil {
-		return &InstallResult{
-			Tool:    ToolPicoClaw,
-			Success: false,
-			Message: fmt.Sprintf("install failed: %s", strings.TrimSpace(string(output))),
-		}, nil
+		return result, err
 	}
 
-	// Verify installation
-	status, _ := p.Detect(ctx)
-	if status != nil && status.Installed {
-		return &InstallResult{
-			Tool:    ToolPicoClaw,
-			Success: true,
-			Version: status.Version,
-			Message: "installed successfully",
-		}, nil
+	// If download succeeded, verify with Detect
+	if result.Success {
+		if status, _ := p.Detect(ctx); status != nil && status.Installed && status.Version != "unknown" {
+			result.Version = status.Version
+		}
 	}
-
-	return &InstallResult{
-		Tool:    ToolPicoClaw,
-		Success: false,
-		Message: "install command succeeded but binary not found in PATH",
-	}, nil
+	return result, nil
 }
 
-// Update updates PicoClaw to the latest version
+// Update re-downloads the latest PicoClaw binary
 func (p *PicoClawInstaller) Update(ctx context.Context) (*InstallResult, error) {
-	pythonPath, err := p.findPython()
-	if err != nil {
-		return nil, fmt.Errorf("python required for update: %w", err)
-	}
+	_ = removeManagedBinary(PicoClawBinaryName)
+	return p.Install(ctx)
+}
 
-	updateCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
-	defer cancel()
-
-	cmd := exec.CommandContext(updateCtx, pythonPath, "-m", "pip", "install", "--upgrade", PicoClawPipPackage)
-	hideWindow(cmd)
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+// Uninstall removes the PicoClaw binary and cached download
+func (p *PicoClawInstaller) Uninstall(_ context.Context) (*InstallResult, error) {
+	if err := removeManagedBinary(PicoClawBinaryName); err != nil {
 		return &InstallResult{
 			Tool:    ToolPicoClaw,
 			Success: false,
-			Message: fmt.Sprintf("update failed: %s", strings.TrimSpace(string(output))),
+			Message: fmt.Sprintf("failed to remove binary: %v", err),
 		}, nil
 	}
-
-	status, _ := p.Detect(ctx)
-	version := ""
-	if status != nil {
-		version = status.Version
-	}
-
-	return &InstallResult{
-		Tool:    ToolPicoClaw,
-		Success: true,
-		Version: version,
-		Message: "updated successfully",
-	}, nil
+	_ = os.RemoveAll(toolCacheDir(ToolPicoClaw))
+	return &InstallResult{Tool: ToolPicoClaw, Success: true, Message: "uninstalled successfully"}, nil
 }
 
 // ConfigureProxy writes NewAPI proxy settings into PicoClaw's config
-func (p *PicoClawInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey string) error {
+func (p *PicoClawInstaller) ConfigureProxy(_ context.Context, endpoint, apiKey string) error {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return fmt.Errorf("failed to get home directory: %w", err)
@@ -180,73 +151,4 @@ func (p *PicoClawInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey
 	}
 
 	return nil
-}
-
-// findExecutable locates the pclaw binary
-func (p *PicoClawInstaller) findExecutable() (string, error) {
-	if path, err := exec.LookPath("pclaw"); err == nil {
-		return path, nil
-	}
-
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	var candidates []string
-	switch runtime.GOOS {
-	case "windows":
-		// Check Python Scripts directories
-		localAppData := os.Getenv("LOCALAPPDATA")
-		appData := os.Getenv("APPDATA")
-		candidates = append(candidates, p.globPythonScripts(localAppData, "pclaw.exe")...)
-		candidates = append(candidates, p.globPythonScripts(appData, "pclaw.exe")...)
-		candidates = append(candidates,
-			filepath.Join(home, ".local", "bin", "pclaw.exe"),
-		)
-	default:
-		candidates = []string{
-			filepath.Join(home, ".local", "bin", "pclaw"),
-			"/usr/local/bin/pclaw",
-		}
-	}
-
-	for _, candidate := range candidates {
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
-		}
-	}
-
-	return "", fmt.Errorf("pclaw executable not found")
-}
-
-// findPython locates the python interpreter
-func (p *PicoClawInstaller) findPython() (string, error) {
-	// Try python3 first, then python
-	for _, name := range []string{"python3", "python"} {
-		if path, err := exec.LookPath(name); err == nil {
-			return path, nil
-		}
-	}
-	return "", fmt.Errorf("python not found in PATH")
-}
-
-// globPythonScripts searches for the executable in Python Scripts directories
-func (p *PicoClawInstaller) globPythonScripts(baseDir, exeName string) []string {
-	if baseDir == "" {
-		return nil
-	}
-
-	var results []string
-	pattern := filepath.Join(baseDir, "Programs", "Python", "*", "Scripts", exeName)
-	if matches, err := filepath.Glob(pattern); err == nil {
-		results = append(results, matches...)
-	}
-
-	pattern = filepath.Join(baseDir, "Python", "*", "Scripts", exeName)
-	if matches, err := filepath.Glob(pattern); err == nil {
-		results = append(results, matches...)
-	}
-
-	return results
 }

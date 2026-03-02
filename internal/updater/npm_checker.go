@@ -89,6 +89,11 @@ func (n *NpmChecker) CheckAllTools(toolVersions map[string]string) map[string]*U
 	return results
 }
 
+// IsNewerVersion is the exported version of isNewer for use across packages.
+func IsNewerVersion(latest, current string) bool {
+	return isNewer(latest, current)
+}
+
 // isNewer compares two semver strings and returns true if latest > current
 func isNewer(latest, current string) bool {
 	latestParts := strings.Split(latest, ".")

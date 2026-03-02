@@ -13,21 +13,38 @@ import (
 
 func TestConstants_NotEmpty(t *testing.T) {
 	constants := map[string]string{
-		"ClaudeNpmPackage":   ClaudeNpmPackage,
-		"CodexNpmPackage":    CodexNpmPackage,
-		"GeminiNpmPackage":   GeminiNpmPackage,
-		"PicoClawPipPackage": PicoClawPipPackage,
-		"NpmRegistryURL":     NpmRegistryURL,
-		"ToolClaude":         ToolClaude,
-		"ToolCodex":          ToolCodex,
-		"ToolGemini":         ToolGemini,
-		"ToolPicoClaw":       ToolPicoClaw,
+		"ClaudeNpmPackage":    ClaudeNpmPackage,
+		"CodexNpmPackage":     CodexNpmPackage,
+		"GeminiNpmPackage":    GeminiNpmPackage,
+		"NpmRegistryURL":      NpmRegistryURL,
+		"ToolClaude":          ToolClaude,
+		"ToolCodex":           ToolCodex,
+		"ToolGemini":          ToolGemini,
+		"ToolPicoClaw":        ToolPicoClaw,
+		"ToolNullClaw":        ToolNullClaw,
+		"ToolZeroClaw":        ToolZeroClaw,
+		"ToolOpenClaw":        ToolOpenClaw,
+		"PicoClawGitHubOwner": PicoClawGitHubOwner,
+		"PicoClawGitHubRepo":  PicoClawGitHubRepo,
+		"PicoClawBinaryName":  PicoClawBinaryName,
+		"NullClawGitHubOwner": NullClawGitHubOwner,
+		"NullClawGitHubRepo":  NullClawGitHubRepo,
+		"NullClawBinaryName":  NullClawBinaryName,
+		"ZeroClawGitHubOwner": ZeroClawGitHubOwner,
+		"ZeroClawGitHubRepo":  ZeroClawGitHubRepo,
+		"ZeroClawBinaryName":  ZeroClawBinaryName,
 	}
 
 	for name, val := range constants {
 		if val == "" {
 			t.Errorf("constant %s should not be empty", name)
 		}
+	}
+}
+
+func TestNodeMinVersion_Positive(t *testing.T) {
+	if NodeMinVersion <= 0 {
+		t.Errorf("NodeMinVersion should be positive, got %d", NodeMinVersion)
 	}
 }
 
@@ -80,11 +97,21 @@ func TestNewManager(t *testing.T) {
 	if mgr == nil {
 		t.Fatal("NewManager should return non-nil manager")
 	}
-	if len(mgr.installers) != 4 {
-		t.Errorf("expected 4 installers, got %d", len(mgr.installers))
+	if len(mgr.installers) != 7 {
+		t.Errorf("expected 7 installers, got %d", len(mgr.installers))
 	}
 	if mgr.runtime == nil {
 		t.Error("manager runtime should not be nil")
+	}
+	if mgr.nodeRuntime == nil {
+		t.Error("manager nodeRuntime should not be nil")
+	}
+}
+
+func TestManager_GetNodeRuntime_NotNil(t *testing.T) {
+	mgr := NewManager()
+	if mgr.GetNodeRuntime() == nil {
+		t.Error("GetNodeRuntime should not return nil")
 	}
 }
 
@@ -577,8 +604,8 @@ func TestManager_InstallAll_ReturnsResults(t *testing.T) {
 
 	// InstallAll will likely fail (no python/bun in test env) but should return results
 	results := mgr.InstallAll(ctx)
-	if len(results) != 4 {
-		t.Errorf("expected 4 results from InstallAll, got %d", len(results))
+	if len(results) != 7 {
+		t.Errorf("expected 7 results from InstallAll, got %d", len(results))
 	}
 
 	// Each result should have a tool name
@@ -594,8 +621,8 @@ func TestManager_UpdateAll_ReturnsResults(t *testing.T) {
 	ctx := context.Background()
 
 	results := mgr.UpdateAll(ctx)
-	if len(results) != 4 {
-		t.Errorf("expected 4 results from UpdateAll, got %d", len(results))
+	if len(results) != 7 {
+		t.Errorf("expected 7 results from UpdateAll, got %d", len(results))
 	}
 }
 

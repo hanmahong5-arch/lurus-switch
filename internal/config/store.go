@@ -120,6 +120,78 @@ func (s *Store) LoadPicoClawConfig(name string) (*PicoClawConfig, error) {
 	return &config, nil
 }
 
+// SaveNullClawConfig saves a NullClaw configuration to disk
+func (s *Store) SaveNullClawConfig(name string, config *NullClawConfig) error {
+	return s.saveConfig("nullclaw", name, config)
+}
+
+// LoadNullClawConfig loads a NullClaw configuration from disk
+func (s *Store) LoadNullClawConfig(name string) (*NullClawConfig, error) {
+	var config NullClawConfig
+	if err := s.loadConfig("nullclaw", name, &config); err != nil {
+		return nil, err
+	}
+	return &config, nil
+}
+
+// ListNullClawConfigs lists all saved NullClaw configurations
+func (s *Store) ListNullClawConfigs() ([]string, error) {
+	return s.ListConfigs("nullclaw")
+}
+
+// DeleteNullClawConfig deletes a NullClaw configuration
+func (s *Store) DeleteNullClawConfig(name string) error {
+	return s.DeleteConfig("nullclaw", name)
+}
+
+// SaveZeroClawConfig saves a ZeroClaw configuration to disk
+func (s *Store) SaveZeroClawConfig(name string, cfg *ZeroClawConfig) error {
+	return s.saveConfig("zeroclaw", name, cfg)
+}
+
+// LoadZeroClawConfig loads a ZeroClaw configuration from disk
+func (s *Store) LoadZeroClawConfig(name string) (*ZeroClawConfig, error) {
+	var cfg ZeroClawConfig
+	if err := s.loadConfig("zeroclaw", name, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// ListZeroClawConfigs lists all saved ZeroClaw configurations
+func (s *Store) ListZeroClawConfigs() ([]string, error) {
+	return s.ListConfigs("zeroclaw")
+}
+
+// DeleteZeroClawConfig deletes a ZeroClaw configuration
+func (s *Store) DeleteZeroClawConfig(name string) error {
+	return s.DeleteConfig("zeroclaw", name)
+}
+
+// SaveOpenClawConfig saves an OpenClaw configuration to disk
+func (s *Store) SaveOpenClawConfig(name string, cfg *OpenClawConfig) error {
+	return s.saveConfig("openclaw", name, cfg)
+}
+
+// LoadOpenClawConfig loads an OpenClaw configuration from disk
+func (s *Store) LoadOpenClawConfig(name string) (*OpenClawConfig, error) {
+	var cfg OpenClawConfig
+	if err := s.loadConfig("openclaw", name, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// ListOpenClawConfigs lists all saved OpenClaw configurations
+func (s *Store) ListOpenClawConfigs() ([]string, error) {
+	return s.ListConfigs("openclaw")
+}
+
+// DeleteOpenClawConfig deletes an OpenClaw configuration
+func (s *Store) DeleteOpenClawConfig(name string) error {
+	return s.DeleteConfig("openclaw", name)
+}
+
 // ListConfigs lists all saved configurations for a given tool
 func (s *Store) ListConfigs(tool string) ([]string, error) {
 	toolDir := filepath.Join(s.configDir, tool)

@@ -137,6 +137,58 @@ func (c *Client) RedeemCode(ctx context.Context, code string) (int64, error) {
 	return result.Amount, nil
 }
 
+// ConfigPreset is a cloud-hosted configuration template for an AI CLI tool.
+type ConfigPreset struct {
+	ID          string                 `json:"id"`
+	Tool        string                 `json:"tool"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description"`
+	Category    string                 `json:"category"`
+	ConfigJSON  map[string]interface{} `json:"config_json"`
+	IsOfficial  bool                   `json:"is_official"`
+}
+
+// FetchPresets calls GET <baseURL>/api/v2/switch/presets?tool=<tool> and returns the preset list.
+// No authentication header is required — presets are publicly readable.
+func (c *Client) FetchPresets(ctx context.Context, tool string) ([]ConfigPreset, error) {
+	path := "/api/v2/switch/presets"
+	if tool != "" {
+		path += "?tool=" + tool
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("api error: HTTP %d", resp.StatusCode)
+	}
+
+	var envelope struct {
+		Success bool           `json:"success"`
+		Data    []ConfigPreset `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	if !envelope.Success {
+		return nil, fmt.Errorf("api returned unsuccessful response")
+	}
+	return envelope.Data, nil
+}
+
 // GetIdentityOverview retrieves the aggregated identity overview (VIP, wallet, subscription)
 // from lurus-api GET /api/v2/user/identity-overview, which proxies lurus-identity.
 // The endpoint returns a direct JSON object (not wrapped in the standard API envelope).

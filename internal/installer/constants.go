@@ -6,9 +6,6 @@ const (
 	CodexNpmPackage  = "@openai/codex"
 	GeminiNpmPackage = "@google/gemini-cli"
 
-	// pip package name for PicoClaw
-	PicoClawPipPackage = "picoclaw"
-
 	// npm registry base URL for version checking
 	NpmRegistryURL = "https://registry.npmjs.org"
 
@@ -27,7 +24,35 @@ const (
 	ToolCodex    = "codex"
 	ToolGemini   = "gemini"
 	ToolPicoClaw = "picoclaw"
+	ToolNullClaw = "nullclaw"
+	ToolZeroClaw = "zeroclaw"
+	ToolOpenClaw = "openclaw"
 
-	// DefaultPicoClawModel is the default model used for PicoClaw proxy configuration
+	// PicoClaw GitHub release source
+	PicoClawGitHubOwner = "picoclaw-labs"
+	PicoClawGitHubRepo  = "picoclaw"
+	PicoClawBinaryName  = "pclaw"
+
+	// NullClaw GitHub release source
+	NullClawGitHubOwner = "nullclaw-labs"
+	NullClawGitHubRepo  = "nullclaw"
+	NullClawBinaryName  = "nclaw"
+
+	// ZeroClaw GitHub release source
+	ZeroClawGitHubOwner = "zeroclaw-labs"
+	ZeroClawGitHubRepo  = "zeroclaw"
+	ZeroClawBinaryName  = "zeroclaw"
+
+	// OpenClaw npm package
+	OpenClawNpmPackage = "openclaw"
+	OpenClawBinaryName = "openclaw"
+
+	// Default models for proxy configuration
 	DefaultPicoClawModel = "claude-sonnet-4-20250514"
+	DefaultNullClawModel = "claude-sonnet-4-20250514"
+	DefaultZeroClawModel = "claude-sonnet-4-20250514"
+	DefaultOpenClawModel = "claude-sonnet-4-20250514"
+
+	// Node.js minimum required major version
+	NodeMinVersion = 22
 )

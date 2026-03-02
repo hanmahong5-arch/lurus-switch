@@ -178,8 +178,8 @@ func TestGetAllConfigPaths_ReturnsFourTools(t *testing.T) {
 		}
 	}
 
-	if len(paths) != 4 {
-		t.Errorf("expected 4 paths, got %d", len(paths))
+	if len(paths) != 5 {
+		t.Errorf("expected 5 paths, got %d", len(paths))
 	}
 }
 

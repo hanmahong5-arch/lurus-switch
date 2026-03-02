@@ -15,7 +15,7 @@ type ToolStatus struct {
 	Path            string `json:"path"`
 }
 
-// InstallResult represents the outcome of an install/update operation
+// InstallResult represents the outcome of an install/update/uninstall operation
 type InstallResult struct {
 	Tool    string `json:"tool"`
 	Success bool   `json:"success"`
@@ -27,31 +27,39 @@ type InstallResult struct {
 type ToolInstaller interface {
 	// Detect checks if the tool is installed and returns its status
 	Detect(ctx context.Context) (*ToolStatus, error)
-	// Install installs the tool via bun
+	// Install installs the tool via bun or GitHub binary download
 	Install(ctx context.Context) (*InstallResult, error)
 	// Update updates the tool to the latest version
 	Update(ctx context.Context) (*InstallResult, error)
+	// Uninstall removes the tool
+	Uninstall(ctx context.Context) (*InstallResult, error)
 	// ConfigureProxy writes proxy/API settings into the tool's config
 	ConfigureProxy(ctx context.Context, endpoint, apiKey string) error
 }
 
 // Manager holds all tool installers and provides aggregate operations
 type Manager struct {
-	installers map[string]ToolInstaller
-	runtime    *BunRuntime
+	installers  map[string]ToolInstaller
+	runtime     *BunRuntime
+	nodeRuntime *NodeRuntime
 }
 
 // NewManager creates a new installer manager with all tool installers
 func NewManager() *Manager {
 	rt := NewBunRuntime()
+	nrt := NewNodeRuntime()
 	return &Manager{
 		installers: map[string]ToolInstaller{
 			ToolClaude:   NewClaudeInstaller(rt),
 			ToolCodex:    NewCodexInstaller(rt),
 			ToolGemini:   NewGeminiInstaller(rt),
 			ToolPicoClaw: NewPicoClawInstaller(),
+			ToolNullClaw: NewNullClawInstaller(),
+			ToolZeroClaw: NewZeroClawInstaller(),
+			ToolOpenClaw: NewOpenClawInstaller(rt),
 		},
-		runtime: rt,
+		runtime:     rt,
+		nodeRuntime: nrt,
 	}
 }
 
@@ -74,18 +82,38 @@ func (m *Manager) DetectAll(ctx context.Context) (map[string]*ToolStatus, error)
 	return results, nil
 }
 
-// InstallTool installs a specific tool by name
+// InstallTool installs a specific tool by name, resolving runtime dependencies first
 func (m *Manager) InstallTool(ctx context.Context, name string) (*InstallResult, error) {
 	inst, ok := m.installers[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw", name)
+		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw, nullclaw, zeroclaw, openclaw", name)
 	}
+
+	// Resolve runtime dependencies before installing
+	depResults, err := m.EnsureToolDependencies(ctx, name)
+	if err != nil {
+		return &InstallResult{
+			Tool:    name,
+			Success: false,
+			Message: fmt.Sprintf("dependency resolution failed: %v", err),
+		}, nil
+	}
+	for _, dr := range depResults {
+		if !dr.Success {
+			return &InstallResult{
+				Tool:    name,
+				Success: false,
+				Message: fmt.Sprintf("required dependency %s not available: %s", dr.RuntimeID, dr.Message),
+			}, nil
+		}
+	}
+
 	return inst.Install(ctx)
 }
 
 // InstallAll installs all tools sequentially to avoid bun global install conflicts
 func (m *Manager) InstallAll(ctx context.Context) []InstallResult {
-	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw}
+	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw, ToolNullClaw, ToolZeroClaw, ToolOpenClaw}
 	var results []InstallResult
 	for _, name := range order {
 		result, err := m.installers[name].Install(ctx)
@@ -106,14 +134,14 @@ func (m *Manager) InstallAll(ctx context.Context) []InstallResult {
 func (m *Manager) UpdateTool(ctx context.Context, name string) (*InstallResult, error) {
 	inst, ok := m.installers[name]
 	if !ok {
-		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw", name)
+		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw, nullclaw, zeroclaw, openclaw", name)
 	}
 	return inst.Update(ctx)
 }
 
 // UpdateAll updates all tools sequentially
 func (m *Manager) UpdateAll(ctx context.Context) []InstallResult {
-	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw}
+	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw, ToolNullClaw, ToolZeroClaw, ToolOpenClaw}
 	var results []InstallResult
 	for _, name := range order {
 		result, err := m.installers[name].Update(ctx)
@@ -122,6 +150,34 @@ func (m *Manager) UpdateAll(ctx context.Context) []InstallResult {
 				Tool:    name,
 				Success: false,
 				Message: fmt.Sprintf("update failed: %v", err),
+			})
+			continue
+		}
+		results = append(results, *result)
+	}
+	return results
+}
+
+// UninstallTool uninstalls a specific tool by name
+func (m *Manager) UninstallTool(ctx context.Context, name string) (*InstallResult, error) {
+	inst, ok := m.installers[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw, nullclaw, zeroclaw, openclaw", name)
+	}
+	return inst.Uninstall(ctx)
+}
+
+// UninstallAll uninstalls all tools sequentially
+func (m *Manager) UninstallAll(ctx context.Context) []InstallResult {
+	order := []string{ToolClaude, ToolCodex, ToolGemini, ToolPicoClaw, ToolNullClaw, ToolZeroClaw, ToolOpenClaw}
+	var results []InstallResult
+	for _, name := range order {
+		result, err := m.installers[name].Uninstall(ctx)
+		if err != nil {
+			results = append(results, InstallResult{
+				Tool:    name,
+				Success: false,
+				Message: fmt.Sprintf("uninstall failed: %v", err),
 			})
 			continue
 		}
