@@ -1,51 +1,5 @@
-export namespace serverctl {
-
-	export class ServerStatus {
-	    running: boolean;
-	    port: number;
-	    url: string;
-	    uptime: number;
-	    version: string;
-	    binaryOk: boolean;
-
-	    static createFrom(source: any = {}) {
-	        return new ServerStatus(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.running = source["running"];
-	        this.port = source["port"];
-	        this.url = source["url"];
-	        this.uptime = source["uptime"];
-	        this.version = source["version"];
-	        this.binaryOk = source["binaryOk"];
-	    }
-	}
-
-	export class ServerConfig {
-	    port: number;
-	    session_secret: string;
-	    admin_token: string;
-	    auto_start: boolean;
-
-	    static createFrom(source: any = {}) {
-	        return new ServerConfig(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.port = source["port"];
-	        this.session_secret = source["session_secret"];
-	        this.admin_token = source["admin_token"];
-	        this.auto_start = source["auto_start"];
-	    }
-	}
-
-}
-
 export namespace analytics {
-
+	
 	export class UsageReport {
 	    toolActions: Record<string, any>;
 	    dailyActive: Record<string, number>;
@@ -96,6 +50,30 @@ export namespace appconfig {
 
 export namespace billing {
 	
+	export class ConfigPreset {
+	    id: string;
+	    tool: string;
+	    name: string;
+	    description: string;
+	    category: string;
+	    config_json: Record<string, any>;
+	    is_official: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ConfigPreset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.tool = source["tool"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.category = source["category"];
+	        this.config_json = source["config_json"];
+	        this.is_official = source["is_official"];
+	    }
+	}
 	export class IdentityOverview {
 	    // Go type: struct { ID int64 "json:\"id\""; LurusID string "json:\"lurus_id\""; DisplayName string "json:\"display_name\""; AvatarURL string "json:\"avatar_url\"" }
 	    account: any;
@@ -1238,26 +1216,7 @@ export namespace envmgr {
 }
 
 export namespace installer {
-
-	export class InstallResult {
-	    tool: string;
-	    success: boolean;
-	    version: string;
-	    message: string;
-
-	    static createFrom(source: any = {}) {
-	        return new InstallResult(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.tool = source["tool"];
-	        this.success = source["success"];
-	        this.version = source["version"];
-	        this.message = source["message"];
-	    }
-	}
-
+	
 	export class RuntimeStatus {
 	    id: string;
 	    name: string;
@@ -1266,11 +1225,11 @@ export namespace installer {
 	    path: string;
 	    required: boolean;
 	    tools: string[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RuntimeStatus(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -1282,45 +1241,69 @@ export namespace installer {
 	        this.tools = source["tools"];
 	    }
 	}
-
 	export class DepCheckResult {
 	    runtimes: RuntimeStatus[];
 	    allMet: boolean;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DepCheckResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.runtimes = this.convertValues(source["runtimes"], RuntimeStatus);
 	        this.allMet = source["allMet"];
 	    }
-
-	    convertValues(a: any, classs: any, asMap: boolean = false): any {
-	        if (!a) {
-	            return a;
-	        }
-	        if (a.length) {
-	            return (a as any[]).map(elem => new classs(elem));
-	        }
-	        return new classs(a);
-	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
-
 	export class DepInstallResult {
 	    runtimeId: string;
 	    success: boolean;
 	    version: string;
 	    message: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DepInstallResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.runtimeId = source["runtimeId"];
+	        this.success = source["success"];
+	        this.version = source["version"];
+	        this.message = source["message"];
+	    }
+	}
+	export class InstallResult {
+	    tool: string;
+	    success: boolean;
+	    version: string;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new InstallResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool = source["tool"];
 	        this.success = source["success"];
 	        this.version = source["version"];
 	        this.message = source["message"];
@@ -1539,6 +1522,51 @@ export namespace proxydetect {
 	        this.port = source["port"];
 	        this.type = source["type"];
 	        this.url = source["url"];
+	    }
+	}
+
+}
+
+export namespace serverctl {
+	
+	export class ServerConfig {
+	    port: number;
+	    session_secret: string;
+	    admin_token: string;
+	    auto_start: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.port = source["port"];
+	        this.session_secret = source["session_secret"];
+	        this.admin_token = source["admin_token"];
+	        this.auto_start = source["auto_start"];
+	    }
+	}
+	export class ServerStatus {
+	    running: boolean;
+	    port: number;
+	    url: string;
+	    uptime: number;
+	    version: string;
+	    binaryOk: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new ServerStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.running = source["running"];
+	        this.port = source["port"];
+	        this.url = source["url"];
+	        this.uptime = source["uptime"];
+	        this.version = source["version"];
+	        this.binaryOk = source["binaryOk"];
 	    }
 	}
 

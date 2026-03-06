@@ -40,6 +40,12 @@ interface ConfigState {
   activeTool: ActiveTool
   setActiveTool: (tool: ActiveTool) => void
 
+  lastActiveTool: ActiveTool
+  setLastActiveTool: (tool: ActiveTool) => void
+
+  activeSection: string
+  setActiveSection: (section: string) => void
+
   previewContent: string
   setPreviewContent: (content: string) => void
 
@@ -56,6 +62,12 @@ interface ConfigState {
 export const useConfigStore = create<ConfigState>((set) => ({
   activeTool: 'dashboard',
   setActiveTool: (tool) => set({ activeTool: tool }),
+
+  lastActiveTool: 'claude',
+  setLastActiveTool: (tool) => set({ lastActiveTool: tool }),
+
+  activeSection: 'core',
+  setActiveSection: (section) => set({ activeSection: section }),
 
   previewContent: '',
   setPreviewContent: (content) => set({ previewContent: content }),

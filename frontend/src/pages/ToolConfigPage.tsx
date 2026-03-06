@@ -2,11 +2,11 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import {
   Save, FolderOpen, RotateCcw, Loader2, CheckCircle2,
-  AlertTriangle, FileText, ArrowLeft, Camera, Clock, RotateCw, X,
+  AlertTriangle, FileText, Camera, Clock, RotateCw, X,
   FormInput, Code2, Cloud, ChevronDown, ChevronUp, Tag,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { useConfigStore, type ConfigPreset } from '../stores/configStore'
+import { useConfigStore, type ConfigPreset, type ActiveTool } from '../stores/configStore'
 import {
   ReadToolConfig,
   SaveToolConfig,
@@ -20,19 +20,18 @@ import {
 import { ClaudeConfigForm } from '../components/forms/ClaudeConfigForm'
 import { CodexConfigForm } from '../components/forms/CodexConfigForm'
 import { GeminiConfigForm } from '../components/forms/GeminiConfigForm'
+import { ZeroClawConfigForm } from '../components/forms/ZeroClawConfigForm'
+import { OpenClawConfigForm } from '../components/forms/OpenClawConfigForm'
+import { ProductTabBar } from '../components/ProductTabBar'
+import { ContextSidebar } from '../components/ContextSidebar'
+import { SectionDescriptionBanner } from '../components/SectionDescriptionBanner'
+import { useFormSectionSync } from '../hooks/useFormSectionSync'
+import bundledSchemas from '../assets/tool-schemas.json'
+import { getToolSections } from '../lib/toolSchema'
+import type { ToolSchema } from '../lib/toolSchema'
 
 /** Tools that support the visual form editor. */
-const TOOLS_WITH_FORM = new Set(['claude', 'codex', 'gemini'])
-
-const TOOL_LABELS: Record<string, string> = {
-  claude:   'Claude Code',
-  codex:    'Codex CLI',
-  gemini:   'Gemini CLI',
-  picoclaw: 'PicoClaw',
-  nullclaw: 'NullClaw',
-  zeroclaw: 'ZeroClaw',
-  openclaw: 'OpenClaw',
-}
+const TOOLS_WITH_FORM = new Set(['claude', 'codex', 'gemini', 'zeroclaw', 'openclaw'])
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
   claude:   '~/.claude/settings.json',
@@ -42,6 +41,16 @@ const TOOL_DESCRIPTIONS: Record<string, string> = {
   nullclaw: '~/.nullclaw/config.json',
   zeroclaw: '~/.zeroclaw/config.toml',
   openclaw: '~/.openclaw/openclaw.json',
+}
+
+const TOOL_LABELS: Record<string, string> = {
+  claude:   'Claude Code',
+  codex:    'Codex CLI',
+  gemini:   'Gemini CLI',
+  picoclaw: 'PicoClaw',
+  nullclaw: 'NullClaw',
+  zeroclaw: 'ZeroClaw',
+  openclaw: 'OpenClaw',
 }
 
 const MONACO_LANGUAGE: Record<string, string> = {
@@ -116,9 +125,30 @@ interface SnapshotMeta {
   size: number
 }
 
+const TOOL_TOOLS: ActiveTool[] = [
+  'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
+]
+
+function isToolPage(t: ActiveTool): boolean {
+  return TOOL_TOOLS.includes(t)
+}
+
 export function ToolConfigPage() {
-  const { activeTool, setActiveTool, cloudPresets, setCloudPresets } = useConfigStore()
+  const {
+    activeTool, setActiveTool,
+    lastActiveTool, setLastActiveTool,
+    activeSection, setActiveSection,
+    cloudPresets, setCloudPresets,
+  } = useConfigStore()
+
   const tool = activeTool as string
+
+  // Schemas from bundled JSON (type-cast; remote updates applied via schemaCache in App.tsx if needed)
+  const schemas = bundledSchemas as ToolSchema[]
+  const currentSections = getToolSections(tool, schemas)
+
+  // Section scroll sync (IntersectionObserver)
+  const { scrollToSection } = useFormSectionSync(tool, currentSections, setActiveSection)
 
   const [content, setContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
@@ -169,7 +199,7 @@ export function ToolConfigPage() {
   }, [tool])
 
   const loadCloudPresets = useCallback(async () => {
-    if (cloudPresets[tool]?.length > 0) return // already cached
+    if (cloudPresets[tool]?.length > 0) return
     setPresetsLoading(true)
     try {
       const presets = await FetchCloudPresets(tool)
@@ -192,6 +222,18 @@ export function ToolConfigPage() {
       loadSnapshots()
     }
   }, [snapshotPanelOpen, loadSnapshots])
+
+  // Track last active tool for Sidebar single-entry button
+  useEffect(() => {
+    if (isToolPage(activeTool)) {
+      setLastActiveTool(activeTool)
+    }
+  }, [activeTool, setLastActiveTool])
+
+  // Reset active section when switching tools
+  useEffect(() => {
+    setActiveSection('core')
+  }, [tool, setActiveSection])
 
   const handleSave = async () => {
     setSaveStatus('saving')
@@ -258,7 +300,6 @@ export function ToolConfigPage() {
   }
 
   const hasChanges = content !== originalContent
-  const label = TOOL_LABELS[tool] || tool
   const desc = TOOL_DESCRIPTIONS[tool] || ''
   const quickRef = QUICK_REFERENCE[tool] || []
 
@@ -275,15 +316,8 @@ export function ToolConfigPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveTool('dashboard')}
-            className="p-1 rounded hover:bg-muted transition-colors"
-            title="Back to Dashboard"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </button>
           <div>
-            <h2 className="text-sm font-semibold">{label} Configuration</h2>
+            <h2 className="text-sm font-semibold">{TOOL_LABELS[tool] || tool} Configuration</h2>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <FileText className="h-3 w-3" />
               {configPath || desc}
@@ -411,56 +445,92 @@ export function ToolConfigPage() {
         </div>
       )}
 
-      {/* Main content: Editor + Sidebars */}
+      {/* ProductTabBar — tool switcher */}
+      <ProductTabBar activeTool={tool} onSelect={(t) => setActiveTool(t)} />
+
+      {/* Main content: ContextSidebar + Editor + Sidebars */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Main Editor Area: Form or Monaco */}
-        <div className="flex-1 overflow-hidden">
-          {viewMode === 'form' && TOOLS_WITH_FORM.has(tool) ? (
-            <div className="h-full overflow-y-auto">
-              {tool === 'claude' && (
-                <ClaudeConfigForm
-                  initialContent={content}
-                  onChange={setContent}
-                  onValidation={() => {}}
-                />
-              )}
-              {tool === 'codex' && (
-                <CodexConfigForm
-                  initialContent={content}
-                  onChange={setContent}
-                  onValidation={() => {}}
-                />
-              )}
-              {tool === 'gemini' && (
-                <GeminiConfigForm
-                  initialContent={content}
-                  onChange={setContent}
-                  onValidation={() => {}}
-                />
-              )}
-            </div>
-          ) : (
-            <Editor
-              height="100%"
-              language={MONACO_LANGUAGE[language] || 'json'}
-              value={content}
-              onChange={(value) => setContent(value || '')}
-              onMount={(editor) => { editorRef.current = editor }}
-              theme="vs-dark"
-              options={{
-                fontSize: 13,
-                lineNumbers: 'on',
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                wordWrap: 'on',
-                tabSize: 2,
-                formatOnPaste: true,
-                automaticLayout: true,
-                renderWhitespace: 'selection',
-                bracketPairColorization: { enabled: true },
-              }}
+        {/* ContextSidebar — only shown in form mode */}
+        {viewMode === 'form' && currentSections.length > 0 && (
+          <ContextSidebar
+            toolId={tool}
+            sections={currentSections}
+            activeSection={activeSection}
+            onSectionClick={scrollToSection}
+          />
+        )}
+
+        {/* Editor area (form or Monaco) */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Section description banner — only in form mode */}
+          {viewMode === 'form' && currentSections.length > 0 && (
+            <SectionDescriptionBanner
+              toolId={tool}
+              activeSection={activeSection}
+              sections={currentSections}
             />
           )}
+
+          <div className="flex-1 overflow-hidden">
+            {viewMode === 'form' && TOOLS_WITH_FORM.has(tool) ? (
+              <div className="h-full overflow-y-auto">
+                {tool === 'claude' && (
+                  <ClaudeConfigForm
+                    initialContent={content}
+                    onChange={setContent}
+                    onValidation={() => {}}
+                  />
+                )}
+                {tool === 'codex' && (
+                  <CodexConfigForm
+                    initialContent={content}
+                    onChange={setContent}
+                    onValidation={() => {}}
+                  />
+                )}
+                {tool === 'gemini' && (
+                  <GeminiConfigForm
+                    initialContent={content}
+                    onChange={setContent}
+                    onValidation={() => {}}
+                  />
+                )}
+                {tool === 'zeroclaw' && (
+                  <ZeroClawConfigForm
+                    initialContent={content}
+                    onChange={setContent}
+                  />
+                )}
+                {tool === 'openclaw' && (
+                  <OpenClawConfigForm
+                    initialContent={content}
+                    onChange={setContent}
+                  />
+                )}
+              </div>
+            ) : (
+              <Editor
+                height="100%"
+                language={MONACO_LANGUAGE[language] || 'json'}
+                value={content}
+                onChange={(value) => setContent(value || '')}
+                onMount={(editor) => { editorRef.current = editor }}
+                theme="vs-dark"
+                options={{
+                  fontSize: 13,
+                  lineNumbers: 'on',
+                  minimap: { enabled: false },
+                  scrollBeyondLastLine: false,
+                  wordWrap: 'on',
+                  tabSize: 2,
+                  formatOnPaste: true,
+                  automaticLayout: true,
+                  renderWhitespace: 'selection',
+                  bracketPairColorization: { enabled: true },
+                }}
+              />
+            )}
+          </div>
         </div>
 
         {/* Cloud Presets Panel (slide-in) */}
@@ -648,7 +718,7 @@ export function ToolConfigPage() {
         )}
 
         {/* Quick Reference Sidebar */}
-        {!snapshotPanelOpen && !presetsOpen && (
+        {!snapshotPanelOpen && !presetsOpen && viewMode === 'text' && (
           <div className="w-72 border-l border-border bg-muted/30 overflow-y-auto shrink-0">
             <div className="p-3">
               <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">

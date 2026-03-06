@@ -1,5 +1,5 @@
 import {
-  Settings, Zap, Sparkles, Bot, LayoutDashboard, Terminal,
+  Settings, LayoutDashboard, Wrench,
   CreditCard, Activity, BookOpen, FileText, Shield,
   Server, Layers, Key, Users, BarChart3, Box, Gift, Settings2,
 } from 'lucide-react'
@@ -8,13 +8,13 @@ import { cn } from '../lib/utils'
 import { useConfigStore, type ActiveTool } from '../stores/configStore'
 import { useGatewayStore } from '../stores/gatewayStore'
 
-const tools = [
-  { id: 'claude' as const, name: 'Claude Code', icon: Bot, color: 'text-orange-500' },
-  { id: 'codex' as const, name: 'Codex', icon: Zap, color: 'text-green-500' },
-  { id: 'gemini' as const, name: 'Gemini CLI', icon: Sparkles, color: 'text-blue-500' },
-  { id: 'picoclaw' as const, name: 'PicoClaw', icon: Terminal, color: 'text-pink-500' },
-  { id: 'nullclaw' as const, name: 'NullClaw', icon: Terminal, color: 'text-cyan-500' },
+const TOOL_PAGES: ActiveTool[] = [
+  'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
 ]
+
+function isToolPage(t: ActiveTool): boolean {
+  return TOOL_PAGES.includes(t)
+}
 
 // Utility nav items shown below the tools
 const utilNav: { id: ActiveTool; i18nKey: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
@@ -65,7 +65,7 @@ function NavButton({ id, name, icon: Icon, iconColor, active, onClick }: NavButt
 }
 
 export function Sidebar() {
-  const { activeTool, setActiveTool } = useConfigStore()
+  const { activeTool, setActiveTool, lastActiveTool } = useConfigStore()
   const { t } = useTranslation()
   const gatewayRunning = useGatewayStore((s) => s.status?.running ?? false)
 
@@ -93,18 +93,15 @@ export function Sidebar() {
           {/* Separator */}
           <div className="border-t border-border my-2" />
 
-          {/* Tool config pages */}
-          {tools.map((tool) => (
-            <NavButton
-              key={tool.id}
-              id={tool.id}
-              name={tool.name}
-              icon={tool.icon}
-              iconColor={tool.color}
-              active={activeTool === tool.id}
-              onClick={() => setActiveTool(tool.id)}
-            />
-          ))}
+          {/* Single tool config entry */}
+          <NavButton
+            id={lastActiveTool as ActiveTool}
+            name={t('nav.toolConfig')}
+            icon={Wrench}
+            iconColor="text-amber-500"
+            active={isToolPage(activeTool)}
+            onClick={() => setActiveTool(lastActiveTool as ActiveTool)}
+          />
 
           {/* Separator */}
           <div className="border-t border-border my-2" />

@@ -70,6 +70,8 @@ function App() {
       case 'gemini':
       case 'picoclaw':
       case 'nullclaw':
+      case 'zeroclaw':
+      case 'openclaw':
         return <ToolConfigPage />
       case 'billing':
         return <BillingPage />

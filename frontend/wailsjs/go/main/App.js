@@ -86,6 +86,10 @@ export function CheckBunInstalled() {
   return window['go']['main']['App']['CheckBunInstalled']();
 }
 
+export function CheckDependencies() {
+  return window['go']['main']['App']['CheckDependencies']();
+}
+
 export function CheckNodeInstalled() {
   return window['go']['main']['App']['CheckNodeInstalled']();
 }
@@ -174,6 +178,10 @@ export function DownloadCodexBinary(arg1) {
   return window['go']['main']['App']['DownloadCodexBinary'](arg1);
 }
 
+export function EnsureServerBinary() {
+  return window['go']['main']['App']['EnsureServerBinary']();
+}
+
 export function ExportClaudeConfig(arg1) {
   return window['go']['main']['App']['ExportClaudeConfig'](arg1);
 }
@@ -206,6 +214,10 @@ export function ExportZeroClawConfig(arg1) {
   return window['go']['main']['App']['ExportZeroClawConfig'](arg1);
 }
 
+export function FetchCloudPresets(arg1) {
+  return window['go']['main']['App']['FetchCloudPresets'](arg1);
+}
+
 export function GenerateClaudeConfig(arg1) {
   return window['go']['main']['App']['GenerateClaudeConfig'](arg1);
 }
@@ -232,10 +244,6 @@ export function GeneratePicoClawConfig(arg1) {
 
 export function GenerateZeroClawConfig(arg1) {
   return window['go']['main']['App']['GenerateZeroClawConfig'](arg1);
-}
-
-export function FetchCloudPresets(arg1) {
-  return window['go']['main']['App']['FetchCloudPresets'](arg1);
 }
 
 export function GetAllToolConfigPaths() {
@@ -318,6 +326,22 @@ export function GetRecommendedConfig(arg1) {
   return window['go']['main']['App']['GetRecommendedConfig'](arg1);
 }
 
+export function GetServerAdminToken() {
+  return window['go']['main']['App']['GetServerAdminToken']();
+}
+
+export function GetServerConfig() {
+  return window['go']['main']['App']['GetServerConfig']();
+}
+
+export function GetServerStatus() {
+  return window['go']['main']['App']['GetServerStatus']();
+}
+
+export function GetServerURL() {
+  return window['go']['main']['App']['GetServerURL']();
+}
+
 export function GetSystemInfo() {
   return window['go']['main']['App']['GetSystemInfo']();
 }
@@ -342,16 +366,12 @@ export function InstallAllTools() {
   return window['go']['main']['App']['InstallAllTools']();
 }
 
-export function CheckDependencies() {
-  return window['go']['main']['App']['CheckDependencies']();
+export function InstallBun() {
+  return window['go']['main']['App']['InstallBun']();
 }
 
 export function InstallDependency(arg1) {
   return window['go']['main']['App']['InstallDependency'](arg1);
-}
-
-export function InstallBun() {
-  return window['go']['main']['App']['InstallBun']();
 }
 
 export function InstallTool(arg1) {
@@ -454,6 +474,10 @@ export function OpenFolderAndScanContext() {
   return window['go']['main']['App']['OpenFolderAndScanContext']();
 }
 
+export function OpenServerAdminPanel() {
+  return window['go']['main']['App']['OpenServerAdminPanel']();
+}
+
 export function OpenToolConfigDir(arg1) {
   return window['go']['main']['App']['OpenToolConfigDir'](arg1);
 }
@@ -522,12 +546,24 @@ export function SaveProxySettings(arg1) {
   return window['go']['main']['App']['SaveProxySettings'](arg1);
 }
 
+export function SaveServerConfig(arg1) {
+  return window['go']['main']['App']['SaveServerConfig'](arg1);
+}
+
 export function SaveToolConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveToolConfig'](arg1, arg2);
 }
 
 export function SaveZeroClawConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveZeroClawConfig'](arg1, arg2);
+}
+
+export function StartServer() {
+  return window['go']['main']['App']['StartServer']();
+}
+
+export function StopServer() {
+  return window['go']['main']['App']['StopServer']();
 }
 
 export function StopToolSession(arg1) {
@@ -584,40 +620,4 @@ export function ValidatePicoClawConfig(arg1) {
 
 export function ValidateZeroClawConfig(arg1) {
   return window['go']['main']['App']['ValidateZeroClawConfig'](arg1);
-}
-
-export function EnsureServerBinary() {
-  return window['go']['main']['App']['EnsureServerBinary']();
-}
-
-export function GetServerAdminToken() {
-  return window['go']['main']['App']['GetServerAdminToken']();
-}
-
-export function GetServerConfig() {
-  return window['go']['main']['App']['GetServerConfig']();
-}
-
-export function GetServerStatus() {
-  return window['go']['main']['App']['GetServerStatus']();
-}
-
-export function GetServerURL() {
-  return window['go']['main']['App']['GetServerURL']();
-}
-
-export function OpenServerAdminPanel() {
-  return window['go']['main']['App']['OpenServerAdminPanel']();
-}
-
-export function SaveServerConfig(arg1) {
-  return window['go']['main']['App']['SaveServerConfig'](arg1);
-}
-
-export function StartServer() {
-  return window['go']['main']['App']['StartServer']();
-}
-
-export function StopServer() {
-  return window['go']['main']['App']['StopServer']();
 }
