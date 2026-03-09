@@ -1,0 +1,77 @@
+[
+  {
+    "toolId": "claude",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "core",        "titleKey": "schema.claude.sections.core",        "descKey": "schema.claude.sections.core.desc",        "icon": "Settings" },
+      { "id": "permissions", "titleKey": "schema.claude.sections.permissions", "descKey": "schema.claude.sections.permissions.desc", "icon": "Shield" },
+      { "id": "sandbox",     "titleKey": "schema.claude.sections.sandbox",     "descKey": "schema.claude.sections.sandbox.desc",     "icon": "Box" },
+      { "id": "advanced",    "titleKey": "schema.claude.sections.advanced",    "descKey": "schema.claude.sections.advanced.desc",    "icon": "Sliders" }
+    ]
+  },
+  {
+    "toolId": "codex",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "core",     "titleKey": "schema.codex.sections.core",     "descKey": "schema.codex.sections.core.desc",     "icon": "Settings" },
+      { "id": "provider", "titleKey": "schema.codex.sections.provider", "descKey": "schema.codex.sections.provider.desc", "icon": "Plug" },
+      { "id": "security", "titleKey": "schema.codex.sections.security", "descKey": "schema.codex.sections.security.desc", "icon": "Shield" },
+      { "id": "sandbox",  "titleKey": "schema.codex.sections.sandbox",  "descKey": "schema.codex.sections.sandbox.desc",  "icon": "Box" }
+    ]
+  },
+  {
+    "toolId": "gemini",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "core",         "titleKey": "schema.gemini.sections.core",         "descKey": "schema.gemini.sections.core.desc",         "icon": "Settings" },
+      { "id": "auth",         "titleKey": "schema.gemini.sections.auth",         "descKey": "schema.gemini.sections.auth.desc",         "icon": "Key" },
+      { "id": "behavior",     "titleKey": "schema.gemini.sections.behavior",     "descKey": "schema.gemini.sections.behavior.desc",     "icon": "Sliders" },
+      { "id": "advanced",     "titleKey": "schema.gemini.sections.advanced",     "descKey": "schema.gemini.sections.advanced.desc",     "icon": "MoreHorizontal" }
+    ]
+  },
+  {
+    "toolId": "picoclaw",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "core",   "titleKey": "schema.picoclaw.sections.core",   "descKey": "schema.picoclaw.sections.core.desc",   "icon": "Settings" },
+      { "id": "api",    "titleKey": "schema.picoclaw.sections.api",    "descKey": "schema.picoclaw.sections.api.desc",    "icon": "Plug" },
+      { "id": "agents", "titleKey": "schema.picoclaw.sections.agents", "descKey": "schema.picoclaw.sections.agents.desc", "icon": "Bot" }
+    ]
+  },
+  {
+    "toolId": "nullclaw",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "core",   "titleKey": "schema.nullclaw.sections.core",   "descKey": "schema.nullclaw.sections.core.desc",   "icon": "Settings" },
+      { "id": "api",    "titleKey": "schema.nullclaw.sections.api",    "descKey": "schema.nullclaw.sections.api.desc",    "icon": "Plug" },
+      { "id": "agents", "titleKey": "schema.nullclaw.sections.agents", "descKey": "schema.nullclaw.sections.agents.desc", "icon": "Bot" }
+    ]
+  },
+  {
+    "toolId": "zeroclaw",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "provider", "titleKey": "schema.zeroclaw.sections.provider", "descKey": "schema.zeroclaw.sections.provider.desc", "icon": "Plug" },
+      { "id": "gateway",  "titleKey": "schema.zeroclaw.sections.gateway",  "descKey": "schema.zeroclaw.sections.gateway.desc",  "icon": "Server" },
+      { "id": "memory",   "titleKey": "schema.zeroclaw.sections.memory",   "descKey": "schema.zeroclaw.sections.memory.desc",   "icon": "Database" },
+      { "id": "security", "titleKey": "schema.zeroclaw.sections.security", "descKey": "schema.zeroclaw.sections.security.desc", "icon": "Shield" }
+    ]
+  },
+  {
+    "toolId": "openclaw",
+    "version": "v1.0.0",
+    "updatedAt": "2026-03-06",
+    "sections": [
+      { "id": "provider", "titleKey": "schema.openclaw.sections.provider", "descKey": "schema.openclaw.sections.provider.desc", "icon": "Plug" },
+      { "id": "gateway",  "titleKey": "schema.openclaw.sections.gateway",  "descKey": "schema.openclaw.sections.gateway.desc",  "icon": "Server" },
+      { "id": "channels", "titleKey": "schema.openclaw.sections.channels", "descKey": "schema.openclaw.sections.channels.desc", "icon": "Layers" },
+      { "id": "skills",   "titleKey": "schema.openclaw.sections.skills",   "descKey": "schema.openclaw.sections.skills.desc",   "icon": "Zap" }
+    ]
+  }
+]
