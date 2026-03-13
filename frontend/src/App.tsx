@@ -23,18 +23,45 @@ import { GatewayRedemptionPage } from './pages/GatewayRedemptionPage'
 import { GatewayLogPage } from './pages/GatewayLogPage'
 import { GatewaySubscriptionPage } from './pages/GatewaySubscriptionPage'
 import { GatewaySettingsPage } from './pages/GatewaySettingsPage'
-import { useConfigStore } from './stores/configStore'
+import { useConfigStore, type ActiveTool } from './stores/configStore'
 import { useGatewayStore } from './stores/gatewayStore'
 import { GetAppSettings, GetServerStatus, GetServerAdminToken } from '../wailsjs/go/main/App'
+import i18n from './i18n'
+
+// Pages that can be used as a startup page
+const VALID_STARTUP_PAGES: ReadonlySet<string> = new Set([
+  'dashboard', 'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw',
+])
 
 function App() {
-  const { activeTool } = useConfigStore()
+  const { activeTool, setActiveTool } = useConfigStore()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   const { startPolling, stopPolling } = useGatewayStore()
 
   useEffect(() => {
     GetAppSettings()
-      .then((s) => setShowWizard(!s.onboardingCompleted))
+      .then((s) => {
+        setShowWizard(!s.onboardingCompleted)
+
+        // Apply saved language preference at startup
+        if (s.language && s.language !== i18n.language) {
+          i18n.changeLanguage(s.language)
+        }
+
+        // Apply saved theme preference at startup
+        const root = document.documentElement
+        if (s.theme === 'auto') {
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+          root.classList.toggle('dark', prefersDark)
+        } else if (s.theme) {
+          root.classList.toggle('dark', s.theme === 'dark')
+        }
+
+        // Navigate to saved startup page if it is a valid page
+        if (s.startupPage && VALID_STARTUP_PAGES.has(s.startupPage)) {
+          setActiveTool(s.startupPage as ActiveTool)
+        }
+      })
       .catch(() => setShowWizard(false))
   }, [])
 
