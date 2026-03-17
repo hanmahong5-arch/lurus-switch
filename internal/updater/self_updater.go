@@ -67,6 +67,12 @@ func (s *SelfUpdater) ApplyUpdate() error {
 		return fmt.Errorf("failed to download update: %w", err)
 	}
 
+	// Verify integrity before applying.
+	verifyClient := &http.Client{Timeout: downloadTimeout}
+	if err := VerifyFileChecksum(verifyClient, info.DownloadURL, tmpPath); err != nil {
+		return fmt.Errorf("update integrity check failed: %w", err)
+	}
+
 	if runtime.GOOS == "windows" {
 		return s.applyWindows(currentExe, tmpPath)
 	}

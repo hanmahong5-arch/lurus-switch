@@ -15,6 +15,9 @@ export type ActiveTool =
   | 'prompts'
   | 'documents'
   | 'admin'
+  | 'relay'
+  | 'gy-products'
+  | 'cli-runner'
   | 'gateway'
   | 'gateway-dashboard'
   | 'gateway-channels'
@@ -57,6 +60,9 @@ interface ConfigState {
 
   cloudPresets: Record<string, ConfigPreset[]>
   setCloudPresets: (tool: string, presets: ConfigPreset[]) => void
+
+  highlightField: string
+  setHighlightField: (field: string) => void
 }
 
 export const useConfigStore = create<ConfigState>((set) => ({
@@ -94,4 +100,7 @@ export const useConfigStore = create<ConfigState>((set) => ({
     set((state) => ({
       cloudPresets: { ...state.cloudPresets, [tool]: presets },
     })),
+
+  highlightField: '',
+  setHighlightField: (field) => set({ highlightField: field }),
 }))

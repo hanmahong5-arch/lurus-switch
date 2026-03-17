@@ -20,27 +20,49 @@ export function DashboardQuotaWidget() {
   const { setActiveTool } = useConfigStore()
   const [data, setData] = useState<QuotaData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const hasToken = !!proxySettings.userToken
 
   useEffect(() => {
     if (!hasToken) return
     setLoading(true)
-    setError(false)
+    setError(null)
     BillingGetQuotaSummary()
       .then((r) => {
         if (r && typeof r === 'object' && 'quota' in r && 'used_quota' in r) {
           setData(r as QuotaData)
         } else {
-          setError(true)
+          setError('Invalid response from billing server')
         }
       })
-      .catch(() => setError(true))
+      .catch((err) => setError(String(err)))
       .finally(() => setLoading(false))
   }, [hasToken])
 
-  // Not connected state
+  // Not configured state: no endpoint set
+  if (!proxySettings.apiEndpoint) {
+    return (
+      <div className="border border-border rounded-lg p-4 bg-card flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-medium">{t('dashboard.quota.title')}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">请先配置 API 端点</p>
+        </div>
+        <button
+          onClick={() => setActiveTool('billing')}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+            'border border-border hover:bg-muted'
+          )}
+        >
+          <ExternalLink className="h-3.5 w-3.5" />
+          前往配置
+        </button>
+      </div>
+    )
+  }
+
+  // Not connected state: endpoint set but no account token
   if (!hasToken) {
     return (
       <div className="border border-border rounded-lg p-4 bg-card flex items-center justify-between">
@@ -62,7 +84,7 @@ export function DashboardQuotaWidget() {
     )
   }
 
-  // Loading / error state
+  // Loading state
   if (loading) {
     return (
       <div className="border border-border rounded-lg p-4 bg-card flex items-center gap-2">
@@ -72,11 +94,25 @@ export function DashboardQuotaWidget() {
     )
   }
 
+  // Error state: show actual error message
   if (error || !data) {
     return (
-      <div className="border border-border rounded-lg p-4 bg-card flex items-center gap-2 text-muted-foreground">
-        <WifiOff className="h-4 w-4" />
-        <span className="text-sm">{t('dashboard.quota.offline')}</span>
+      <div className="border border-border rounded-lg p-4 bg-card space-y-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <WifiOff className="h-4 w-4 text-red-400" />
+            <span className="text-sm">{t('dashboard.quota.offline')}</span>
+          </div>
+          <button
+            onClick={() => setActiveTool('billing')}
+            className="text-xs text-primary hover:underline"
+          >
+            {t('dashboard.quota.details')}
+          </button>
+        </div>
+        {error && (
+          <p className="text-xs text-red-400/80 pl-6 truncate" title={error}>{error}</p>
+        )}
       </div>
     )
   }

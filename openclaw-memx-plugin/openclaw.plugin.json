@@ -1,0 +1,17 @@
+{
+  "id": "openclaw-memx",
+  "kind": "memory",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "bridgeUrl": { "type": "string" },
+      "userId": { "type": "string" },
+      "autoCapture": { "type": "boolean" },
+      "autoRecall": { "type": "boolean" },
+      "searchThreshold": { "type": "number" },
+      "topK": { "type": "number" }
+    },
+    "required": []
+  }
+}

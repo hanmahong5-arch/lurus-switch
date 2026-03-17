@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"lurus-switch/internal/downloader"
 )
 
 // BinaryToolConfig describes a binary tool that can be downloaded from GitHub Releases
@@ -284,20 +286,33 @@ func binaryFilename(baseName string) string {
 	return baseName
 }
 
-// downloadAndInstallBinary performs the full flow: fetch latest release, download, extract, install
-func downloadAndInstallBinary(ctx context.Context, cfg BinaryToolConfig) (*InstallResult, error) {
-	release, err := fetchLatestRelease(ctx, cfg.GitHubOwner, cfg.GitHubRepo)
-	if err != nil {
-		return &InstallResult{Tool: cfg.Name, Success: false, Message: err.Error()}, nil
-	}
+// downloadAndInstallBinary performs the full flow: fetch latest release, download, extract, install.
+// overrideURL, if non-empty, skips the GitHub API call and downloads directly from that URL.
+// progressFn, if non-nil, is called with (downloaded, total, percent) after each 64 KB chunk.
+func downloadAndInstallBinary(ctx context.Context, cfg BinaryToolConfig, overrideURL string, progressFn func(int64, int64, int)) (*InstallResult, error) {
+	var dlURL, assetName string
 
-	dlURL, assetName := findPlatformAsset(release.Assets)
-	if dlURL == "" {
-		return &InstallResult{
-			Tool:    cfg.Name,
-			Success: false,
-			Message: fmt.Sprintf("no compatible binary asset found in release %s for %s/%s", release.TagName, runtime.GOOS, runtime.GOARCH),
-		}, nil
+	if overrideURL != "" {
+		dlURL = overrideURL
+		// Derive a local filename from the URL tail.
+		parts := strings.Split(overrideURL, "/")
+		assetName = parts[len(parts)-1]
+		if assetName == "" {
+			assetName = cfg.Name + "-download"
+		}
+	} else {
+		release, err := fetchLatestRelease(ctx, cfg.GitHubOwner, cfg.GitHubRepo)
+		if err != nil {
+			return &InstallResult{Tool: cfg.Name, Success: false, Message: err.Error()}, nil
+		}
+		dlURL, assetName = findPlatformAsset(release.Assets)
+		if dlURL == "" {
+			return &InstallResult{
+				Tool:    cfg.Name,
+				Success: false,
+				Message: fmt.Sprintf("no compatible binary asset found in release %s for %s/%s", release.TagName, runtime.GOOS, runtime.GOARCH),
+			}, nil
+		}
 	}
 
 	// Download to cache
@@ -307,7 +322,8 @@ func downloadAndInstallBinary(ctx context.Context, cfg BinaryToolConfig) (*Insta
 	}
 
 	cachedPath := filepath.Join(cacheDir, assetName)
-	if err := downloadFile(ctx, dlURL, cachedPath); err != nil {
+	dlOpts := downloader.Options{ProgressFn: progressFn}
+	if err := downloader.DownloadFile(ctx, dlURL, cachedPath, dlOpts); err != nil {
 		return &InstallResult{Tool: cfg.Name, Success: false, Message: fmt.Sprintf("download failed: %v", err)}, nil
 	}
 
@@ -339,7 +355,6 @@ func downloadAndInstallBinary(ctx context.Context, cfg BinaryToolConfig) (*Insta
 	return &InstallResult{
 		Tool:    cfg.Name,
 		Success: true,
-		Version: release.TagName,
 		Message: fmt.Sprintf("installed to %s. %s", binaryDest, pathMsg),
 	}, nil
 }

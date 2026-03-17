@@ -1,6 +1,7 @@
 package downloader
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,6 +10,86 @@ import (
 	"path/filepath"
 	"runtime"
 )
+
+const downloadChunkSize = 64 * 1024 // 64 KB
+
+// Options configures a DownloadFile operation.
+type Options struct {
+	// ProgressFn is called after each 64 KB chunk is written.
+	// downloaded is the running byte total; total is Content-Length (-1 if unknown).
+	// percent is 0-100 (0 when total is unknown).
+	ProgressFn func(downloaded, total int64, percent int)
+}
+
+// DownloadFile downloads url to destPath, invoking opts.ProgressFn every 64 KB.
+// The destination directory is created automatically.
+// On failure the partial file is removed.
+func DownloadFile(ctx context.Context, url, destPath string, opts Options) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to build request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("download failed for %s: %w", url, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("download returned HTTP %d for %s", resp.StatusCode, url)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+		return fmt.Errorf("failed to create destination directory: %w", err)
+	}
+
+	out, err := os.Create(destPath)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file: %w", err)
+	}
+
+	total := resp.ContentLength // -1 if unknown
+	var downloaded int64
+	buf := make([]byte, downloadChunkSize)
+
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := out.Write(buf[:n]); writeErr != nil {
+				out.Close()
+				os.Remove(destPath)
+				return fmt.Errorf("write error: %w", writeErr)
+			}
+			downloaded += int64(n)
+			if opts.ProgressFn != nil {
+				pct := 0
+				if total > 0 {
+					pct = int(downloaded * 100 / total)
+				}
+				opts.ProgressFn(downloaded, total, pct)
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			out.Close()
+			os.Remove(destPath)
+			return fmt.Errorf("read error: %w", readErr)
+		}
+
+		select {
+		case <-ctx.Done():
+			out.Close()
+			os.Remove(destPath)
+			return ctx.Err()
+		default:
+		}
+	}
+
+	return out.Close()
+}
 
 // Downloader handles downloading binaries and packages
 type Downloader struct {

@@ -12,6 +12,7 @@ import {
   BillingValidateToken,
   ConfigureAllToolsRelay,
 } from '../../wailsjs/go/main/App'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { proxy, appconfig } from '../../wailsjs/go/models'
 import type { ToolStatus } from '../stores/dashboardStore'
 
@@ -65,7 +66,10 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   // Step 2 — tools
   const [tools, setTools] = useState<Record<string, ToolStatus>>({})
   const [detectingTools, setDetectingTools] = useState(false)
+  const [detectError, setDetectError] = useState('')
   const [installingAll, setInstallingAll] = useState(false)
+  // Per-tool install progress: 0-99 = downloading, 100 = done, -1 = failed
+  const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
 
   // Step 3 — proxy
   const [proxies, setProxies] = useState<DetectedProxy[]>([])
@@ -83,14 +87,26 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const toolsDetectedRef = useRef(false)
   const proxyDetectedRef = useRef(false)
 
+  // Subscribe to per-tool install progress events from the Go backend.
+  useEffect(() => {
+    const offProgress = EventsOn('tool:install:progress', (d: { tool: string; percent: number }) => {
+      setInstallProgress(p => ({ ...p, [d.tool]: d.percent }))
+    })
+    const offDone = EventsOn('tool:install:done', (d: { tool: string; success: boolean }) => {
+      setInstallProgress(p => ({ ...p, [d.tool]: d.success ? 100 : -1 }))
+    })
+    return () => { offProgress(); offDone() }
+  }, [])
+
   // Detect tools on step 2
   useEffect(() => {
     if (step === 2 && !toolsDetectedRef.current) {
       toolsDetectedRef.current = true
       setDetectingTools(true)
+      setDetectError('')
       DetectAllTools()
         .then((r) => setTools(r))
-        .catch(() => {})
+        .catch((err) => setDetectError(`${err}`))
         .finally(() => setDetectingTools(false))
     }
   }, [step])
@@ -136,6 +152,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           balance: overview.wallet?.balance ?? 0,
           planCode: overview.subscription?.planCode,
         })
+        // Auto-save Lurus relay as the proxy endpoint so Step 3 can be skipped.
+        await SaveProxySettings(proxy.ProxySettings.createFrom({
+          apiEndpoint: LURUS_RELAY_ENDPOINT,
+          apiKey: '',
+          userToken: lurusToken.trim(),
+        })).catch(() => {/* non-critical */})
+        setProxySaved(true)
       }
     } catch (err) {
       setAccountError(`${err}`)
@@ -146,12 +169,19 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const handleInstallAll = async () => {
     setInstallingAll(true)
+    setInstallProgress({})
     try {
       await InstallAllTools()
       const statuses = await DetectAllTools()
       setTools(statuses)
+
+      // For Lurus members: auto-configure relay and skip manual proxy step.
+      if (accountInfo) {
+        await ConfigureAllToolsRelay().catch(() => {/* best-effort */})
+        await handleFinish()
+      }
     } catch {
-      // Ignore errors in wizard
+      // Ignore errors in wizard — user can retry from Dashboard
     } finally {
       setInstallingAll(false)
     }
@@ -319,6 +349,22 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             <div className="flex-1 flex flex-col gap-3">
               <h2 className="text-lg font-medium">{t('wizard.tools.title')}</h2>
               <p className="text-sm text-muted-foreground">{t('wizard.tools.desc')}</p>
+              {detectError && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-500 text-xs mt-1">
+                  <XCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{detectError}</span>
+                  <button
+                    onClick={() => {
+                      toolsDetectedRef.current = false
+                      setDetectError('')
+                      setStep(2)
+                    }}
+                    className="ml-auto underline hover:no-underline"
+                  >
+                    {t('wizard.tools.retry')}
+                  </button>
+                </div>
+              )}
               {detectingTools ? (
                 <div className="flex items-center gap-2 py-4">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -329,22 +375,42 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                   {TOOL_ORDER.map((name) => {
                     const tool = tools[name]
                     const installed = tool?.installed
+                    const pct = installProgress[name]
+                    const isDownloading = installingAll && pct !== undefined && pct >= 0 && pct < 100
                     return (
-                      <div key={name} className="flex items-center justify-between py-1.5 px-3 rounded-md bg-muted/50">
-                        <span className="text-sm font-medium">{toolLabels[name]}</span>
-                        <span className={cn('flex items-center gap-1 text-xs', installed ? 'text-green-500' : 'text-muted-foreground')}>
-                          {installed ? (
-                            <>
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              {t('wizard.tools.installed')} {tool?.version && `v${tool.version}`}
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="h-3.5 w-3.5" />
-                              {t('wizard.tools.notInstalled')}
-                            </>
-                          )}
-                        </span>
+                      <div key={name} className="flex flex-col gap-0.5 py-1.5 px-3 rounded-md bg-muted/50">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{toolLabels[name]}</span>
+                          <span className={cn('flex items-center gap-1 text-xs',
+                            isDownloading ? 'text-primary' :
+                            installed ? 'text-green-500' : 'text-muted-foreground'
+                          )}>
+                            {isDownloading ? (
+                              <>
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                {pct}%
+                              </>
+                            ) : installed ? (
+                              <>
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                {t('wizard.tools.installed')} {tool?.version && `v${tool.version}`}
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="h-3.5 w-3.5" />
+                                {t('wizard.tools.notInstalled')}
+                              </>
+                            )}
+                          </span>
+                        </div>
+                        {isDownloading && (
+                          <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary transition-all duration-300"
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
                     )
                   })}

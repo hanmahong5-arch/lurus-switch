@@ -23,6 +23,9 @@ const (
 	envFileName      = ".env"
 	secretAlphabet   = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	secretLength     = 32
+
+	// defaultAllowedOrigins lists the allowed CORS origins for the embedded gateway.
+	defaultAllowedOrigins = "wails://localhost,http://localhost:34115"
 )
 
 // Manager controls the lifecycle of the embedded gateway server process.
@@ -252,7 +255,7 @@ func (m *Manager) loginAsAdmin() (string, error) {
 	url := fmt.Sprintf("http://localhost:%d/api/user/login", m.cfg.Port)
 	body, _ := json.Marshal(map[string]string{
 		"username": "root",
-		"password": "123456",
+		"password": m.cfg.AdminPassword,
 	})
 
 	client := &http.Client{Timeout: 5 * time.Second}
@@ -285,8 +288,8 @@ func (m *Manager) writeEnvFile() error {
 func (m *Manager) buildEnvContent() string {
 	dbPath := filepath.Join(m.serverDir, "newapi.db")
 	return fmt.Sprintf(
-		"SQL_DSN=local\nSQLITE_PATH=%s\nSESSION_SECRET=%s\nPORT=%d\nGIN_MODE=release\nNODE_TYPE=master\nALLOWED_ORIGINS=wails://localhost,http://localhost:34115\n",
-		dbPath, m.cfg.SessionSecret, m.cfg.Port,
+		"SQL_DSN=local\nSQLITE_PATH=%s\nSESSION_SECRET=%s\nPORT=%d\nGIN_MODE=release\nNODE_TYPE=master\nALLOWED_ORIGINS=%s\nINIT_ROOT_PASSWORD=%s\n",
+		dbPath, m.cfg.SessionSecret, m.cfg.Port, defaultAllowedOrigins, m.cfg.AdminPassword,
 	)
 }
 
@@ -299,7 +302,8 @@ func (m *Manager) buildEnvSlice() []string {
 		fmt.Sprintf("PORT=%d", m.cfg.Port),
 		"GIN_MODE=release",
 		"NODE_TYPE=master",
-		"ALLOWED_ORIGINS=wails://localhost,http://localhost:34115",
+		fmt.Sprintf("ALLOWED_ORIGINS=%s", defaultAllowedOrigins),
+		fmt.Sprintf("INIT_ROOT_PASSWORD=%s", m.cfg.AdminPassword),
 	}
 }
 
@@ -317,8 +321,16 @@ func (m *Manager) loadConfig() ServerConfig {
 	if cfg.Port == 0 {
 		cfg.Port = defaultPort
 	}
+	needsSave := false
 	if cfg.SessionSecret == "" {
 		cfg.SessionSecret = generateSecret()
+		needsSave = true
+	}
+	if cfg.AdminPassword == "" {
+		cfg.AdminPassword = generateSecret()
+		needsSave = true
+	}
+	if needsSave {
 		_ = m.saveConfig(cfg)
 	}
 	return cfg
@@ -339,6 +351,7 @@ func (m *Manager) defaultConfig() ServerConfig {
 	return ServerConfig{
 		Port:          defaultPort,
 		SessionSecret: generateSecret(),
+		AdminPassword: generateSecret(),
 		AutoStart:     false,
 	}
 }

@@ -11,7 +11,10 @@
     "settings": "Settings",
     "process": "Processes",
     "prompts": "Prompts",
-    "documents": "Documents"
+    "documents": "Documents",
+    "relay": "Relay Stations",
+    "cliRunner": "CLI Runner",
+    "gyProducts": "GY Products"
   },
   "schema": {
     "claude": {

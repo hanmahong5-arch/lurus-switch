@@ -1,6 +1,6 @@
 import {
   Bot, Zap, Sparkles, Terminal, Cpu, Globe,
-  Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle, Trash2,
+  Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle, Trash2, AlertTriangle,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -34,11 +34,12 @@ interface ToolCardProps {
   onUpdate: () => void
   onConfigure: () => void
   onUninstall?: () => void
+  onViewIssues?: () => void
 }
 
 export function ToolCard({
   tool, installing, updating, uninstalling = false, health,
-  onInstall, onUpdate, onConfigure, onUninstall,
+  onInstall, onUpdate, onConfigure, onUninstall, onViewIssues,
 }: ToolCardProps) {
   const { t } = useTranslation()
   const meta = toolMeta[tool.name] || {
@@ -96,6 +97,13 @@ export function ToolCard({
         </div>
       )}
 
+      {/* Health issues summary */}
+      {health?.status === 'red' && health.issues?.length > 0 && (
+        <div className="text-xs bg-red-500/10 text-red-500 rounded px-2 py-1 truncate" title={health.issues.join('; ')}>
+          {health.issues[0]}
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-2 mt-auto flex-wrap">
         {!tool.installed ? (
@@ -146,6 +154,19 @@ export function ToolCard({
               <Settings className="h-3.5 w-3.5" />
               {t('dashboard.config')}
             </button>
+            {health?.status === 'red' && onViewIssues && (
+              <button
+                onClick={onViewIssues}
+                className={cn(
+                  'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                  'border border-amber-500/30 text-amber-500 hover:bg-amber-500/10'
+                )}
+                title="查看配置问题"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+                查看问题
+              </button>
+            )}
             {onUninstall && (
               <button
                 onClick={onUninstall}

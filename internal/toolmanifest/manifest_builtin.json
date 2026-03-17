@@ -1,0 +1,71 @@
+{
+  "generated_at": "2026-03-17T00:00:00Z",
+  "tools": {
+    "claude": {
+      "type": "npm",
+      "npm_package": "@anthropic-ai/claude-code",
+      "latest_version": "1.0.26"
+    },
+    "codex": {
+      "type": "npm",
+      "npm_package": "@openai/codex",
+      "latest_version": "0.1.2505161344"
+    },
+    "gemini": {
+      "type": "npm",
+      "npm_package": "@google/gemini-cli",
+      "latest_version": "0.1.9"
+    },
+    "openclaw": {
+      "type": "npm",
+      "npm_package": "openclaw",
+      "latest_version": "1.0.0"
+    },
+    "picoclaw": {
+      "type": "binary",
+      "latest_version": "v1.0.0",
+      "platforms": {
+        "windows/amd64": {"url": "https://github.com/picoclaw-labs/picoclaw/releases/download/v1.0.0/pclaw-x86_64-pc-windows-msvc.zip"},
+        "windows/arm64": {"url": "https://github.com/picoclaw-labs/picoclaw/releases/download/v1.0.0/pclaw-x86_64-pc-windows-msvc.zip"},
+        "darwin/arm64":  {"url": "https://github.com/picoclaw-labs/picoclaw/releases/download/v1.0.0/pclaw-aarch64-apple-darwin.tar.gz"},
+        "darwin/amd64":  {"url": "https://github.com/picoclaw-labs/picoclaw/releases/download/v1.0.0/pclaw-x86_64-apple-darwin.tar.gz"},
+        "linux/amd64":   {"url": "https://github.com/picoclaw-labs/picoclaw/releases/download/v1.0.0/pclaw-x86_64-unknown-linux-musl.tar.gz"},
+        "linux/arm64":   {"url": "https://github.com/picoclaw-labs/picoclaw/releases/download/v1.0.0/pclaw-aarch64-unknown-linux-musl.tar.gz"}
+      }
+    },
+    "nullclaw": {
+      "type": "binary",
+      "latest_version": "v1.0.0",
+      "platforms": {
+        "windows/amd64": {"url": "https://github.com/nullclaw-labs/nullclaw/releases/download/v1.0.0/nclaw-x86_64-pc-windows-msvc.zip"},
+        "windows/arm64": {"url": "https://github.com/nullclaw-labs/nullclaw/releases/download/v1.0.0/nclaw-x86_64-pc-windows-msvc.zip"},
+        "darwin/arm64":  {"url": "https://github.com/nullclaw-labs/nullclaw/releases/download/v1.0.0/nclaw-aarch64-apple-darwin.tar.gz"},
+        "darwin/amd64":  {"url": "https://github.com/nullclaw-labs/nullclaw/releases/download/v1.0.0/nclaw-x86_64-apple-darwin.tar.gz"},
+        "linux/amd64":   {"url": "https://github.com/nullclaw-labs/nullclaw/releases/download/v1.0.0/nclaw-x86_64-unknown-linux-musl.tar.gz"},
+        "linux/arm64":   {"url": "https://github.com/nullclaw-labs/nullclaw/releases/download/v1.0.0/nclaw-aarch64-unknown-linux-musl.tar.gz"}
+      }
+    },
+    "zeroclaw": {
+      "type": "binary",
+      "latest_version": "v1.0.0",
+      "platforms": {
+        "windows/amd64": {"url": "https://github.com/zeroclaw-labs/zeroclaw/releases/download/v1.0.0/zeroclaw-x86_64-pc-windows-msvc.zip"},
+        "windows/arm64": {"url": "https://github.com/zeroclaw-labs/zeroclaw/releases/download/v1.0.0/zeroclaw-x86_64-pc-windows-msvc.zip"},
+        "darwin/arm64":  {"url": "https://github.com/zeroclaw-labs/zeroclaw/releases/download/v1.0.0/zeroclaw-aarch64-apple-darwin.tar.gz"},
+        "darwin/amd64":  {"url": "https://github.com/zeroclaw-labs/zeroclaw/releases/download/v1.0.0/zeroclaw-x86_64-apple-darwin.tar.gz"},
+        "linux/amd64":   {"url": "https://github.com/zeroclaw-labs/zeroclaw/releases/download/v1.0.0/zeroclaw-x86_64-unknown-linux-musl.tar.gz"},
+        "linux/arm64":   {"url": "https://github.com/zeroclaw-labs/zeroclaw/releases/download/v1.0.0/zeroclaw-aarch64-unknown-linux-musl.tar.gz"}
+      }
+    },
+    "lurus-creator": {
+      "type": "desktop",
+      "latest_version": "v0.3.0",
+      "platforms": {
+        "windows/amd64": {"url": "https://github.com/lurus-dev/lurus-creator/releases/download/v0.3.0/lurus-creator-setup-v0.3.0-windows-x64.exe"},
+        "windows/arm64": {"url": "https://github.com/lurus-dev/lurus-creator/releases/download/v0.3.0/lurus-creator-setup-v0.3.0-windows-x64.exe"},
+        "darwin/arm64":  {"url": "https://github.com/lurus-dev/lurus-creator/releases/download/v0.3.0/lurus-creator-v0.3.0-arm64.dmg"},
+        "darwin/amd64":  {"url": "https://github.com/lurus-dev/lurus-creator/releases/download/v0.3.0/lurus-creator-v0.3.0-x64.dmg"}
+      }
+    }
+  }
+}

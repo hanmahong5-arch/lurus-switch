@@ -18,8 +18,10 @@ import (
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promptlib"
 	"lurus-switch/internal/proxy"
+	"lurus-switch/internal/relay"
 	"lurus-switch/internal/serverctl"
 	"lurus-switch/internal/snapshot"
+	"lurus-switch/internal/toolmanifest"
 	"lurus-switch/internal/updater"
 	"lurus-switch/internal/validator"
 )
@@ -57,6 +59,12 @@ type App struct {
 
 	// Embedded gateway server manager
 	serverMgr *serverctl.Manager
+
+	// Relay endpoint store
+	relayStore *relay.Store
+
+	// Tool download manifest (loaded in background at startup)
+	manifest *toolmanifest.Manifest
 }
 
 // NewApp creates a new App application struct
@@ -91,6 +99,11 @@ func NewApp() *App {
 	appDataDir := appDataBaseDir()
 	svrMgr := serverctl.NewManager(appDataDir)
 
+	relayStr, err := relay.NewStore(appDataDir)
+	if err != nil {
+		fmt.Printf("Warning: failed to initialize relay store: %v\n", err)
+	}
+
 	return &App{
 		store:       store,
 		validator:   validator.NewValidator(),
@@ -106,6 +119,7 @@ func NewApp() *App {
 		envMgr:      envmgr.NewManager(),
 		tracker:     tracker,
 		serverMgr:   svrMgr,
+		relayStore:  relayStr,
 	}
 }
 
@@ -123,6 +137,30 @@ func (a *App) startup(ctx context.Context) {
 				}
 			}()
 		}
+	}
+
+	// Migrate legacy proxy settings to relay store (one-time, idempotent).
+	a.migrateProxyToRelay()
+
+	// Fetch tool download manifest in the background so it is ready before the
+	// user reaches the install step. Does not block startup.
+	go a.refreshManifest()
+}
+
+// refreshManifest fetches the latest tool manifest from the configured API endpoint,
+// falling back to a stale cache and then the compile-time builtin on failure.
+func (a *App) refreshManifest() {
+	apiBase := ""
+	if a.proxyMgr != nil {
+		apiBase = a.proxyMgr.GetSettings().APIEndpoint
+	}
+	mf, err := toolmanifest.Fetch(a.ctx, apiBase, appDataBaseDir())
+	if err != nil {
+		mf = toolmanifest.Builtin()
+	}
+	a.manifest = mf
+	if a.instMgr != nil {
+		a.instMgr.SetManifest(mf)
 	}
 }
 

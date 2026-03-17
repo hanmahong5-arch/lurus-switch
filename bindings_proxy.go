@@ -2,14 +2,18 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"lurus-switch/internal/appconfig"
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/proxy"
 	"lurus-switch/internal/proxydetect"
 )
+
+const pingTimeout = 10 * time.Second
 
 // ============================
 // Proxy / NewAPI Methods
@@ -104,4 +108,36 @@ func (a *App) GetAppSettings() (*appconfig.AppSettings, error) {
 // SaveAppSettings persists application settings
 func (a *App) SaveAppSettings(s *appconfig.AppSettings) error {
 	return appconfig.SaveAppSettings(s)
+}
+
+// PingEndpoint tests connectivity to the given endpoint URL.
+// Returns the round-trip latency in milliseconds, or -1 on failure.
+func (a *App) PingEndpoint(endpoint string) (int64, error) {
+	endpoint = strings.TrimSpace(endpoint)
+	if endpoint == "" {
+		return -1, fmt.Errorf("endpoint is empty")
+	}
+	if u, err := url.Parse(endpoint); err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return -1, fmt.Errorf("invalid endpoint URL")
+	}
+
+	client := &http.Client{
+		Timeout: pingTimeout,
+		CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	req, err := http.NewRequestWithContext(a.ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return -1, fmt.Errorf("build request: %w", err)
+	}
+
+	start := time.Now()
+	resp, err := client.Do(req)
+	latency := time.Since(start).Milliseconds()
+	if err != nil {
+		return -1, err
+	}
+	resp.Body.Close()
+	return latency, nil
 }

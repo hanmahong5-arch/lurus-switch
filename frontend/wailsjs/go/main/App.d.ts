@@ -12,6 +12,8 @@ import {promptlib} from '../models';
 import {preset} from '../models';
 import {docmgr} from '../models';
 import {proxy} from '../models';
+import {relay} from '../models';
+import {gy} from '../models';
 import {serverctl} from '../models';
 import {main} from '../models';
 import {analytics} from '../models';
@@ -19,6 +21,7 @@ import {envmgr} from '../models';
 import {process} from '../models';
 import {snapshot} from '../models';
 import {toolconfig} from '../models';
+import {toolmanifest} from '../models';
 import {validator} from '../models';
 
 export function ApplyClaudePreset(arg1:string):Promise<config.ClaudeConfig>;
@@ -330,3 +333,31 @@ export function ValidateOpenClawConfig(arg1:config.OpenClawConfig):Promise<valid
 export function ValidatePicoClawConfig(arg1:config.PicoClawConfig):Promise<validator.ValidationResult>;
 
 export function ValidateZeroClawConfig(arg1:config.ZeroClawConfig):Promise<validator.ValidationResult>;
+
+export function PingEndpoint(arg1:string):Promise<number>;
+
+export function GetRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
+
+export function FetchCloudRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
+
+export function SaveRelayEndpoint(arg1:relay.RelayEndpoint):Promise<void>;
+
+export function DeleteRelayEndpoint(arg1:string):Promise<void>;
+
+export function GetToolRelayMapping():Promise<relay.ToolRelayMapping>;
+
+export function SaveToolRelayMapping(arg1:relay.ToolRelayMapping):Promise<void>;
+
+export function CheckRelayHealth():Promise<Array<relay.RelayEndpoint>>;
+
+export function ApplyAllToolRelays():Promise<Record<string, string>>;
+
+export function GetGYProducts():Promise<Array<gy.GYProduct>>;
+
+export function GetToolDownloadManifest():Promise<toolmanifest.Manifest>;
+
+export function CheckGYStatus():Promise<Array<gy.GYStatus>>;
+
+export function LaunchGYProduct(arg1:string):Promise<void>;
+
+export function DownloadCreator():Promise<void>;

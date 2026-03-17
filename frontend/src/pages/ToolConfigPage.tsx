@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useConfigStore, type ConfigPreset, type ActiveTool } from '../stores/configStore'
+import { useDashboardStore } from '../stores/dashboardStore'
 import {
   ReadToolConfig,
   SaveToolConfig,
@@ -139,9 +140,14 @@ export function ToolConfigPage() {
     lastActiveTool, setLastActiveTool,
     activeSection, setActiveSection,
     cloudPresets, setCloudPresets,
+    highlightField, setHighlightField,
   } = useConfigStore()
 
+  const { tools } = useDashboardStore()
+  const [dismissedBanner, setDismissedBanner] = useState(false)
+
   const tool = activeTool as string
+  const toolKnownNotInstalled = Object.keys(tools).length > 0 && tools[tool]?.installed === false
 
   // Schemas from bundled JSON (type-cast; remote updates applied via schemaCache in App.tsx if needed)
   const schemas = bundledSchemas as ToolSchema[]
@@ -233,7 +239,25 @@ export function ToolConfigPage() {
   // Reset active section when switching tools
   useEffect(() => {
     setActiveSection('core')
+    setDismissedBanner(false)
   }, [tool, setActiveSection])
+
+  // Highlight a field in Monaco when navigated here from health check
+  useEffect(() => {
+    if (!highlightField || viewMode !== 'text') return
+    const editor = editorRef.current
+    if (!editor) return
+    const model = editor.getModel()
+    if (!model) return
+    const searchTerm = highlightField.split('.').pop() || highlightField
+    const matches = model.findMatches(searchTerm, true, false, false, null, true)
+    if (matches.length > 0) {
+      editor.setSelection(matches[0].range)
+      editor.revealLineInCenter(matches[0].range.startLineNumber)
+      editor.focus()
+    }
+    setHighlightField('')
+  }, [highlightField, viewMode, setHighlightField])
 
   const handleSave = async () => {
     setSaveStatus('saving')
@@ -442,6 +466,30 @@ export function ToolConfigPage() {
       {errorMsg && (
         <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs border-b border-red-500/20 shrink-0">
           {errorMsg}
+        </div>
+      )}
+
+      {/* Not-installed banner */}
+      {!dismissedBanner && toolKnownNotInstalled && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-xs shrink-0">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <span className="font-medium text-amber-600">{TOOL_LABELS[tool] || tool} 未安装</span>
+            <span className="text-muted-foreground ml-1.5">配置保存后不会生效，请先安装工具</span>
+          </div>
+          <button
+            onClick={() => setActiveTool('dashboard')}
+            className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 transition-colors whitespace-nowrap"
+          >
+            前往安装 →
+          </button>
+          <button
+            onClick={() => setDismissedBanner(true)}
+            className="p-1 hover:bg-amber-500/20 rounded text-amber-500/70 hover:text-amber-500 transition-colors"
+            title="忽略"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
       )}
 

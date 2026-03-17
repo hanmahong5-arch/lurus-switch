@@ -11,7 +11,10 @@
     "settings": "设置",
     "process": "进程监控",
     "prompts": "提示词库",
-    "documents": "上下文文件"
+    "documents": "上下文文件",
+    "relay": "中转站",
+    "cliRunner": "CLI 运行器",
+    "gyProducts": "GY 产品"
   },
   "schema": {
     "claude": {

@@ -3,6 +3,9 @@ package installer
 import (
 	"context"
 	"fmt"
+	"sync"
+
+	"lurus-switch/internal/toolmanifest"
 )
 
 // ToolStatus represents the current status of a CLI tool
@@ -37,11 +40,22 @@ type ToolInstaller interface {
 	ConfigureProxy(ctx context.Context, endpoint, apiKey string) error
 }
 
+// ManifestAware is implemented by binary installers that can accept a manifest-provided
+// download URL and a download-progress callback.
+type ManifestAware interface {
+	// SetOverrideURL replaces the GitHub Releases download URL with a manifest URL.
+	SetOverrideURL(url string)
+	// SetProgressFn attaches a progress callback invoked every 64 KB during download.
+	SetProgressFn(fn func(downloaded, total int64, percent int))
+}
+
 // Manager holds all tool installers and provides aggregate operations
 type Manager struct {
+	mu          sync.Mutex
 	installers  map[string]ToolInstaller
 	runtime     *BunRuntime
 	nodeRuntime *NodeRuntime
+	manifest    *toolmanifest.Manifest
 }
 
 // NewManager creates a new installer manager with all tool installers
@@ -199,6 +213,36 @@ func (m *Manager) ConfigureAllProxy(ctx context.Context, endpoint, apiKey string
 		}
 	}
 	return errs
+}
+
+// SetManifest injects the tool download manifest into all ManifestAware installers.
+// Binary installers will use the manifest URL instead of querying the GitHub API.
+// Safe to call from a background goroutine.
+func (m *Manager) SetManifest(mf *toolmanifest.Manifest) {
+	if mf == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.manifest = mf
+	platform := toolmanifest.CurrentPlatform()
+	for name, inst := range m.installers {
+		if ma, ok := inst.(ManifestAware); ok {
+			ma.SetOverrideURL(mf.GetPlatformURL(name, platform))
+		}
+	}
+}
+
+// SetProgressCallback attaches a per-tool download-progress callback.
+// Must be called before Install/Update. Pass nil to clear.
+func (m *Manager) SetProgressCallback(name string, fn func(downloaded, total int64, percent int)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if inst, ok := m.installers[name]; ok {
+		if ma, ok := inst.(ManifestAware); ok {
+			ma.SetProgressFn(fn)
+		}
+	}
 }
 
 // GetRuntime returns the bun runtime manager

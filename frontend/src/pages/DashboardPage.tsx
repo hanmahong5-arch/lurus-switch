@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react'
-import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap } from 'lucide-react'
+import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap, CheckCircle2 } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
@@ -27,6 +27,7 @@ import {
   SaveAppSettings,
   GetAppSettings,
 } from '../../wailsjs/go/main/App'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { proxy, appconfig } from '../../wailsjs/go/models'
 
 const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw'] as const
@@ -44,11 +45,33 @@ export function DashboardPage() {
     setToolHealth,
   } = useDashboardStore()
 
-  const { setActiveTool } = useConfigStore()
+  const { setActiveTool, setHighlightField } = useConfigStore()
 
   // Uninstall state
   const [uninstalling, setUninstalling] = useState<Record<string, boolean>>({})
   const [confirmUninstall, setConfirmUninstall] = useState<string | null>(null)
+
+  // Install success toast
+  const [installToast, setInstallToast] = useState<string | null>(null)
+
+  // Per-tool install progress: 0-99 = in-progress, 100 = done, -1 = failed
+  const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
+
+  // Subscribe to install progress events emitted by the Go backend.
+  useEffect(() => {
+    const offProgress = EventsOn('tool:install:progress', (d: { tool: string; percent: number }) => {
+      setInstallProgress(p => ({ ...p, [d.tool]: d.percent }))
+    })
+    const offDone = EventsOn('tool:install:done', (d: { tool: string; success: boolean }) => {
+      setInstallProgress(p => ({ ...p, [d.tool]: d.success ? 100 : -1 }))
+    })
+    return () => { offProgress(); offDone() }
+  }, [])
+
+  const TOOL_DISPLAY: Record<string, string> = {
+    claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI',
+    picoclaw: 'PicoClaw', nullclaw: 'NullClaw', zeroclaw: 'ZeroClaw', openclaw: 'OpenClaw',
+  }
 
   // Load fast data immediately (version + proxy settings), then detect tools in background
   useEffect(() => {
@@ -117,6 +140,9 @@ export function DashboardPage() {
       await InstallTool(toolName)
       const statuses = await DetectAllTools()
       setTools(statuses)
+      // Show install success toast
+      setInstallToast(toolName)
+      setTimeout(() => setInstallToast(null), 3000)
     } catch (err) {
       setError(`${err}`)
     } finally {
@@ -341,6 +367,23 @@ export function DashboardPage() {
           </div>
         )}
 
+        {/* Install success toast */}
+        {installToast && (
+          <div className="fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg bg-green-500/15 border border-green-500/30 shadow-lg text-xs">
+            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+            <div>
+              <p className="font-medium text-green-600">{TOOL_DISPLAY[installToast] || installToast} 安装成功！</p>
+              <p className="text-muted-foreground">建议配置 API 密钥</p>
+            </div>
+            <button
+              onClick={() => { setInstallToast(null); handleConfigure(installToast) }}
+              className="ml-2 px-2 py-1 rounded text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-600 transition-colors"
+            >
+              立即配置 →
+            </button>
+          </div>
+        )}
+
         {/* Quota Widget */}
         <DashboardQuotaWidget />
 
@@ -374,19 +417,38 @@ export function DashboardPage() {
                 updateAvailable: false,
                 path: '',
               }
+              const pct = installProgress[name]
+              const isActiveInstall = installing[name] && pct !== undefined && pct >= 0 && pct < 100
               return (
-                <ToolCard
-                  key={name}
-                  tool={tool}
-                  installing={installing[name] || false}
-                  updating={updating[name] || false}
-                  uninstalling={uninstalling[name] || false}
-                  health={toolHealth[name]}
-                  onInstall={() => handleInstall(name)}
-                  onUpdate={() => handleUpdate(name)}
-                  onConfigure={() => handleConfigure(name)}
-                  onUninstall={tool.installed ? () => handleUninstallRequest(name) : undefined}
-                />
+                <div key={name} className="flex flex-col gap-0.5">
+                  <ToolCard
+                    tool={tool}
+                    installing={installing[name] || false}
+                    updating={updating[name] || false}
+                    uninstalling={uninstalling[name] || false}
+                    health={toolHealth[name]}
+                    onInstall={() => handleInstall(name)}
+                    onUpdate={() => handleUpdate(name)}
+                    onConfigure={() => handleConfigure(name)}
+                    onUninstall={tool.installed ? () => handleUninstallRequest(name) : undefined}
+                    onViewIssues={tool.installed && toolHealth[name]?.status === 'red' ? () => {
+                      const issues = toolHealth[name]?.issues
+                      if (issues?.length) setHighlightField(issues[0])
+                      handleConfigure(name)
+                    } : undefined}
+                  />
+                  {isActiveInstall && (
+                    <div className="px-4 pb-1">
+                      <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-primary transition-all duration-300"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{pct}%</p>
+                    </div>
+                  )}
+                </div>
               )
             })}
           </div>

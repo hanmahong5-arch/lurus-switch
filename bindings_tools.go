@@ -6,7 +6,10 @@ import (
 	"lurus-switch/internal/analytics"
 	"lurus-switch/internal/installer"
 	"lurus-switch/internal/toolhealth"
+	"lurus-switch/internal/toolmanifest"
 	"lurus-switch/internal/updater"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // ============================
@@ -18,9 +21,24 @@ func (a *App) DetectAllTools() (map[string]*installer.ToolStatus, error) {
 	return a.instMgr.DetectAll(a.ctx)
 }
 
-// InstallTool installs a specific CLI tool by name
+// InstallTool installs a specific CLI tool by name.
+// Emits "tool:install:progress" events ({tool, percent}) during download
+// and a "tool:install:done" event ({tool, success}) on completion.
 func (a *App) InstallTool(name string) (*installer.InstallResult, error) {
+	// Attach progress callback so the frontend can show a live progress bar.
+	a.instMgr.SetProgressCallback(name, func(_, _ int64, pct int) {
+		wailsRuntime.EventsEmit(a.ctx, "tool:install:progress", map[string]any{
+			"tool": name, "percent": pct,
+		})
+	})
+	defer a.instMgr.SetProgressCallback(name, nil) // clean up after install
+
 	result, err := a.instMgr.InstallTool(a.ctx, name)
+	wailsRuntime.EventsEmit(a.ctx, "tool:install:done", map[string]any{
+		"tool":    name,
+		"success": err == nil && result != nil && result.Success,
+	})
+
 	if a.tracker != nil && err == nil {
 		if tErr := a.tracker.Record(analytics.Event{
 			Tool: name, Action: "install", Success: result != nil && result.Success,
@@ -29,6 +47,15 @@ func (a *App) InstallTool(name string) (*installer.InstallResult, error) {
 		}
 	}
 	return result, err
+}
+
+// GetToolDownloadManifest returns the current tool download manifest.
+// Falls back to the compile-time builtin if the background fetch has not yet completed.
+func (a *App) GetToolDownloadManifest() (*toolmanifest.Manifest, error) {
+	if a.manifest != nil {
+		return a.manifest, nil
+	}
+	return toolmanifest.Builtin(), nil
 }
 
 // InstallAllTools installs all CLI tools sequentially

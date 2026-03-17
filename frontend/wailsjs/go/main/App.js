@@ -621,3 +621,59 @@ export function ValidatePicoClawConfig(arg1) {
 export function ValidateZeroClawConfig(arg1) {
   return window['go']['main']['App']['ValidateZeroClawConfig'](arg1);
 }
+
+export function PingEndpoint(arg1) {
+  return window['go']['main']['App']['PingEndpoint'](arg1);
+}
+
+export function GetRelayEndpoints() {
+  return window['go']['main']['App']['GetRelayEndpoints']();
+}
+
+export function FetchCloudRelayEndpoints() {
+  return window['go']['main']['App']['FetchCloudRelayEndpoints']();
+}
+
+export function SaveRelayEndpoint(arg1) {
+  return window['go']['main']['App']['SaveRelayEndpoint'](arg1);
+}
+
+export function DeleteRelayEndpoint(arg1) {
+  return window['go']['main']['App']['DeleteRelayEndpoint'](arg1);
+}
+
+export function GetToolRelayMapping() {
+  return window['go']['main']['App']['GetToolRelayMapping']();
+}
+
+export function SaveToolRelayMapping(arg1) {
+  return window['go']['main']['App']['SaveToolRelayMapping'](arg1);
+}
+
+export function CheckRelayHealth() {
+  return window['go']['main']['App']['CheckRelayHealth']();
+}
+
+export function ApplyAllToolRelays() {
+  return window['go']['main']['App']['ApplyAllToolRelays']();
+}
+
+export function GetGYProducts() {
+  return window['go']['main']['App']['GetGYProducts']();
+}
+
+export function GetToolDownloadManifest() {
+  return window['go']['main']['App']['GetToolDownloadManifest']();
+}
+
+export function CheckGYStatus() {
+  return window['go']['main']['App']['CheckGYStatus']();
+}
+
+export function LaunchGYProduct(arg1) {
+  return window['go']['main']['App']['LaunchGYProduct'](arg1);
+}
+
+export function DownloadCreator() {
+  return window['go']['main']['App']['DownloadCreator']();
+}

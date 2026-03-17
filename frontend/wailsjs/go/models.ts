@@ -1719,3 +1719,141 @@ export namespace validator {
 
 }
 
+
+export namespace relay {
+
+	export type ToolRelayMapping = Record<string, string>;
+
+	export class RelayEndpoint {
+	    id: string;
+	    name: string;
+	    kind: string;
+	    url: string;
+	    apiKey: string;
+	    description: string;
+	    latencyMs: number;
+	    healthy: boolean;
+	    lastChecked: string;
+
+	    static createFrom(source: any = {}) {
+	        return new RelayEndpoint(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.url = source["url"];
+	        this.apiKey = source["apiKey"];
+	        this.description = source["description"];
+	        this.latencyMs = source["latencyMs"];
+	        this.healthy = source["healthy"];
+	        this.lastChecked = source["lastChecked"];
+	    }
+	}
+
+}
+
+export namespace gy {
+
+	export class GYProduct {
+	    id: string;
+	    name: string;
+	    description: string;
+	    kind: string;
+	    launchUrl: string;
+	    downloadUrl: string;
+	    serviceUrl: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GYProduct(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.kind = source["kind"];
+	        this.launchUrl = source["launchUrl"];
+	        this.downloadUrl = source["downloadUrl"];
+	        this.serviceUrl = source["serviceUrl"];
+	    }
+	}
+
+	export class GYStatus {
+	    productId: string;
+	    available: boolean;
+	    latencyMs: number;
+	    version: string;
+	    error: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GYStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.productId = source["productId"];
+	        this.available = source["available"];
+	        this.latencyMs = source["latencyMs"];
+	        this.version = source["version"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
+export namespace toolmanifest {
+
+	export class PlatformAsset {
+	    url: string;
+	    sha256: string;
+
+	    static createFrom(source: any = {}) {
+	        return new PlatformAsset(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.sha256 = source["sha256"];
+	    }
+	}
+
+	export class ToolEntry {
+	    type: string;
+	    npm_package: string;
+	    latest_version: string;
+	    platforms: Record<string, PlatformAsset>;
+
+	    static createFrom(source: any = {}) {
+	        return new ToolEntry(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.npm_package = source["npm_package"];
+	        this.latest_version = source["latest_version"];
+	        this.platforms = source["platforms"];
+	    }
+	}
+
+	export class Manifest {
+	    generated_at: string;
+	    tools: Record<string, ToolEntry>;
+
+	    static createFrom(source: any = {}) {
+	        return new Manifest(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.generated_at = source["generated_at"];
+	        this.tools = source["tools"];
+	    }
+	}
+
+}

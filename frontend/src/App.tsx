@@ -5,6 +5,8 @@ import { Sidebar } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { SetupWizard } from './components/SetupWizard'
+import { GatewayRequiredGuard } from './components/GatewayRequiredGuard'
+import { CLIRunner } from './components/CLIRunner'
 import { DashboardPage } from './pages/DashboardPage'
 import { ToolConfigPage } from './pages/ToolConfigPage'
 import { BillingPage } from './pages/BillingPage'
@@ -13,6 +15,8 @@ import { ProcessPage } from './pages/ProcessPage'
 import { PromptLibraryPage } from './pages/PromptLibraryPage'
 import { DocumentPage } from './pages/DocumentPage'
 import { AdminPage } from './pages/AdminPage'
+import { RelayPage } from './pages/RelayPage'
+import { GYProductsPage } from './pages/GYProductsPage'
 import { GatewayPage } from './pages/GatewayPage'
 import { GatewayDashboardPage } from './pages/GatewayDashboardPage'
 import { GatewayChannelPage } from './pages/GatewayChannelPage'
@@ -25,7 +29,9 @@ import { GatewaySubscriptionPage } from './pages/GatewaySubscriptionPage'
 import { GatewaySettingsPage } from './pages/GatewaySettingsPage'
 import { useConfigStore, type ActiveTool } from './stores/configStore'
 import { useGatewayStore } from './stores/gatewayStore'
-import { GetAppSettings, GetServerStatus, GetServerAdminToken } from '../wailsjs/go/main/App'
+import { useBillingStore } from './stores/billingStore'
+import { useDashboardStore } from './stores/dashboardStore'
+import { GetAppSettings, GetServerStatus, GetServerAdminToken, BillingGetUserInfo, BillingGetQuotaSummary } from '../wailsjs/go/main/App'
 import i18n from './i18n'
 
 // Pages that can be used as a startup page
@@ -37,6 +43,8 @@ function App() {
   const { activeTool, setActiveTool } = useConfigStore()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   const { startPolling, stopPolling } = useGatewayStore()
+  const { setUserInfo } = useBillingStore()
+  const { proxySettings } = useDashboardStore()
 
   useEffect(() => {
     GetAppSettings()
@@ -73,6 +81,17 @@ function App() {
     )
     return () => stopPolling()
   }, [])
+
+  // Poll billing user info every 5 minutes to keep AccountStatusBadge fresh.
+  useEffect(() => {
+    if (!proxySettings.userToken) return
+    const fetchBilling = () => {
+      BillingGetUserInfo().then(setUserInfo).catch(() => {})
+    }
+    fetchBilling()
+    const handle = setInterval(fetchBilling, 5 * 60 * 1000)
+    return () => clearInterval(handle)
+  }, [proxySettings.userToken, setUserInfo])
 
   // Loading state while checking onboarding status
   if (showWizard === null) {
@@ -112,26 +131,32 @@ function App() {
         return <DocumentPage />
       case 'admin':
         return <AdminPage />
+      case 'relay':
+        return <RelayPage />
+      case 'gy-products':
+        return <GYProductsPage />
+      case 'cli-runner':
+        return <CLIRunner />
       case 'gateway':
         return <GatewayPage />
       case 'gateway-dashboard':
-        return <GatewayDashboardPage />
+        return <GatewayRequiredGuard><GatewayDashboardPage /></GatewayRequiredGuard>
       case 'gateway-channels':
-        return <GatewayChannelPage />
+        return <GatewayRequiredGuard><GatewayChannelPage /></GatewayRequiredGuard>
       case 'gateway-tokens':
-        return <GatewayTokenPage />
+        return <GatewayRequiredGuard><GatewayTokenPage /></GatewayRequiredGuard>
       case 'gateway-models':
-        return <GatewayModelPage />
+        return <GatewayRequiredGuard><GatewayModelPage /></GatewayRequiredGuard>
       case 'gateway-users':
-        return <GatewayUserPage />
+        return <GatewayRequiredGuard><GatewayUserPage /></GatewayRequiredGuard>
       case 'gateway-redemptions':
-        return <GatewayRedemptionPage />
+        return <GatewayRequiredGuard><GatewayRedemptionPage /></GatewayRequiredGuard>
       case 'gateway-logs':
-        return <GatewayLogPage />
+        return <GatewayRequiredGuard><GatewayLogPage /></GatewayRequiredGuard>
       case 'gateway-subscriptions':
-        return <GatewaySubscriptionPage />
+        return <GatewayRequiredGuard><GatewaySubscriptionPage /></GatewayRequiredGuard>
       case 'gateway-settings':
-        return <GatewaySettingsPage />
+        return <GatewayRequiredGuard><GatewaySettingsPage /></GatewayRequiredGuard>
       default:
         return <DashboardPage />
     }

@@ -84,7 +84,12 @@ func (r *BunRuntime) InstallBun(ctx context.Context) (string, error) {
 		if runtime.GOOS == "windows" && strings.Contains(outputStr, "ExecutionPolicy") {
 			return "", fmt.Errorf("PowerShell execution policy blocked Bun install: run 'Set-ExecutionPolicy RemoteSigned -Scope CurrentUser' first, then retry")
 		}
-		return "", fmt.Errorf("bun install failed: %w, output: %s", err, outputStr)
+		// Primary install failed — try platform fallback
+		if fallbackErr := bunInstallFallback(ctx); fallbackErr == nil {
+			err = nil // fallback succeeded; proceed to path detection below
+		} else {
+			return "", fmt.Errorf("bun install failed: %w, output: %s; fallback also failed: %v", err, outputStr, fallbackErr)
+		}
 	}
 
 	// After install, locate the bun binary at the known path instead of relying on PATH
@@ -122,6 +127,27 @@ func (r *BunRuntime) EnsureBun(ctx context.Context) (string, error) {
 // GetPath returns the cached bun path (empty if not yet located)
 func (r *BunRuntime) GetPath() string {
 	return r.bunPath
+}
+
+// bunInstallFallback attempts a secondary Bun installation method when the primary
+// (irm/curl bun.sh/install) fails. Uses winget on Windows and brew on macOS/Linux.
+func bunInstallFallback(ctx context.Context) error {
+	var cmd *exec.Cmd
+	switch runtime.GOOS {
+	case "windows":
+		// winget is available on Windows 10 1809+ and Windows 11
+		cmd = exec.CommandContext(ctx, "winget", "install", "--id", "oven-sh.bun", "--silent", "--accept-package-agreements", "--accept-source-agreements")
+	case "darwin":
+		cmd = exec.CommandContext(ctx, "brew", "install", "bun")
+	default:
+		// On Linux, try snap as a last resort
+		cmd = exec.CommandContext(ctx, "snap", "install", "bun-js")
+	}
+	hideWindow(cmd)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("fallback install failed: %w (output: %s)", err, strings.TrimSpace(string(out)))
+	}
+	return nil
 }
 
 // IsInstalled returns true if Bun can be found on the system

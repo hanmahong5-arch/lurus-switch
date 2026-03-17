@@ -1,5 +1,15 @@
 # Process Log — Lurus Switch
 
+## 2026-03-17: 全面重设计 Phase 0–6
+Phase 0 Bug 修复：parseIntSafe break fix、serverctl 硬编码凭证→生成随机密钥、MCP ID 碰撞→crypto/rand、CI/CD 完整重写、toolhealth 检查所有条目。
+Phase 1 安全：verify.go SHA-256 校验+自更新签名验证。
+Phase 2 UX：SetupWizard 错误显示、工具未安装 Banner、代理连通性 Ping、Billing 3 状态 UI、GatewayRequiredGuard、健康红灯修复入口、安装成功 Toast、CLI Runner 路由。
+Phase 3 后端：relay 包（types/store/health/cloud）+ bindings_relay.go。前端：RelayPage + relayStore。
+Phase 4 后端：gy 包（types/products/launcher）+ bindings_gy.go。前端：GYProductsPage + gyStore。
+Phase 5：AccountStatusBadge + StatusBar 集成 + 5min billing 轮询。
+Phase 6：doc/structure.md + doc/develop-guide.md（Wails 架构），旧文档加 [ARCHIVED] 头。
+Verification: `go build ./... → PASS` | `bun run build → PASS (1587 modules)`
+
 ## 2026-03-02: ZeroClaw & OpenClaw Full Support
 新增 7 工具支持：ZeroClaw（GitHub Releases 二进制，TOML 配置）+ OpenClaw（npm/bun，JSON 配置）。
 新建：config/zeroclaw.go, config/openclaw.go, installer/zeroclaw_installer.go, installer/openclaw_installer.go, generator/zeroclaw_generator.go, generator/openclaw_generator.go + 6 个测试文件。

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Save, Settings2, Loader2, ExternalLink } from 'lucide-react'
+import { Save, Settings2, Loader2, ExternalLink, CheckCircle2, WifiOff, Wifi } from 'lucide-react'
 import { cn } from '../lib/utils'
 import type { ProxySettings } from '../stores/dashboardStore'
+import { PingEndpoint } from '../../wailsjs/go/main/App'
 
 interface ProxyConfigPanelProps {
   settings: ProxySettings
@@ -11,13 +12,38 @@ interface ProxyConfigPanelProps {
   onConfigureAll: () => void
 }
 
+type PingState = 'idle' | 'pinging' | 'ok' | 'error'
+
 export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConfigureAll }: ProxyConfigPanelProps) {
   const [endpoint, setEndpoint] = useState(settings.apiEndpoint)
   const [apiKey, setApiKey] = useState(settings.apiKey)
   const [registrationUrl] = useState(settings.registrationUrl || '')
 
+  const [pingState, setPingState] = useState<PingState>('idle')
+  const [pingMs, setPingMs] = useState(0)
+  const [pingError, setPingError] = useState('')
+
   const hasChanges = endpoint !== settings.apiEndpoint || apiKey !== settings.apiKey
   const hasValues = endpoint.trim() !== '' && apiKey.trim() !== ''
+
+  const handlePing = async (url: string) => {
+    if (!url.trim()) return
+    setPingState('pinging')
+    setPingError('')
+    try {
+      const ms = await PingEndpoint(url.trim())
+      if (ms < 0) {
+        setPingState('error')
+        setPingError('连接失败: 无法到达')
+      } else {
+        setPingMs(ms)
+        setPingState('ok')
+      }
+    } catch (err) {
+      setPingState('error')
+      setPingError(`连接失败: ${err}`)
+    }
+  }
 
   const handleSave = () => {
     onSave({
@@ -25,6 +51,12 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
       apiKey: apiKey.trim(),
       registrationUrl,
     })
+    // Auto-ping after save to verify connectivity
+    if (endpoint.trim()) {
+      handlePing(endpoint.trim())
+    } else {
+      setPingState('idle')
+    }
   }
 
   return (
@@ -73,7 +105,7 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
         )}
 
         {/* Actions */}
-        <div className="flex gap-2 pt-1">
+        <div className="flex gap-2 pt-1 flex-wrap">
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
@@ -89,6 +121,23 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
               <Save className="h-3.5 w-3.5" />
             )}
             Save Settings
+          </button>
+
+          <button
+            onClick={() => handlePing(endpoint)}
+            disabled={pingState === 'pinging' || !endpoint.trim()}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              'border border-border hover:bg-muted',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          >
+            {pingState === 'pinging' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Wifi className="h-3.5 w-3.5" />
+            )}
+            测试连接
           </button>
 
           <button
@@ -108,6 +157,23 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
             Apply to All Tools
           </button>
         </div>
+
+        {/* Connectivity status badge */}
+        {pingState !== 'idle' && (
+          <div className={cn(
+            'flex items-center gap-1.5 text-xs mt-1',
+            pingState === 'pinging' && 'text-muted-foreground',
+            pingState === 'ok' && 'text-green-500',
+            pingState === 'error' && 'text-red-500',
+          )}>
+            {pingState === 'pinging' && <Loader2 className="h-3 w-3 animate-spin" />}
+            {pingState === 'ok' && <CheckCircle2 className="h-3 w-3" />}
+            {pingState === 'error' && <WifiOff className="h-3 w-3" />}
+            {pingState === 'pinging' && '连接中...'}
+            {pingState === 'ok' && `已连接 (${pingMs}ms)`}
+            {pingState === 'error' && pingError}
+          </div>
+        )}
       </div>
     </div>
   )

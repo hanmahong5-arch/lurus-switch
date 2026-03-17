@@ -1,0 +1,15 @@
+{
+  "name": "openclaw-memx",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "memx (UU114/memx) memory backend for OpenClaw via local HTTP bridge",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@sinclair/typebox": "0.34.47"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ]
+  }
+}

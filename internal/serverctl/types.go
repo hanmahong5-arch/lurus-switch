@@ -14,6 +14,7 @@ type ServerStatus struct {
 type ServerConfig struct {
 	Port          int    `json:"port"`           // default 19090
 	SessionSecret string `json:"session_secret"` // auto-generated 32-char random string
+	AdminPassword string `json:"admin_password"` // initial root password; auto-generated on first run
 	AdminToken    string `json:"admin_token"`    // obtained after first successful start
 	AutoStart     bool   `json:"auto_start"`
 }

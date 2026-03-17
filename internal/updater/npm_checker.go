@@ -113,12 +113,18 @@ func isNewer(latest, current string) bool {
 	return len(latestParts) > len(currentParts)
 }
 
-// parseIntSafe parses a string as int, returning 0 on failure
+// parseIntSafe finds the first digit in s, then parses consecutive digits until
+// a non-digit is encountered. Returns 0 if no digits are found.
+// "v2" → 2, "rc1" → 1, "1a2b3" → 1, "abc" → 0.
 func parseIntSafe(s string) int {
 	n := 0
+	started := false
 	for _, ch := range s {
 		if ch >= '0' && ch <= '9' {
+			started = true
 			n = n*10 + int(ch-'0')
+		} else if started {
+			break
 		}
 	}
 	return n

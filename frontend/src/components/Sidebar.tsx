@@ -2,6 +2,7 @@ import {
   Settings, LayoutDashboard, Wrench,
   CreditCard, Activity, BookOpen, FileText, Shield,
   Server, Layers, Key, Users, BarChart3, Box, Gift, Settings2,
+  Terminal, Network, Package,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -18,6 +19,8 @@ function isToolPage(t: ActiveTool): boolean {
 
 // Utility nav items shown below the tools
 const utilNav: { id: ActiveTool; i18nKey: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+  { id: 'relay', i18nKey: 'nav.relay', icon: Network, color: 'text-sky-500' },
+  { id: 'cli-runner', i18nKey: 'nav.cliRunner', icon: Terminal, color: 'text-gray-400' },
   { id: 'process', i18nKey: 'nav.process', icon: Activity, color: 'text-yellow-500' },
   { id: 'prompts', i18nKey: 'nav.prompts', icon: BookOpen, color: 'text-purple-400' },
   { id: 'documents', i18nKey: 'nav.documents', icon: FileText, color: 'text-teal-500' },
@@ -80,6 +83,16 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-2 overflow-y-auto">
         <div className="space-y-1">
+          {/* GY Products */}
+          <NavButton
+            id="gy-products"
+            name={t('nav.gyProducts')}
+            icon={Package}
+            iconColor="text-violet-500"
+            active={activeTool === 'gy-products'}
+            onClick={() => setActiveTool('gy-products')}
+          />
+
           {/* Dashboard */}
           <NavButton
             id="dashboard"

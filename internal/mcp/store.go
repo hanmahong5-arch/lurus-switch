@@ -1,13 +1,13 @@
 package mcp
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"time"
 )
 
 // Store manages MCP preset persistence
@@ -82,7 +82,11 @@ func (s *Store) ListPresets() ([]MCPPreset, error) {
 // SavePreset persists a preset to disk; generates an ID if empty
 func (s *Store) SavePreset(p MCPPreset) error {
 	if p.ID == "" {
-		p.ID = fmt.Sprintf("user-%d", time.Now().UnixMilli())
+		buf := make([]byte, 8)
+		if _, err := rand.Read(buf); err != nil {
+			return fmt.Errorf("failed to generate preset ID: %w", err)
+		}
+		p.ID = fmt.Sprintf("user-%x", buf)
 	}
 	if strings.ContainsAny(p.ID, `/\`) || strings.Contains(p.ID, "..") {
 		return fmt.Errorf("invalid preset ID: %q", p.ID)

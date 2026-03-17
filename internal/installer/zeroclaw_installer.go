@@ -13,7 +13,16 @@ import (
 )
 
 // ZeroClawInstaller handles ZeroClaw CLI installation via GitHub Releases
-type ZeroClawInstaller struct{}
+type ZeroClawInstaller struct {
+	overrideURL string
+	progressFn  func(int64, int64, int)
+}
+
+// SetOverrideURL sets a manifest-provided download URL, bypassing the GitHub API.
+func (z *ZeroClawInstaller) SetOverrideURL(url string) { z.overrideURL = url }
+
+// SetProgressFn attaches a download-progress callback.
+func (z *ZeroClawInstaller) SetProgressFn(fn func(int64, int64, int)) { z.progressFn = fn }
 
 // NewZeroClawInstaller creates a new ZeroClawInstaller
 func NewZeroClawInstaller() *ZeroClawInstaller {
@@ -63,7 +72,7 @@ func (z *ZeroClawInstaller) Install(ctx context.Context) (*InstallResult, error)
 	installCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
 	defer cancel()
 
-	result, err := downloadAndInstallBinary(installCtx, z.binaryConfig())
+	result, err := downloadAndInstallBinary(installCtx, z.binaryConfig(), z.overrideURL, z.progressFn)
 	if err != nil {
 		return result, err
 	}

@@ -2,6 +2,7 @@ package toolhealth
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"lurus-switch/internal/toolconfig"
@@ -152,10 +153,17 @@ func checkClawHealth(content string, r *HealthResult) {
 		return
 	}
 
-	first, _ := modelList[0].(map[string]any)
-	apiBase, _ := first["api_base"].(string)
-	if strings.TrimSpace(apiBase) == "" {
-		r.Status = StatusYellow
-		r.Issues = append(r.Issues, "api_base is empty")
+	for i, entry := range modelList {
+		item, _ := entry.(map[string]any)
+		apiBase, _ := item["api_base"].(string)
+		modelName, _ := item["model_name"].(string)
+		if strings.TrimSpace(apiBase) == "" {
+			r.Status = StatusYellow
+			r.Issues = append(r.Issues, fmt.Sprintf("model_list[%d].api_base is empty", i))
+		}
+		if strings.TrimSpace(modelName) == "" {
+			r.Status = StatusYellow
+			r.Issues = append(r.Issues, fmt.Sprintf("model_list[%d].model_name is empty", i))
+		}
 	}
 }

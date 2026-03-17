@@ -170,7 +170,7 @@ func TestWriteConfig_AllTools(t *testing.T) {
 
 func TestGetAllConfigPaths_ReturnsFourTools(t *testing.T) {
 	paths := GetAllConfigPaths()
-	expected := []string{"claude", "codex", "gemini", "picoclaw"}
+	expected := []string{"claude", "codex", "gemini", "picoclaw", "nullclaw", "zeroclaw", "openclaw"}
 
 	for _, tool := range expected {
 		if _, ok := paths[tool]; !ok {
@@ -178,8 +178,8 @@ func TestGetAllConfigPaths_ReturnsFourTools(t *testing.T) {
 		}
 	}
 
-	if len(paths) != 5 {
-		t.Errorf("expected 5 paths, got %d", len(paths))
+	if len(paths) != 7 {
+		t.Errorf("expected 7 paths, got %d", len(paths))
 	}
 }
 
