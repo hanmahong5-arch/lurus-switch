@@ -74,10 +74,10 @@ author: Anita (via BMAD Analysis)
 | Category | Metric | Baseline (Feb 2) | Current | Target |
 |----------|--------|-------------------|---------|--------|
 | **Reliability** | Monthly uptime | ~98% (manual ops) | ~98% | ≥ 99.5% |
-| **Gushen** | Backtest execution time (1yr data) | ~3-5s | ~3-5s | < 2s |
-| **Gushen** | Strategy validation stock coverage | 10 stocks | 50+ stocks | 50+ stocks |
-| **Gushen** | Active strategies (builtin + user) | ~5 | 8+ builtin + user customs | 20+ |
-| **Gushen** | Backtest engine test coverage | ~15% | **85%+ (680 tests)** | ≥ 85% |
+| **Lucrum** | Backtest execution time (1yr data) | ~3-5s | ~3-5s | < 2s |
+| **Lucrum** | Strategy validation stock coverage | 10 stocks | 50+ stocks | 50+ stocks |
+| **Lucrum** | Active strategies (builtin + user) | ~5 | 8+ builtin + user customs | 20+ |
+| **Lucrum** | Backtest engine test coverage | ~15% | **85%+ (680 tests)** | ≥ 85% |
 | **API Gateway** | LLM API response latency (p95) | ~500ms | ~500ms | < 300ms |
 | **API Gateway** | Supported model providers | 5 | 5 | 8+ |
 | **DevOps** | Deployment frequency | 2-3/week | 2-3/week | Daily |
@@ -103,7 +103,7 @@ author: Anita (via BMAD Analysis)
 | Meilisearch full-text search | ✅ Production | P1 |
 | Graceful shutdown & lifecycle | ✅ Production | P0 |
 
-### 4.2 lurus-gushen (AI Quantitative Trading)
+### 4.2 lurus-lucrum (AI Quantitative Trading)
 
 | Feature | Status | Priority |
 |---------|--------|----------|

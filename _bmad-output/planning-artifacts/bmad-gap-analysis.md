@@ -84,7 +84,7 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 
 | Item | Previous | Current | Status |
 |------|----------|---------|--------|
-| Formal PRD (gushen) | ❌ Missing | ✅ Generated | `prd-gushen.md` with 6 user journeys |
+| Formal PRD (lucrum) | ❌ Missing | ✅ Generated | `prd-lucrum.md` with 6 user journeys |
 | **Formal PRD (lurus-switch)** | **❌ Missing** | **✅ Created (2026-02-27)** | **`prd.md` v2.0 — 10 feature groups, 3 milestones, 3 user personas** |
 | Functional requirements (switch) | ❌ None | ✅ F1-F10 | 50+ requirements across 10 feature groups |
 | Non-functional requirements (switch) | ❌ None | ✅ 4 NFR categories | Performance, reliability, security, compatibility |
@@ -106,7 +106,7 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 
 | Item | Previous | Current | Status |
 |------|----------|---------|--------|
-| Design system | ✅ Exists | ✅ Active | `docs/DESIGN_SYSTEM.md` for gushen-web |
+| Design system | ✅ Exists | ✅ Active | `docs/DESIGN_SYSTEM.md` for lucrum-web |
 | UX specification | ❌ Missing | ⚠️ Partial | Implicit in PRD user journeys |
 | Responsive design spec | ⚠️ Partial | ✅ Implemented | Mobile card view below 768px |
 | Accessibility spec | ⚠️ Partial | ✅ Improved | ARIA labels, keyboard nav, WCAG targets |
@@ -138,14 +138,14 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 
 | Item | Previous | Current | Status |
 |------|----------|---------|--------|
-| Epic definition (gushen) | ❌ Missing | ⚠️ Informal | Q2 roadmap has 5 epics in plan.md |
+| Epic definition (lucrum) | ❌ Missing | ⚠️ Informal | Q2 roadmap has 5 epics in plan.md |
 | **Epic definition (lurus-switch)** | **❌ Missing** | **⏳ In Progress** | **Epics being created from PRD v2.0** |
 | User stories | ❌ Missing | ⚠️ Implicit | PRD FRs can be decomposed to stories |
 | Sprint planning | ❌ Missing | ✅ Active | 3 sprints planned in doc/plan.md |
 | Backlog grooming | ❌ Missing | ⚠️ Partial | plan.md populated but no formal backlog tool |
 
 **Remaining Gaps**:
-- 📋 Formal epics document for lurus-gushen (`epics-gushen.md`)
+- 📋 Formal epics document for lurus-lucrum (`epics-lucrum.md`)
 - 📋 lurus-switch epics (`epics.md`) — in progress, derived from PRD v2.0
 - 📋 Story estimation and velocity tracking
 
@@ -180,8 +180,8 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 
 | Service | Previous Coverage | Current Coverage | Target | Gap |
 |---------|------------------|-----------------|--------|-----|
-| lurus-gushen (backtest/) | ~15% | **85%+ (680 tests)** | 80% | **✅ Exceeded** |
-| lurus-gushen (components) | ~5% | ~25% | 50% | -25% |
+| lurus-lucrum (backtest/) | ~15% | **85%+ (680 tests)** | 80% | **✅ Exceeded** |
+| lurus-lucrum (components) | ~5% | ~25% | 50% | -25% |
 | lurus-api | ~50% | ~50% | 70% | -20% |
 | lurus-switch (Go backend) | ~40% | ~40% | 60% | -20% |
 | lurus-switch (React frontend) | ~0% | ~0% | 50% | -50% |
@@ -191,7 +191,7 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 **Major Achievement**: Backtest engine coverage went from ~15% to 85%+ (680 tests). This was the highest-risk area identified in the initial gap analysis.
 
 **Remaining Gaps**:
-- Priority 1: Component tests for gushen-web (strategy editor, ranking)
+- Priority 1: Component tests for lucrum-web (strategy editor, ranking)
 - Priority 2: lurus-api coverage improvement
 - Priority 3: lurus-webmail basic test suite
 
@@ -203,7 +203,7 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 | Automated tests in CI | ⚠️ Partial | ⚠️ Partial | Backtest tests comprehensive, CI step pending |
 | Docker image build | ✅ Working | ✅ Working | Multi-stage, public dir fix applied |
 | ArgoCD sync | ✅ Working | ✅ Working | GitOps |
-| Staging environment | ❌ Missing | ✅ Deployed | `ai-qtrd-staging` namespace |
+| Staging environment | ❌ Missing | ✅ Deployed | `lucrum-staging` namespace |
 | Rollback procedure | ⚠️ Manual | ⚠️ Manual | ArgoCD supports it, not documented |
 
 **Remaining Gaps**:
@@ -217,7 +217,7 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 |------|----------|---------|------------|
 | Root README.md | ✅ Basic | ✅ Good | Quick start guide |
 | CLAUDE.md (root) | ✅ Good | ✅ Updated | Company standards |
-| CLAUDE.md (gushen-web) | ✅ Excellent | ✅ Updated | Dev workflow |
+| CLAUDE.md (lucrum-web) | ✅ Excellent | ✅ Updated | Dev workflow |
 | doc/process.md | ✅ Active | ✅ Active | 10KB development log |
 | doc/plan.md | ❌ Empty | ✅ Populated | Q1-Q3 roadmap with sprints |
 | doc/structure.md | ❌ Missing | ⚠️ Partial | Architecture.md serves as substitute |
@@ -263,10 +263,10 @@ scope: lurus-switch service assessment across all 4 BMAD phases
 1. ✅ **Product brief generated** → `product-brief.md`
 2. ✅ **Architecture document generated** → `architecture.md` (11 ADRs)
 3. ✅ **Project context generated** → `project-context.md`
-4. ✅ **PRD created for lurus-gushen** → `prd-gushen.md` (6 journeys, 60+ FRs)
+4. ✅ **PRD created for lurus-lucrum** → `prd-lucrum.md` (6 journeys, 60+ FRs)
 5. ✅ **Gap analysis generated** → `bmad-gap-analysis.md`
 6. ✅ **Financial engine tests** → 680+ tests, 85%+ coverage
-7. ✅ **Staging environment deployed** → `ai-qtrd-staging` namespace
+7. ✅ **Staging environment deployed** → `lucrum-staging` namespace
 8. ✅ **doc/plan.md populated** → Q1-Q3 roadmap with sprints
 9. ✅ **Workflow system launched** → Multi-step strategy development
 10. ✅ **Strategy crawler launched** → GitHub discovery pipeline
@@ -334,7 +334,7 @@ Based on the updated gap analysis, recommended next BMAD workflows:
 |-------|----------|-------|---------|--------|
 | 1 | `generate-project-context` | BMad Master | Project context | ✅ Done (regenerated) |
 | 2 | `create-product-brief` | Mary (Analyst) | Product brief | ✅ Done (regenerated) |
-| 3 | `create-prd` (gushen) | John (PM) | Gushen PRD | ✅ Done (regenerated) |
+| 3 | `create-prd` (lucrum) | John (PM) | Lucrum PRD | ✅ Done (regenerated) |
 | 4 | `create-prd` (lurus-switch) | John (PM) | Switch PRD | ✅ Done (2026-02-27) — `prd.md` v2.0 |
 | 5 | `create-architecture` | Winston (Architect) | Architecture doc | ✅ Done (regenerated) |
 | 6 | `check-implementation-readiness` | Bob (SM) | Gap analysis | ✅ Done (updated 2026-02-27) |
