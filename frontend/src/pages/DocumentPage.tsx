@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { Save, FolderOpen, FileText, Loader2, RefreshCw, Plus } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { useToastStore } from '../stores/toastStore'
 import { GetContextFile, SaveContextFile, OpenFolderAndScanContext } from '../../wailsjs/go/main/App'
 
 interface ContextFile {
@@ -35,25 +36,24 @@ export function DocumentPage() {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const toast = useToastStore((s) => s.addToast)
   const [scannedFiles, setScannedFiles] = useState<ContextFile[]>([])
   const [showScanned, setShowScanned] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const loadFile = useCallback(async (tool: Tool, scope: Scope) => {
     setLoading(true)
-    setError('')
     try {
       const f = await GetContextFile(tool, scope)
       setContextFile(f)
       setContent(f?.content || '')
     } catch (err) {
-      setError(`Failed to load context file: ${err}`)
+      toast('error', `Failed to load context file: ${err}`)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     loadFile(activeTool, activeScope)
@@ -62,7 +62,6 @@ export function DocumentPage() {
   const handleSave = async () => {
     if (!contextFile) return
     setSaving(true)
-    setError('')
     try {
       await SaveContextFile({
         ...contextFile,
@@ -71,21 +70,21 @@ export function DocumentPage() {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
       await loadFile(activeTool, activeScope)
+      toast('success', 'Context file saved')
     } catch (err) {
-      setError(`Failed to save: ${err}`)
+      toast('error', `Failed to save: ${err}`, { label: 'Retry', onClick: () => handleSave() })
     } finally {
       setSaving(false)
     }
   }
 
   const handleScanFolder = async () => {
-    setError('')
     try {
       const files = await OpenFolderAndScanContext()
       setScannedFiles(files || [])
       setShowScanned(true)
     } catch (err) {
-      setError(`Failed to scan folder: ${err}`)
+      toast('error', `Failed to scan folder: ${err}`)
     }
   }
 
@@ -209,13 +208,6 @@ export function DocumentPage() {
           </button>
         </div>
       </div>
-
-      {error && (
-        <div className="px-4 py-2 text-xs text-red-500 bg-red-500/10 border-b border-red-500/20 shrink-0">
-          {error}
-          <button onClick={() => setError('')} className="ml-2">✕</button>
-        </div>
-      )}
 
       <div className="flex flex-1 overflow-hidden">
         {/* Editor */}

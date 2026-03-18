@@ -1,16 +1,19 @@
 import { create } from 'zustand'
 import type { relay } from '../../wailsjs/go/models'
 
+/** Tool name → relay endpoint ID */
+type ToolRelayMapping = Record<string, string>
+
 interface RelayState {
   endpoints: relay.RelayEndpoint[]
   cloudEndpoints: relay.RelayEndpoint[]
-  mapping: relay.ToolRelayMapping
+  mapping: ToolRelayMapping
   loading: boolean
   applying: boolean
 
   setEndpoints: (e: relay.RelayEndpoint[]) => void
   setCloudEndpoints: (e: relay.RelayEndpoint[]) => void
-  setMapping: (m: relay.ToolRelayMapping) => void
+  setMapping: (m: ToolRelayMapping) => void
   setLoading: (l: boolean) => void
   setApplying: (a: boolean) => void
 }

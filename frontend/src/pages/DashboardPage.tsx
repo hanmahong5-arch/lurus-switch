@@ -82,7 +82,6 @@ export function DashboardPage() {
 
   const detectTools = useCallback(async () => {
     setDetecting(true)
-    setError(null)
     try {
       const toolStatuses = await DetectAllTools()
       setTools(toolStatuses)

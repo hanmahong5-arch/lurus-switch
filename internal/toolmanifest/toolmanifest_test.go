@@ -53,8 +53,8 @@ func TestBuiltin(t *testing.T) {
 	if mf.GeneratedAt == "" {
 		t.Fatal("Builtin manifest has empty generated_at")
 	}
-	// Verify key tools exist
-	for _, name := range []string{"claude", "picoclaw", "nullclaw", "zeroclaw"} {
+	// Verify npm tools exist in builtin (binary tools are now served dynamically from API)
+	for _, name := range []string{"claude", "codex", "gemini", "openclaw"} {
 		if _, ok := mf.Tools[name]; !ok {
 			t.Errorf("missing expected tool %q in builtin manifest", name)
 		}

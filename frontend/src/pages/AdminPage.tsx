@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Shield, Activity, RefreshCw, Loader2, ExternalLink, Server, Monitor } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { useToastStore } from '../stores/toastStore'
 import { PingLurusAPI, GetSystemInfo, GetAppVersion, CheckSelfUpdate, ApplySelfUpdate, DetectAllTools } from '../../wailsjs/go/main/App'
 
 interface SystemInfo {
@@ -25,7 +26,7 @@ export function AdminPage() {
   const [toolsLoading, setToolsLoading] = useState(false)
   const [updateInfo, setUpdateInfo] = useState<{ updateAvailable: boolean; latestVersion: string } | null>(null)
   const [updating, setUpdating] = useState(false)
-  const [error, setError] = useState('')
+  const toast = useToastStore((s) => s.addToast)
 
   useEffect(() => {
     loadAll()
@@ -41,7 +42,7 @@ export function AdminPage() {
       setSysInfo(info as unknown as SystemInfo)
       setAppVersion(ver)
     } catch (err) {
-      setError(`Failed to load system info: ${err}`)
+      toast('error', `Failed to load system info: ${err}`)
     }
     loadTools()
   }
@@ -64,7 +65,7 @@ export function AdminPage() {
       const statuses = await DetectAllTools()
       setTools(statuses || {})
     } catch (err) {
-      setError(`Failed to detect tools: ${err}`)
+      toast('error', `Failed to detect tools: ${err}`)
     } finally {
       setToolsLoading(false)
     }
@@ -75,7 +76,7 @@ export function AdminPage() {
       const info = await CheckSelfUpdate()
       setUpdateInfo(info as { updateAvailable: boolean; latestVersion: string })
     } catch (err) {
-      setError(`Failed to check update: ${err}`)
+      toast('error', `Failed to check update: ${err}`)
     }
   }
 
@@ -84,7 +85,7 @@ export function AdminPage() {
     try {
       await ApplySelfUpdate()
     } catch (err) {
-      setError(`Failed to apply update: ${err}`)
+      toast('error', `Failed to apply update: ${err}`)
     } finally {
       setUpdating(false)
     }
@@ -103,13 +104,6 @@ export function AdminPage() {
           </h2>
           <p className="text-sm text-muted-foreground">系统状态、服务健康、快速链接</p>
         </div>
-
-        {error && (
-          <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20 flex items-center justify-between">
-            <span>{error}</span>
-            <button onClick={() => setError('')} className="hover:text-red-400">✕</button>
-          </div>
-        )}
 
         {/* API Health */}
         <div className="border border-border rounded-lg p-4 space-y-3">

@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	manifestEndpoint = "/api/v2/tools/download-manifest"
-	cacheFilename    = "tool_manifest_cache.json"
-	cacheTTL         = 6 * time.Hour
-	fetchTimeout     = 5 * time.Second
+	manifestEndpoint   = "/api/v2/tools/download-manifest"
+	defaultManifestAPI = "https://api.lurus.cn"
+	cacheFilename      = "tool_manifest_cache.json"
+	cacheTTL           = 6 * time.Hour
+	fetchTimeout       = 5 * time.Second
 )
 
 // cacheEntry wraps a Manifest with a fetch timestamp for TTL checks.
@@ -25,12 +26,11 @@ type cacheEntry struct {
 
 // Fetch retrieves the manifest using this priority order:
 //  1. Valid local cache (age < cacheTTL)
-//  2. Live HTTP fetch from apiBase + manifestEndpoint
+//  2. Live HTTP fetch from apiBase + manifestEndpoint (falls back to api.lurus.cn if apiBase is empty)
 //  3. Stale local cache (any age) as offline fallback
 //  4. Compile-time Builtin()
 //
-// cacheDir is typically the app data base directory. apiBase may be empty, in
-// which case steps 1/3 (cache only) and 4 (builtin) are used.
+// cacheDir is typically the app data base directory.
 func Fetch(ctx context.Context, apiBase, cacheDir string) (*Manifest, error) {
 	cachePath := filepath.Join(cacheDir, cacheFilename)
 
@@ -42,13 +42,15 @@ func Fetch(ctx context.Context, apiBase, cacheDir string) (*Manifest, error) {
 		}
 	}
 
-	// 2. Live HTTP fetch
-	if apiBase != "" {
-		if mf, err := fetchHTTP(ctx, apiBase); err == nil {
-			// Persist to cache (best-effort)
-			_ = writeCache(cachePath, mf)
-			return mf, nil
-		}
+	// 2. Live HTTP fetch (fall back to public API if apiBase is empty)
+	fetchBase := apiBase
+	if fetchBase == "" {
+		fetchBase = defaultManifestAPI
+	}
+	if mf, err := fetchHTTP(ctx, fetchBase); err == nil {
+		// Persist to cache (best-effort)
+		_ = writeCache(cachePath, mf)
+		return mf, nil
 	}
 
 	// 3. Stale cache as offline fallback
