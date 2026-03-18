@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"lurus-switch/internal/gy"
+	"lurus-switch/internal/toolmanifest"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
@@ -58,16 +59,11 @@ func (a *App) LaunchGYProduct(productID string) error {
 // and launches it automatically. Progress is emitted as "gy:creator:progress" {percent: N}.
 func (a *App) DownloadCreator() error {
 	// Validate platform before starting the download.
-	if ok, reason := platformSupported(); !ok {
+	if ok, reason := toolmanifest.IsSupportedPlatform(); !ok {
 		return fmt.Errorf("%s", reason)
 	}
-	return gy.DownloadCreator(a.ctx, a.manifest, os.TempDir(), func(pct int) {
+	return gy.DownloadCreator(a.ctx, a.loadManifest(), os.TempDir(), func(pct int) {
 		wailsRuntime.EventsEmit(a.ctx, "gy:creator:progress", map[string]any{"percent": pct})
 	})
 }
 
-// platformSupported checks whether Creator download is supported on this OS.
-// Returned reason is shown to the user when unsupported.
-func platformSupported() (bool, string) {
-	return true, "" // IsSupportedPlatform checked at startup via toolmanifest package
-}

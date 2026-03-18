@@ -5,25 +5,10 @@ import (
 	"fmt"
 	goruntime "runtime"
 
-	"sync"
+	"sync/atomic"
 
-	"lurus-switch/internal/analytics"
-	"lurus-switch/internal/billing"
-	"lurus-switch/internal/config"
-	"lurus-switch/internal/docmgr"
-	"lurus-switch/internal/envmgr"
-	"lurus-switch/internal/installer"
-	"lurus-switch/internal/mcp"
 	"lurus-switch/internal/packager"
-	"lurus-switch/internal/process"
-	"lurus-switch/internal/promptlib"
-	"lurus-switch/internal/proxy"
-	"lurus-switch/internal/relay"
-	"lurus-switch/internal/serverctl"
-	"lurus-switch/internal/snapshot"
 	"lurus-switch/internal/toolmanifest"
-	"lurus-switch/internal/updater"
-	"lurus-switch/internal/validator"
 )
 
 // AppVersion is the current version of Lurus Switch, set at build time via -ldflags
@@ -36,91 +21,28 @@ type SystemInfo struct {
 	GOARCH     string `json:"goarch"`
 }
 
-// App struct
+// App struct — Wails-bound application.
+// Service dependencies live in the embedded *services struct (services.go),
+// keeping App focused on Wails lifecycle and manifest coordination.
 type App struct {
-	ctx           context.Context
-	store         *config.Store
-	validator     *validator.Validator
-	instMgr       *installer.Manager
-	proxyMgr      *proxy.ProxyManager
-	selfUpdater   *updater.SelfUpdater
-	npmChecker    *updater.NpmChecker
-	billingMu     sync.Mutex
-	billingClient *billing.Client
+	ctx context.Context
 
-	// New components added in Phase A-I
-	processMon   *process.Monitor
-	snapshotStr  *snapshot.Store
-	promptStr    *promptlib.Store
-	mcpStr       *mcp.Store
-	docMgr       *docmgr.Manager
-	envMgr       *envmgr.Manager
-	tracker      *analytics.Tracker
+	// All service dependencies (config, installer, billing, etc.)
+	*services
 
-	// Embedded gateway server manager
-	serverMgr *serverctl.Manager
-
-	// Relay endpoint store
-	relayStore *relay.Store
-
-	// Tool download manifest (loaded in background at startup)
-	manifest *toolmanifest.Manifest
+	// Tool download manifest (loaded in background at startup).
+	// Accessed from both the background goroutine and the Wails UI thread,
+	// so atomic.Pointer is used to avoid data races.
+	manifest atomic.Pointer[toolmanifest.Manifest]
 }
 
 // NewApp creates a new App application struct
 func NewApp() *App {
-	store, err := config.NewStore()
-	if err != nil {
-		fmt.Printf("Warning: failed to initialize config store: %v\n", err)
+	svc, warnings := newServices(appDataBaseDir(), AppVersion)
+	for _, w := range warnings {
+		fmt.Printf("Warning: %s\n", w)
 	}
-
-	proxyMgr, _ := proxy.NewProxyManager()
-
-	snapStr, err := snapshot.NewStore()
-	if err != nil {
-		fmt.Printf("Warning: failed to initialize snapshot store: %v\n", err)
-	}
-
-	promptStr, err := promptlib.NewStore()
-	if err != nil {
-		fmt.Printf("Warning: failed to initialize prompt store: %v\n", err)
-	}
-
-	mcpStr, err := mcp.NewStore()
-	if err != nil {
-		fmt.Printf("Warning: failed to initialize mcp store: %v\n", err)
-	}
-
-	tracker, err := analytics.NewTracker()
-	if err != nil {
-		fmt.Printf("Warning: failed to initialize analytics tracker: %v\n", err)
-	}
-
-	appDataDir := appDataBaseDir()
-	svrMgr := serverctl.NewManager(appDataDir)
-
-	relayStr, err := relay.NewStore(appDataDir)
-	if err != nil {
-		fmt.Printf("Warning: failed to initialize relay store: %v\n", err)
-	}
-
-	return &App{
-		store:       store,
-		validator:   validator.NewValidator(),
-		instMgr:     installer.NewManager(),
-		proxyMgr:    proxyMgr,
-		selfUpdater: updater.NewSelfUpdater(AppVersion),
-		npmChecker:  updater.NewNpmChecker(),
-		processMon:  process.NewMonitor(),
-		snapshotStr: snapStr,
-		promptStr:   promptStr,
-		mcpStr:      mcpStr,
-		docMgr:      docmgr.NewManager(),
-		envMgr:      envmgr.NewManager(),
-		tracker:     tracker,
-		serverMgr:   svrMgr,
-		relayStore:  relayStr,
-	}
+	return &App{services: svc}
 }
 
 // startup is called when the app starts. The context is saved
@@ -158,10 +80,18 @@ func (a *App) refreshManifest() {
 	if err != nil {
 		mf = toolmanifest.Builtin()
 	}
-	a.manifest = mf
+	a.manifest.Store(mf)
 	if a.instMgr != nil {
 		a.instMgr.SetManifest(mf)
 	}
+}
+
+// loadManifest returns the current manifest, falling back to the compile-time builtin.
+func (a *App) loadManifest() *toolmanifest.Manifest {
+	if mf := a.manifest.Load(); mf != nil {
+		return mf
+	}
+	return toolmanifest.Builtin()
 }
 
 // GetSystemInfo returns basic system information

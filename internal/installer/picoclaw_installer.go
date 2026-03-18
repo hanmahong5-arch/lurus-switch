@@ -12,12 +12,16 @@ import (
 
 // PicoClawInstaller handles PicoClaw CLI installation via GitHub Releases binary download
 type PicoClawInstaller struct {
-	overrideURL string
-	progressFn  func(int64, int64, int)
+	overrideURL    string
+	expectedSHA256 string
+	progressFn     func(int64, int64, int)
 }
 
 // SetOverrideURL sets a manifest-provided download URL, bypassing the GitHub API.
 func (p *PicoClawInstaller) SetOverrideURL(url string) { p.overrideURL = url }
+
+// SetExpectedSHA256 sets the expected SHA-256 hex digest for integrity verification.
+func (p *PicoClawInstaller) SetExpectedSHA256(hash string) { p.expectedSHA256 = hash }
 
 // SetProgressFn attaches a download-progress callback.
 func (p *PicoClawInstaller) SetProgressFn(fn func(int64, int64, int)) { p.progressFn = fn }
@@ -70,7 +74,7 @@ func (p *PicoClawInstaller) Install(ctx context.Context) (*InstallResult, error)
 	installCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
 	defer cancel()
 
-	result, err := downloadAndInstallBinary(installCtx, p.binaryConfig(), p.overrideURL, p.progressFn)
+	result, err := downloadAndInstallBinary(installCtx, p.binaryConfig(), p.overrideURL, p.expectedSHA256, p.progressFn)
 	if err != nil {
 		return result, err
 	}

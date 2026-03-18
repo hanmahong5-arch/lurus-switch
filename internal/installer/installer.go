@@ -41,10 +41,12 @@ type ToolInstaller interface {
 }
 
 // ManifestAware is implemented by binary installers that can accept a manifest-provided
-// download URL and a download-progress callback.
+// download URL, SHA-256 checksum, and a download-progress callback.
 type ManifestAware interface {
 	// SetOverrideURL replaces the GitHub Releases download URL with a manifest URL.
 	SetOverrideURL(url string)
+	// SetExpectedSHA256 sets the expected SHA-256 hex digest for integrity verification.
+	SetExpectedSHA256(hash string)
 	// SetProgressFn attaches a progress callback invoked every 64 KB during download.
 	SetProgressFn(fn func(downloaded, total int64, percent int))
 }
@@ -96,11 +98,29 @@ func (m *Manager) DetectAll(ctx context.Context) (map[string]*ToolStatus, error)
 	return results, nil
 }
 
-// InstallTool installs a specific tool by name, resolving runtime dependencies first
+// InstallTool installs a specific tool by name, resolving runtime dependencies first.
+// If the tool is already installed at the manifest's latest version, the download is skipped.
 func (m *Manager) InstallTool(ctx context.Context, name string) (*InstallResult, error) {
 	inst, ok := m.installers[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown tool: %s, expected one of: claude, codex, gemini, picoclaw, nullclaw, zeroclaw, openclaw", name)
+	}
+
+	// Skip install if already at the manifest's latest version
+	m.mu.Lock()
+	mf := m.manifest
+	m.mu.Unlock()
+	if mf != nil {
+		if latest := mf.GetLatestVersion(name); latest != "" {
+			if status, _ := inst.Detect(ctx); status != nil && status.Installed && status.Version == latest {
+				return &InstallResult{
+					Tool:    name,
+					Success: true,
+					Version: latest,
+					Message: "already at latest version",
+				}, nil
+			}
+		}
 	}
 
 	// Resolve runtime dependencies before installing
@@ -228,7 +248,13 @@ func (m *Manager) SetManifest(mf *toolmanifest.Manifest) {
 	platform := toolmanifest.CurrentPlatform()
 	for name, inst := range m.installers {
 		if ma, ok := inst.(ManifestAware); ok {
-			ma.SetOverrideURL(mf.GetPlatformURL(name, platform))
+			if asset := mf.GetPlatformAsset(name, platform); asset != nil {
+				ma.SetOverrideURL(asset.URL)
+				ma.SetExpectedSHA256(asset.SHA256)
+			} else {
+				ma.SetOverrideURL("")
+				ma.SetExpectedSHA256("")
+			}
 		}
 	}
 }

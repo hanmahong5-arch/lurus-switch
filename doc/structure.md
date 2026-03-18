@@ -25,7 +25,7 @@ wails-switch.exe
   │    ├── internal/promptlib     — Prompt library
   │    ├── internal/process       — CLI process monitor
   │    ├── internal/analytics     — Local usage tracking
-  │    ├── internal/gy            — GY product suite (gushen/creator/memorus)
+  │    ├── internal/gy            — GY product suite (lucrum/creator/memorus)
   │    └── ...
   └── React frontend (Vite + TypeScript)
        ├── src/pages/             — Full-page views

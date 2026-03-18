@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { RefreshCw, Loader2, Copy, Check } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useBillingStore } from '../stores/billingStore'
+import { useToastStore } from '../stores/toastStore'
 import { useDashboardStore, type ProxySettings } from '../stores/dashboardStore'
 import { AccountPanel } from '../components/AccountPanel'
 import { QuotaCard } from '../components/billing/QuotaCard'
@@ -27,12 +28,13 @@ import { proxy } from '../../wailsjs/go/models'
 export function BillingPage() {
   const {
     userInfo, plans, subscriptions, topUpInfo,
-    loading, error,
+    loading,
     setUserInfo, setPlans, setSubscriptions, setTopUpInfo,
-    setLoading, setError,
+    setLoading,
   } = useBillingStore()
 
   const { proxySettings, setProxySettings } = useDashboardStore()
+  const toast = useToastStore((s) => s.addToast)
 
   const [tokenInput, setTokenInput] = useState('')
   const [connecting, setConnecting] = useState(false)
@@ -59,13 +61,12 @@ export function BillingPage() {
         }
       })
       .catch((err: unknown) => {
-        setError(`Failed to load proxy settings: ${err}`)
+        toast('error', `Failed to load proxy settings: ${err}`)
       })
   }, [])
 
   const loadBillingData = useCallback(async () => {
     setLoading(true)
-    setError(null)
     try {
       const [info, planList, topUp, subs] = await Promise.all([
         BillingGetUserInfo(),
@@ -78,7 +79,7 @@ export function BillingPage() {
       setTopUpInfo(topUp || null)
       setSubscriptions(subs || [])
     } catch (err) {
-      setError(`Failed to load billing data: ${err}`)
+      toast('error', `Failed to load billing data: ${err}`, { label: 'Retry', onClick: () => loadBillingData() })
     } finally {
       setLoading(false)
     }
@@ -87,14 +88,14 @@ export function BillingPage() {
   const handleConnect = async () => {
     if (!tokenInput.trim()) return
     setConnecting(true)
-    setError(null)
     try {
       const updated: ProxySettings = { ...proxySettings, userToken: tokenInput.trim() }
       await SaveProxySettings(proxy.ProxySettings.createFrom(updated))
       setProxySettings(updated)
       await loadBillingData()
+      toast('success', 'Connected successfully')
     } catch (err) {
-      setError(`Connection failed: ${err}`)
+      toast('error', `Connection failed: ${err}`)
     } finally {
       setConnecting(false)
     }
@@ -102,17 +103,16 @@ export function BillingPage() {
 
   const handleTopUp = async (amount: number, method: string) => {
     setPaymentPending(true)
-    setError(null)
     try {
       const result = await BillingCreateTopUp(amount, method)
       if (result?.payment_url) {
         await BillingOpenPaymentURL(result.payment_url)
-        setError(null)
+        toast('info', 'Payment page opened in browser')
       } else {
-        setError('Top-up created but no payment URL received')
+        toast('warning', 'Top-up created but no payment URL received')
       }
     } catch (err) {
-      setError(`Top-up failed: ${err}`)
+      toast('error', `Top-up failed: ${err}`, { label: 'Retry', onClick: () => handleTopUp(amount, method) })
     } finally {
       setPaymentPending(false)
     }
@@ -120,17 +120,16 @@ export function BillingPage() {
 
   const handleSubscribe = async (planCode: string, method: string) => {
     setPaymentPending(true)
-    setError(null)
     try {
       const result = await BillingSubscribe(planCode, method)
       if (result?.payment_url) {
         await BillingOpenPaymentURL(result.payment_url)
-        setError(null)
+        toast('info', 'Payment page opened in browser')
       } else {
-        setError('Subscription created but no payment URL received')
+        toast('warning', 'Subscription created but no payment URL received')
       }
     } catch (err) {
-      setError(`Subscribe failed: ${err}`)
+      toast('error', `Subscribe failed: ${err}`, { label: 'Retry', onClick: () => handleSubscribe(planCode, method) })
     } finally {
       setPaymentPending(false)
     }
@@ -179,13 +178,6 @@ export function BillingPage() {
             </button>
           )}
         </div>
-
-        {/* Error */}
-        {error && (
-          <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
-            {error}
-          </div>
-        )}
 
         {/* Token configuration */}
         {!isConnected ? (

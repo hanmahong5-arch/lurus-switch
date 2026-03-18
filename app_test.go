@@ -63,8 +63,10 @@ func createTestApp(t *testing.T) (*App, string) {
 	}
 
 	app := &App{
-		store:     store,
-		validator: validator.NewValidator(),
+		services: &services{
+			store:     store,
+			validator: validator.NewValidator(),
+		},
 	}
 
 	return app, tmpDir
@@ -73,8 +75,9 @@ func createTestApp(t *testing.T) (*App, string) {
 // createTestAppNilStore creates an app with nil store for testing error paths
 func createTestAppNilStore() *App {
 	return &App{
-		store:     nil,
-		validator: validator.NewValidator(),
+		services: &services{
+			validator: validator.NewValidator(),
+		},
 	}
 }
 

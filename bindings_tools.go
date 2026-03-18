@@ -52,15 +52,28 @@ func (a *App) InstallTool(name string) (*installer.InstallResult, error) {
 // GetToolDownloadManifest returns the current tool download manifest.
 // Falls back to the compile-time builtin if the background fetch has not yet completed.
 func (a *App) GetToolDownloadManifest() (*toolmanifest.Manifest, error) {
-	if a.manifest != nil {
-		return a.manifest, nil
-	}
-	return toolmanifest.Builtin(), nil
+	return a.loadManifest(), nil
 }
 
-// InstallAllTools installs all CLI tools sequentially
+// InstallAllTools installs all CLI tools sequentially.
+// Each tool emits "tool:install:progress" and "tool:install:done" events
+// so the frontend can display live progress bars.
 func (a *App) InstallAllTools() []installer.InstallResult {
-	return a.instMgr.InstallAll(a.ctx)
+	toolOrder := []string{"claude", "codex", "gemini", "picoclaw", "nullclaw", "zeroclaw", "openclaw"}
+	var results []installer.InstallResult
+	for _, name := range toolOrder {
+		result, err := a.InstallTool(name)
+		if err != nil {
+			results = append(results, installer.InstallResult{
+				Tool:    name,
+				Success: false,
+				Message: fmt.Sprintf("install failed: %v", err),
+			})
+			continue
+		}
+		results = append(results, *result)
+	}
+	return results
 }
 
 // UpdateTool updates a specific CLI tool to the latest version

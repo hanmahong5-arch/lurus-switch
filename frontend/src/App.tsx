@@ -4,6 +4,7 @@ import './style.css'
 import { Sidebar } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ToastContainer } from './components/Toast'
 import { SetupWizard } from './components/SetupWizard'
 import { GatewayRequiredGuard } from './components/GatewayRequiredGuard'
 import { CLIRunner } from './components/CLIRunner'
@@ -164,6 +165,7 @@ function App() {
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
+      <ToastContainer />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-hidden">

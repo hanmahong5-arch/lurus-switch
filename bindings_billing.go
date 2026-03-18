@@ -13,27 +13,6 @@ import (
 // Billing Methods
 // ============================
 
-func (a *App) ensureBillingClient() (*billing.Client, error) {
-	a.billingMu.Lock()
-	defer a.billingMu.Unlock()
-
-	if a.billingClient != nil {
-		return a.billingClient, nil
-	}
-	if a.proxyMgr == nil {
-		return nil, fmt.Errorf("proxy manager not initialized")
-	}
-	s := a.proxyMgr.GetSettings()
-	if s.UserToken == "" {
-		return nil, fmt.Errorf("user token not configured: paste your token in Proxy Settings")
-	}
-	if s.APIEndpoint == "" {
-		return nil, fmt.Errorf("API endpoint not configured")
-	}
-	a.billingClient = billing.NewClient(s.APIEndpoint, s.TenantSlug, s.UserToken)
-	return a.billingClient, nil
-}
-
 // BillingGetUserInfo retrieves user account and quota information
 func (a *App) BillingGetUserInfo() (*billing.UserInfo, error) {
 	c, err := a.ensureBillingClient()

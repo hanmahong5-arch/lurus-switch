@@ -12,12 +12,16 @@ import (
 
 // NullClawInstaller handles NullClaw CLI installation via GitHub Releases binary download
 type NullClawInstaller struct {
-	overrideURL string
-	progressFn  func(int64, int64, int)
+	overrideURL    string
+	expectedSHA256 string
+	progressFn     func(int64, int64, int)
 }
 
 // SetOverrideURL sets a manifest-provided download URL, bypassing the GitHub API.
 func (n *NullClawInstaller) SetOverrideURL(url string) { n.overrideURL = url }
+
+// SetExpectedSHA256 sets the expected SHA-256 hex digest for integrity verification.
+func (n *NullClawInstaller) SetExpectedSHA256(hash string) { n.expectedSHA256 = hash }
 
 // SetProgressFn attaches a download-progress callback.
 func (n *NullClawInstaller) SetProgressFn(fn func(int64, int64, int)) { n.progressFn = fn }
@@ -69,7 +73,7 @@ func (n *NullClawInstaller) Install(ctx context.Context) (*InstallResult, error)
 	installCtx, cancel := context.WithTimeout(ctx, time.Duration(DefaultInstallTimeout)*time.Second)
 	defer cancel()
 
-	result, err := downloadAndInstallBinary(installCtx, n.binaryConfig(), n.overrideURL, n.progressFn)
+	result, err := downloadAndInstallBinary(installCtx, n.binaryConfig(), n.overrideURL, n.expectedSHA256, n.progressFn)
 	if err != nil {
 		return result, err
 	}

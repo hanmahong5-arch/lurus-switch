@@ -26,18 +26,27 @@ type PlatformAsset struct {
 // platform must be in "os/arch" format as returned by CurrentPlatform().
 // Returns an empty string if the tool or platform is not found.
 func (m *Manifest) GetPlatformURL(toolName, platform string) string {
+	if a := m.GetPlatformAsset(toolName, platform); a != nil {
+		return a.URL
+	}
+	return ""
+}
+
+// GetPlatformAsset returns the full PlatformAsset (URL + SHA256) for toolName on platform.
+// Returns nil if the tool or platform is not found.
+func (m *Manifest) GetPlatformAsset(toolName, platform string) *PlatformAsset {
 	if m == nil {
-		return ""
+		return nil
 	}
 	entry, ok := m.Tools[toolName]
 	if !ok || entry.Platforms == nil {
-		return ""
+		return nil
 	}
 	asset, ok := entry.Platforms[platform]
 	if !ok {
-		return ""
+		return nil
 	}
-	return asset.URL
+	return &asset
 }
 
 // GetLatestVersion returns the latest_version string for toolName.

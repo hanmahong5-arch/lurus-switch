@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useConfigStore, type ConfigPreset, type ActiveTool } from '../stores/configStore'
+import { useToastStore } from '../stores/toastStore'
 import { useDashboardStore } from '../stores/dashboardStore'
 import {
   ReadToolConfig,
@@ -144,6 +145,7 @@ export function ToolConfigPage() {
   } = useConfigStore()
 
   const { tools } = useDashboardStore()
+  const toast = useToastStore((s) => s.addToast)
   const [dismissedBanner, setDismissedBanner] = useState(false)
 
   const tool = activeTool as string
@@ -163,7 +165,6 @@ export function ToolConfigPage() {
   const [language, setLanguage] = useState('json')
   const [loading, setLoading] = useState(true)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const [errorMsg, setErrorMsg] = useState('')
   const [viewMode, setViewMode] = useState<ViewMode>('text')
   const editorRef = useRef<any>(null)
 
@@ -180,7 +181,6 @@ export function ToolConfigPage() {
 
   const loadConfig = useCallback(async () => {
     setLoading(true)
-    setErrorMsg('')
     try {
       const info = await ReadToolConfig(tool)
       setContent(info.content)
@@ -189,11 +189,11 @@ export function ToolConfigPage() {
       setConfigExists(info.exists)
       setLanguage(info.language)
     } catch (err) {
-      setErrorMsg(`Failed to load config: ${err}`)
+      toast('error', `Failed to load config: ${err}`, { label: 'Retry', onClick: () => loadConfig() })
     } finally {
       setLoading(false)
     }
-  }, [tool])
+  }, [tool, toast])
 
   const loadSnapshots = useCallback(async () => {
     try {
@@ -261,23 +261,22 @@ export function ToolConfigPage() {
 
   const handleSave = async () => {
     setSaveStatus('saving')
-    setErrorMsg('')
     try {
       await SaveToolConfig(tool, content)
       setOriginalContent(content)
       setConfigExists(true)
       setSaveStatus('saved')
       setTimeout(() => setSaveStatus('idle'), 2000)
+      toast('success', 'Configuration saved')
     } catch (err) {
       setSaveStatus('error')
-      setErrorMsg(`Failed to save: ${err}`)
+      toast('error', `Failed to save: ${err}`, { label: 'Retry', onClick: () => handleSave() })
     }
   }
 
   const handleRevert = () => {
     setContent(originalContent)
     setSaveStatus('idle')
-    setErrorMsg('')
   }
 
   const handleOpenDir = async () => {
@@ -294,8 +293,9 @@ export function ToolConfigPage() {
       await TakeConfigSnapshot(tool, snapshotLabel || new Date().toLocaleString())
       setSnapshotLabel('')
       await loadSnapshots()
+      toast('success', 'Snapshot saved')
     } catch (err) {
-      setErrorMsg(`Failed to take snapshot: ${err}`)
+      toast('error', `Failed to take snapshot: ${err}`)
     } finally {
       setSnapshotBusy(false)
     }
@@ -307,8 +307,9 @@ export function ToolConfigPage() {
       await RestoreConfigSnapshot(tool, id)
       await loadConfig()
       setSnapshotPanelOpen(false)
+      toast('success', 'Snapshot restored')
     } catch (err) {
-      setErrorMsg(`Failed to restore snapshot: ${err}`)
+      toast('error', `Failed to restore snapshot: ${err}`)
     } finally {
       setSnapshotBusy(false)
     }
@@ -319,7 +320,7 @@ export function ToolConfigPage() {
       await DeleteConfigSnapshot(tool, id)
       await loadSnapshots()
     } catch (err) {
-      setErrorMsg(`Failed to delete snapshot: ${err}`)
+      toast('error', `Failed to delete snapshot: ${err}`)
     }
   }
 
@@ -461,13 +462,6 @@ export function ToolConfigPage() {
           </button>
         </div>
       </div>
-
-      {/* Error message */}
-      {errorMsg && (
-        <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs border-b border-red-500/20 shrink-0">
-          {errorMsg}
-        </div>
-      )}
 
       {/* Not-installed banner */}
       {!dismissedBanner && toolKnownNotInstalled && (

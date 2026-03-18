@@ -1,9 +1,10 @@
 import { useEffect, useCallback, useState } from 'react'
-import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap, CheckCircle2 } from 'lucide-react'
+import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
 import { useConfigStore, type ActiveTool } from '../stores/configStore'
+import { useToastStore } from '../stores/toastStore'
 import { ToolCard } from '../components/ToolCard'
 import { ProxyConfigPanel } from '../components/ProxyConfigPanel'
 import { DashboardQuotaWidget } from '../components/DashboardQuotaWidget'
@@ -37,22 +38,20 @@ export function DashboardPage() {
   const {
     tools, installing, updating, detecting,
     proxySettings, proxySaving, proxyConfiguring,
-    appVersion, selfUpdateInfo, checkingUpdates, error,
+    appVersion, selfUpdateInfo, checkingUpdates,
     toolHealth,
     setTools, setInstalling, setUpdating, setDetecting,
     setProxySettings, setProxySaving, setProxyConfiguring,
-    setAppVersion, setSelfUpdateInfo, setCheckingUpdates, setError,
+    setAppVersion, setSelfUpdateInfo, setCheckingUpdates,
     setToolHealth,
   } = useDashboardStore()
 
   const { setActiveTool, setHighlightField } = useConfigStore()
+  const toast = useToastStore((s) => s.addToast)
 
   // Uninstall state
   const [uninstalling, setUninstalling] = useState<Record<string, boolean>>({})
   const [confirmUninstall, setConfirmUninstall] = useState<string | null>(null)
-
-  // Install success toast
-  const [installToast, setInstallToast] = useState<string | null>(null)
 
   // Per-tool install progress: 0-99 = in-progress, 100 = done, -1 = failed
   const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
@@ -95,11 +94,11 @@ export function DashboardPage() {
         // Health check is non-critical
       }
     } catch (err) {
-      setError(`${t('dashboard.title')}: ${err}`)
+      toast('error', `${t('dashboard.title')}: ${err}`, { label: t('dashboard.refresh'), onClick: () => detectTools() })
     } finally {
       setDetecting(false)
     }
-  }, [t, setDetecting, setError, setTools, setToolHealth])
+  }, [t, setDetecting, setTools, setToolHealth, toast])
 
   const loadAll = useCallback(async () => {
     await detectTools()
@@ -107,7 +106,6 @@ export function DashboardPage() {
 
   const checkUpdates = async (currentTools?: Record<string, ToolStatus>) => {
     setCheckingUpdates(true)
-    setError(null)
     try {
       const [toolUpdates, selfUpdate] = await Promise.all([
         CheckAllUpdates(),
@@ -127,7 +125,7 @@ export function DashboardPage() {
       setTools(merged)
       setSelfUpdateInfo(selfUpdate)
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`, { label: t('dashboard.refresh'), onClick: () => checkUpdates() })
     } finally {
       setCheckingUpdates(false)
     }
@@ -135,23 +133,22 @@ export function DashboardPage() {
 
   const handleInstall = async (toolName: string) => {
     setInstalling(toolName, true)
-    setError(null)
     try {
       await InstallTool(toolName)
       const statuses = await DetectAllTools()
       setTools(statuses)
-      // Show install success toast
-      setInstallToast(toolName)
-      setTimeout(() => setInstallToast(null), 3000)
+      toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.installSuccess')}`, {
+        label: t('dashboard.configure'),
+        onClick: () => handleConfigure(toolName),
+      })
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleInstall(toolName) })
     } finally {
       setInstalling(toolName, false)
     }
   }
 
   const handleInstallAll = async () => {
-    setError(null)
     for (const name of TOOL_ORDER) {
       setInstalling(name, true)
     }
@@ -159,8 +156,9 @@ export function DashboardPage() {
       await InstallAllTools()
       const statuses = await DetectAllTools()
       setTools(statuses)
+      toast('success', t('dashboard.installAllSuccess'))
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleInstallAll() })
     } finally {
       for (const name of TOOL_ORDER) {
         setInstalling(name, false)
@@ -170,20 +168,19 @@ export function DashboardPage() {
 
   const handleUpdate = async (toolName: string) => {
     setUpdating(toolName, true)
-    setError(null)
     try {
       await UpdateTool(toolName)
       const statuses = await DetectAllTools()
       setTools(statuses)
+      toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.updateSuccess')}`)
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleUpdate(toolName) })
     } finally {
       setUpdating(toolName, false)
     }
   }
 
   const handleUpdateAll = async () => {
-    setError(null)
     for (const name of TOOL_ORDER) {
       setUpdating(name, true)
     }
@@ -191,8 +188,9 @@ export function DashboardPage() {
       await UpdateAllTools()
       const statuses = await DetectAllTools()
       setTools(statuses)
+      toast('success', t('dashboard.updateAllSuccess'))
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleUpdateAll() })
     } finally {
       for (const name of TOOL_ORDER) {
         setUpdating(name, false)
@@ -213,13 +211,13 @@ export function DashboardPage() {
     if (!toolName) return
     setConfirmUninstall(null)
     setUninstalling((prev) => ({ ...prev, [toolName]: true }))
-    setError(null)
     try {
       await UninstallTool(toolName)
       const statuses = await DetectAllTools()
       setTools(statuses)
+      toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.uninstallSuccess')}`)
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`)
     } finally {
       setUninstalling((prev) => ({ ...prev, [toolName]: false }))
     }
@@ -227,12 +225,12 @@ export function DashboardPage() {
 
   const handleSaveProxy = async (settings: ProxySettings) => {
     setProxySaving(true)
-    setError(null)
     try {
       await SaveProxySettings(proxy.ProxySettings.createFrom(settings))
       setProxySettings(settings)
+      toast('success', t('dashboard.proxySaved'))
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`)
     } finally {
       setProxySaving(false)
     }
@@ -240,16 +238,17 @@ export function DashboardPage() {
 
   const handleConfigureAllProxy = async () => {
     setProxyConfiguring(true)
-    setError(null)
     try {
       await SaveProxySettings(proxy.ProxySettings.createFrom(proxySettings))
       const errors = await ConfigureAllProxy()
       if (Object.keys(errors).length > 0) {
-        const failed = Object.entries(errors).map(([t, e]) => `${t}: ${e}`).join('; ')
-        setError(failed)
+        const failed = Object.entries(errors).map(([tool, e]) => `${tool}: ${e}`).join('; ')
+        toast('warning', failed)
+      } else {
+        toast('success', t('dashboard.proxyConfigured'))
       }
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`)
     } finally {
       setProxyConfiguring(false)
     }
@@ -257,26 +256,27 @@ export function DashboardPage() {
 
   const handleConfigureRelay = async () => {
     setProxyConfiguring(true)
-    setError(null)
     try {
       const errors = await ConfigureAllToolsRelay()
       if (Object.keys(errors).length > 0) {
-        const failed = Object.entries(errors).map(([t, e]) => `${t}: ${e}`).join('; ')
-        setError(failed)
+        const failed = Object.entries(errors).map(([tool, e]) => `${tool}: ${e}`).join('; ')
+        toast('warning', failed)
+      } else {
+        toast('success', t('dashboard.relayConfigured'))
       }
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`)
     } finally {
       setProxyConfiguring(false)
     }
   }
 
   const handleSelfUpdate = async () => {
-    setError(null)
     try {
       await ApplySelfUpdate()
+      toast('success', t('dashboard.selfUpdateSuccess'))
     } catch (err) {
-      setError(`${err}`)
+      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleSelfUpdate() })
     }
   }
 
@@ -324,16 +324,6 @@ export function DashboardPage() {
           </button>
         </div>
 
-        {/* Error banner */}
-        {error && (
-          <div className="flex items-center justify-between px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
-            <span>{error}</span>
-            <button onClick={() => setError(null)} className="ml-2 hover:text-red-400 font-medium">
-              {t('dashboard.dismiss')}
-            </button>
-          </div>
-        )}
-
         {/* Uninstall Confirmation Modal */}
         {confirmUninstall && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -364,23 +354,6 @@ export function DashboardPage() {
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Install success toast */}
-        {installToast && (
-          <div className="fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-lg bg-green-500/15 border border-green-500/30 shadow-lg text-xs">
-            <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-            <div>
-              <p className="font-medium text-green-600">{TOOL_DISPLAY[installToast] || installToast} 安装成功！</p>
-              <p className="text-muted-foreground">建议配置 API 密钥</p>
-            </div>
-            <button
-              onClick={() => { setInstallToast(null); handleConfigure(installToast) }}
-              className="ml-2 px-2 py-1 rounded text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-600 transition-colors"
-            >
-              立即配置 →
-            </button>
           </div>
         )}
 
