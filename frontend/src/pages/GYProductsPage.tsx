@@ -7,7 +7,7 @@ import { EventsOn } from '../../wailsjs/runtime/runtime'
 import type { gy } from '../../wailsjs/go/models'
 
 const PRODUCT_ICONS: Record<string, string> = {
-  'lurus-gushen': '🔮',
+  'lurus-lucrum': '🔮',
   'lurus-creator': '🎨',
   'lurus-memorus': '🧠',
 }

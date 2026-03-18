@@ -13,8 +13,8 @@ const statusTimeout = 5 * time.Second
 func BuiltinProducts() []GYProduct {
 	return []GYProduct{
 		{
-			ID:          "gushen",
-			Name:        "古神 AI 交易助手",
+			ID:          "lucrum",
+			Name:        "Lucrum AI 交易助手",
 			Description: "AI 量化交易分析平台",
 			Kind:        KindWeb,
 			LaunchURL:   "https://gushen.lurus.cn",
