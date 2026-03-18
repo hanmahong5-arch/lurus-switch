@@ -95,6 +95,13 @@ type IdentityOverview struct {
 	TopupURL string `json:"topup_url"`
 }
 
+// AffiliateStats holds referral/affiliate statistics from newapi.
+type AffiliateStats struct {
+	TotalReferrals int     `json:"total_referrals"`
+	TotalEarned    float64 `json:"total_earned"`
+	PendingEarned  float64 `json:"pending_earned"`
+}
+
 // apiResponse is the generic lurus-api V2 response envelope
 type apiResponse struct {
 	Success bool            `json:"success"`

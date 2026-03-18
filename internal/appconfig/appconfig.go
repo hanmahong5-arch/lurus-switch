@@ -16,6 +16,7 @@ type AppSettings struct {
 	EditorFontSize      int    `json:"editorFontSize"`      // 10-24
 	StartupPage         string `json:"startupPage"`         // "dashboard" | tool name
 	OnboardingCompleted bool   `json:"onboardingCompleted"` // true after setup wizard completes
+	AppMode             string `json:"appMode"`             // "user" | "promoter"
 }
 
 // settingsPath returns the path to app-settings.json
@@ -50,6 +51,7 @@ func DefaultAppSettings() *AppSettings {
 		AutoUpdate:     true,
 		EditorFontSize: 13,
 		StartupPage:    "dashboard",
+		AppMode:        "user",
 	}
 }
 
@@ -79,6 +81,11 @@ func LoadAppSettings() (*AppSettings, error) {
 		s.EditorFontSize = 10
 	} else if s.EditorFontSize > 24 {
 		s.EditorFontSize = 24
+	}
+
+	// Validate app mode
+	if s.AppMode != "user" && s.AppMode != "promoter" {
+		s.AppMode = "user"
 	}
 
 	return s, nil

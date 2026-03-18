@@ -6,23 +6,26 @@ import {billing} from '../models';
 import {toolhealth} from '../models';
 import {updater} from '../models';
 import {installer} from '../models';
+import {gy} from '../models';
+import {relay} from '../models';
 import {proxydetect} from '../models';
 import {appconfig} from '../models';
 import {promptlib} from '../models';
 import {preset} from '../models';
 import {docmgr} from '../models';
 import {proxy} from '../models';
-import {relay} from '../models';
-import {gy} from '../models';
 import {serverctl} from '../models';
+import {promoter} from '../models';
 import {main} from '../models';
+import {toolmanifest} from '../models';
 import {analytics} from '../models';
 import {envmgr} from '../models';
 import {process} from '../models';
 import {snapshot} from '../models';
 import {toolconfig} from '../models';
-import {toolmanifest} from '../models';
 import {validator} from '../models';
+
+export function ApplyAllToolRelays():Promise<Record<string, string>>;
 
 export function ApplyClaudePreset(arg1:string):Promise<config.ClaudeConfig>;
 
@@ -68,7 +71,11 @@ export function CheckBunInstalled():Promise<boolean>;
 
 export function CheckDependencies():Promise<installer.DepCheckResult>;
 
+export function CheckGYStatus():Promise<Array<gy.GYStatus>>;
+
 export function CheckNodeInstalled():Promise<boolean>;
+
+export function CheckRelayHealth():Promise<Array<relay.RelayEndpoint>>;
 
 export function CheckSelfUpdate():Promise<updater.UpdateInfo>;
 
@@ -102,6 +109,8 @@ export function DeletePicoClawConfig(arg1:string):Promise<void>;
 
 export function DeletePrompt(arg1:string):Promise<void>;
 
+export function DeleteRelayEndpoint(arg1:string):Promise<void>;
+
 export function DeleteZeroClawConfig(arg1:string):Promise<void>;
 
 export function DetectAllTools():Promise<Record<string, installer.ToolStatus>>;
@@ -111,6 +120,8 @@ export function DetectSystemProxy():Promise<Array<proxydetect.DetectedProxy>>;
 export function DiffConfigSnapshots(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function DownloadCodexBinary(arg1:string):Promise<string>;
+
+export function DownloadCreator():Promise<void>;
 
 export function EnsureServerBinary():Promise<void>;
 
@@ -131,6 +142,8 @@ export function ExportPrompts():Promise<string>;
 export function ExportZeroClawConfig(arg1:config.ZeroClawConfig):Promise<string>;
 
 export function FetchCloudPresets(arg1:string):Promise<Array<billing.ConfigPreset>>;
+
+export function FetchCloudRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
 
 export function GenerateClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
 
@@ -180,11 +193,15 @@ export function GetDefaultPicoClawConfig():Promise<config.PicoClawConfig>;
 
 export function GetDefaultZeroClawConfig():Promise<config.ZeroClawConfig>;
 
+export function GetGYProducts():Promise<Array<gy.GYProduct>>;
+
 export function GetGeminiPresets():Promise<Array<preset.Preset>>;
 
 export function GetProxySettings():Promise<proxy.ProxySettings>;
 
 export function GetRecommendedConfig(arg1:string):Promise<Record<string, any>>;
+
+export function GetRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
 
 export function GetServerAdminToken():Promise<string>;
 
@@ -198,7 +215,11 @@ export function GetSystemInfo():Promise<main.SystemInfo>;
 
 export function GetToolConfigPath(arg1:string):Promise<string>;
 
+export function GetToolDownloadManifest():Promise<toolmanifest.Manifest>;
+
 export function GetToolOutput(arg1:string,arg2:number):Promise<Array<string>>;
+
+export function GetToolRelayMapping():Promise<relay.ToolRelayMapping>;
 
 export function GetUsageReport(arg1:number):Promise<analytics.UsageReport>;
 
@@ -213,6 +234,8 @@ export function InstallDependency(arg1:string):Promise<installer.DepInstallResul
 export function InstallTool(arg1:string):Promise<installer.InstallResult>;
 
 export function KillCLIProcess(arg1:number):Promise<void>;
+
+export function LaunchGYProduct(arg1:string):Promise<void>;
 
 export function LaunchTool(arg1:string,arg2:Array<string>):Promise<string>;
 
@@ -258,6 +281,10 @@ export function OpenAdminPanel():Promise<void>;
 
 export function OpenConfigDir():Promise<void>;
 
+export function PromoterGetInfo():Promise<promoter.PromoterInfo>;
+
+export function PromoterGetShareLink():Promise<string>;
+
 export function OpenFolderAndScanContext():Promise<Array<docmgr.ContextFile>>;
 
 export function OpenServerAdminPanel():Promise<void>;
@@ -265,6 +292,8 @@ export function OpenServerAdminPanel():Promise<void>;
 export function OpenToolConfigDir(arg1:string):Promise<void>;
 
 export function PackageClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
+
+export function PingEndpoint(arg1:string):Promise<number>;
 
 export function PingLurusAPI():Promise<boolean>;
 
@@ -296,9 +325,13 @@ export function SavePrompt(arg1:promptlib.Prompt):Promise<void>;
 
 export function SaveProxySettings(arg1:proxy.ProxySettings):Promise<void>;
 
+export function SaveRelayEndpoint(arg1:relay.RelayEndpoint):Promise<void>;
+
 export function SaveServerConfig(arg1:serverctl.ServerConfig):Promise<void>;
 
 export function SaveToolConfig(arg1:string,arg2:string):Promise<void>;
+
+export function SaveToolRelayMapping(arg1:relay.ToolRelayMapping):Promise<void>;
 
 export function SaveZeroClawConfig(arg1:string,arg2:config.ZeroClawConfig):Promise<void>;
 
@@ -333,31 +366,3 @@ export function ValidateOpenClawConfig(arg1:config.OpenClawConfig):Promise<valid
 export function ValidatePicoClawConfig(arg1:config.PicoClawConfig):Promise<validator.ValidationResult>;
 
 export function ValidateZeroClawConfig(arg1:config.ZeroClawConfig):Promise<validator.ValidationResult>;
-
-export function PingEndpoint(arg1:string):Promise<number>;
-
-export function GetRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
-
-export function FetchCloudRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
-
-export function SaveRelayEndpoint(arg1:relay.RelayEndpoint):Promise<void>;
-
-export function DeleteRelayEndpoint(arg1:string):Promise<void>;
-
-export function GetToolRelayMapping():Promise<relay.ToolRelayMapping>;
-
-export function SaveToolRelayMapping(arg1:relay.ToolRelayMapping):Promise<void>;
-
-export function CheckRelayHealth():Promise<Array<relay.RelayEndpoint>>;
-
-export function ApplyAllToolRelays():Promise<Record<string, string>>;
-
-export function GetGYProducts():Promise<Array<gy.GYProduct>>;
-
-export function GetToolDownloadManifest():Promise<toolmanifest.Manifest>;
-
-export function CheckGYStatus():Promise<Array<gy.GYStatus>>;
-
-export function LaunchGYProduct(arg1:string):Promise<void>;
-
-export function DownloadCreator():Promise<void>;

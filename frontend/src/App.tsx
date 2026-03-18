@@ -28,6 +28,7 @@ import { GatewayRedemptionPage } from './pages/GatewayRedemptionPage'
 import { GatewayLogPage } from './pages/GatewayLogPage'
 import { GatewaySubscriptionPage } from './pages/GatewaySubscriptionPage'
 import { GatewaySettingsPage } from './pages/GatewaySettingsPage'
+import { PromoterHubPage } from './pages/PromoterHubPage'
 import { useConfigStore, type ActiveTool } from './stores/configStore'
 import { useGatewayStore } from './stores/gatewayStore'
 import { useBillingStore } from './stores/billingStore'
@@ -41,7 +42,7 @@ const VALID_STARTUP_PAGES: ReadonlySet<string> = new Set([
 ])
 
 function App() {
-  const { activeTool, setActiveTool } = useConfigStore()
+  const { activeTool, setActiveTool, setAppMode } = useConfigStore()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   const { startPolling, stopPolling } = useGatewayStore()
   const { setUserInfo } = useBillingStore()
@@ -51,6 +52,11 @@ function App() {
     GetAppSettings()
       .then((s) => {
         setShowWizard(!s.onboardingCompleted)
+
+        // Apply saved app mode
+        if (s.appMode === 'promoter' || s.appMode === 'user') {
+          setAppMode(s.appMode)
+        }
 
         // Apply saved language preference at startup
         if (s.language && s.language !== i18n.language) {
@@ -138,6 +144,8 @@ function App() {
         return <GYProductsPage />
       case 'cli-runner':
         return <CLIRunner />
+      case 'promoter-hub':
+        return <PromoterHubPage />
       case 'gateway':
         return <GatewayPage />
       case 'gateway-dashboard':

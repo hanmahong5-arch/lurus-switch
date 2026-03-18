@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { GetAppSettings, SaveAppSettings, ClearAllSnapshots, ClearAllUserPrompts } from '../../wailsjs/go/main/App'
 import { appconfig } from '../../wailsjs/go/models'
+import { useConfigStore, type AppMode } from '../stores/configStore'
+import { PROMOTER_ONLY_PAGES } from '../components/Sidebar'
 
 type Tab = 'appearance' | 'proxy' | 'update' | 'data'
 
@@ -14,6 +16,7 @@ interface AppSettings {
   editorFontSize: number
   startupPage: string
   onboardingCompleted: boolean
+  appMode: string
 }
 
 const DEFAULT: AppSettings = {
@@ -23,6 +26,7 @@ const DEFAULT: AppSettings = {
   editorFontSize: 13,
   startupPage: 'dashboard',
   onboardingCompleted: true,
+  appMode: 'user',
 }
 
 export function SettingsPage() {
@@ -32,7 +36,9 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [modeConfirm, setModeConfirm] = useState<AppMode | null>(null)
   const { t, i18n } = useTranslation()
+  const { setAppMode, activeTool, setActiveTool } = useConfigStore()
 
   // Apply theme to document root
   const applyTheme = useCallback((theme: string) => {
@@ -204,6 +210,82 @@ export function SettingsPage() {
                 <option value="nullclaw">NullClaw</option>
               </select>
             </SettingRow>
+
+            <div className="border-t border-border pt-4">
+              <SettingRow label={t('settings.appMode')} description={t('settings.appModeDesc')}>
+                <div className="flex rounded-md border border-border overflow-hidden">
+                  <button
+                    onClick={() => {
+                      if (settings.appMode !== 'user') setModeConfirm('user')
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 text-sm font-medium transition-colors',
+                      settings.appMode === 'user'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {t('settings.modeUser')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (settings.appMode !== 'promoter') setModeConfirm('promoter')
+                    }}
+                    className={cn(
+                      'px-3 py-1.5 text-sm font-medium transition-colors',
+                      settings.appMode === 'promoter'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {t('settings.modePromoter')}
+                  </button>
+                </div>
+              </SettingRow>
+
+              {/* Mode switch confirmation dialog */}
+              {modeConfirm && (
+                <div className="mt-3 p-3 rounded-md border border-primary/30 bg-primary/5">
+                  <p className="text-sm font-medium">
+                    {t('settings.modeSwitchConfirm', {
+                      mode: modeConfirm === 'user' ? t('settings.modeUser') : t('settings.modePromoter'),
+                    })}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {modeConfirm === 'user'
+                      ? t('settings.modeSwitchUserBody')
+                      : t('settings.modeSwitchPromoterBody')}
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={() => setModeConfirm(null)}
+                      className="px-3 py-1 text-xs border border-border rounded hover:bg-muted"
+                    >
+                      {t('settings.data.cancel')}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        const newMode = modeConfirm
+                        const updated = { ...settings, appMode: newMode }
+                        setSettings(updated)
+                        setAppMode(newMode)
+                        setModeConfirm(null)
+                        // Navigate away from promoter-only pages when switching to user mode
+                        if (newMode === 'user' && PROMOTER_ONLY_PAGES.has(activeTool)) {
+                          setActiveTool('dashboard')
+                        }
+                        try {
+                          await SaveAppSettings(appconfig.AppSettings.createFrom(updated))
+                        } catch { /* ignore */ }
+                      }}
+                      className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                    >
+                      {t('settings.data.confirm')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

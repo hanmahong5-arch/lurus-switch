@@ -189,6 +189,16 @@ func (c *Client) FetchPresets(ctx context.Context, tool string) ([]ConfigPreset,
 	return envelope.Data, nil
 }
 
+// GetAffiliateStats retrieves referral/affiliate statistics from the newapi gateway.
+// Returns zeroed stats on any error — callers should treat this as non-critical.
+func (c *Client) GetAffiliateStats(ctx context.Context) (*AffiliateStats, error) {
+	var stats AffiliateStats
+	if err := c.doGet(ctx, "/api/v2/user/aff", &stats); err != nil {
+		return nil, fmt.Errorf("get affiliate stats: %w", err)
+	}
+	return &stats, nil
+}
+
 // GetIdentityOverview retrieves the aggregated identity overview (VIP, wallet, subscription)
 // from lurus-api GET /api/v2/user/identity-overview, which proxies lurus-identity.
 // The endpoint returns a direct JSON object (not wrapped in the standard API envelope).

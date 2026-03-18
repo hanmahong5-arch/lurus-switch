@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 
+export type AppMode = 'user' | 'promoter'
+
 export type ActiveTool =
   | 'dashboard'
   | 'claude'
@@ -18,6 +20,7 @@ export type ActiveTool =
   | 'relay'
   | 'gy-products'
   | 'cli-runner'
+  | 'promoter-hub'
   | 'gateway'
   | 'gateway-dashboard'
   | 'gateway-channels'
@@ -40,6 +43,9 @@ export interface ConfigPreset {
 }
 
 interface ConfigState {
+  appMode: AppMode
+  setAppMode: (mode: AppMode) => void
+
   activeTool: ActiveTool
   setActiveTool: (tool: ActiveTool) => void
 
@@ -66,6 +72,9 @@ interface ConfigState {
 }
 
 export const useConfigStore = create<ConfigState>((set) => ({
+  appMode: 'user',
+  setAppMode: (mode) => set({ appMode: mode }),
+
   activeTool: 'dashboard',
   setActiveTool: (tool) => set({ activeTool: tool }),
 

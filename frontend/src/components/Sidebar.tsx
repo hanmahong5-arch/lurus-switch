@@ -2,7 +2,7 @@ import {
   Settings, LayoutDashboard, Wrench,
   CreditCard, Activity, BookOpen, FileText, Shield,
   Server, Layers, Key, Users, BarChart3, Box, Gift, Settings2,
-  Terminal, Network, Package,
+  Terminal, Network, Package, Megaphone,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -67,10 +67,18 @@ function NavButton({ id, name, icon: Icon, iconColor, active, onClick }: NavButt
   )
 }
 
+// Pages that are only visible in promoter mode
+export const PROMOTER_ONLY_PAGES: Set<string> = new Set([
+  'gateway', 'gateway-dashboard', 'gateway-channels', 'gateway-tokens',
+  'gateway-models', 'gateway-users', 'gateway-redemptions', 'gateway-logs',
+  'gateway-subscriptions', 'gateway-settings', 'admin', 'promoter-hub',
+])
+
 export function Sidebar() {
-  const { activeTool, setActiveTool, lastActiveTool } = useConfigStore()
+  const { activeTool, setActiveTool, lastActiveTool, appMode } = useConfigStore()
   const { t } = useTranslation()
   const gatewayRunning = useGatewayStore((s) => s.status?.running ?? false)
+  const isPromoter = appMode === 'promoter'
 
   return (
     <aside className="w-56 bg-muted/50 border-r border-border flex flex-col">
@@ -132,27 +140,42 @@ export function Sidebar() {
             />
           ))}
 
-          {/* Separator */}
-          <div className="border-t border-border my-2" />
+          {/* Promoter-only sections */}
+          {isPromoter && (
+            <>
+              {/* Separator */}
+              <div className="border-t border-border my-2" />
 
-          {/* Gateway section header */}
-          <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            {t('gateway.title')}
-            {gatewayRunning && <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />}
-          </div>
+              {/* Promoter Hub */}
+              <NavButton
+                id="promoter-hub"
+                name={t('nav.promoterHub')}
+                icon={Megaphone}
+                iconColor="text-orange-500"
+                active={activeTool === 'promoter-hub'}
+                onClick={() => setActiveTool('promoter-hub')}
+              />
 
-          {/* Gateway nav items — data-driven */}
-          {gatewayNav.map((item) => (
-            <NavButton
-              key={item.id}
-              id={item.id}
-              name={t(item.i18nKey)}
-              icon={item.icon}
-              iconColor={item.color}
-              active={activeTool === item.id}
-              onClick={() => setActiveTool(item.id)}
-            />
-          ))}
+              {/* Gateway section header */}
+              <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                {t('gateway.title')}
+                {gatewayRunning && <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />}
+              </div>
+
+              {/* Gateway nav items — data-driven */}
+              {gatewayNav.map((item) => (
+                <NavButton
+                  key={item.id}
+                  id={item.id}
+                  name={t(item.i18nKey)}
+                  icon={item.icon}
+                  iconColor={item.color}
+                  active={activeTool === item.id}
+                  onClick={() => setActiveTool(item.id)}
+                />
+              ))}
+            </>
+          )}
         </div>
       </nav>
 
@@ -166,14 +189,16 @@ export function Sidebar() {
           active={activeTool === 'billing'}
           onClick={() => setActiveTool('billing')}
         />
-        <NavButton
-          id="admin"
-          name={t('nav.admin')}
-          icon={Shield}
-          iconColor="text-red-500"
-          active={activeTool === 'admin'}
-          onClick={() => setActiveTool('admin')}
-        />
+        {isPromoter && (
+          <NavButton
+            id="admin"
+            name={t('nav.admin')}
+            icon={Shield}
+            iconColor="text-red-500"
+            active={activeTool === 'admin'}
+            onClick={() => setActiveTool('admin')}
+          />
+        )}
         <NavButton
           id="settings"
           name={t('nav.settings')}

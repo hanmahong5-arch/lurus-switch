@@ -62,6 +62,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [validatingToken, setValidatingToken] = useState(false)
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [accountError, setAccountError] = useState('')
+  const [promoCode, setPromoCode] = useState('')
 
   // Step 2 — tools
   const [tools, setTools] = useState<Record<string, ToolStatus>>({})
@@ -338,6 +339,16 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                       {t('wizard.account.verifyFailed')}
                     </p>
                   )}
+                  <div className="border-t border-border pt-2 mt-1">
+                    <label className="block text-xs text-muted-foreground mb-0.5">{t('wizard.promoCode')}</label>
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => setPromoCode(e.target.value)}
+                      placeholder="ABCD1234"
+                      className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                  </div>
                   <p className="text-xs text-muted-foreground">{t('wizard.account.skipHint')}</p>
                 </div>
               )}

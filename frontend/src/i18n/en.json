@@ -14,7 +14,8 @@
     "documents": "Documents",
     "relay": "Relay Stations",
     "cliRunner": "CLI Runner",
-    "gyProducts": "GY Products"
+    "gyProducts": "GY Products",
+    "promoterHub": "Promoter Hub"
   },
   "schema": {
     "claude": {
@@ -116,6 +117,13 @@
       "update": "Update",
       "data": "Data"
     },
+    "appMode": "App Mode",
+    "appModeDesc": "Choose the application running mode",
+    "modeUser": "User Edition",
+    "modePromoter": "Promoter Edition",
+    "modeSwitchConfirm": "Switch to {{mode}}?",
+    "modeSwitchUserBody": "Gateway management and promoter features will be hidden. You can switch back anytime in Settings.",
+    "modeSwitchPromoterBody": "Gateway management and promoter features will appear, for running a local gateway and managing referrals.",
     "appearance": {
       "theme": "Theme",
       "themeDesc": "Choose UI color theme",
@@ -213,8 +221,18 @@
     "zeroClawBinaryNote": "ZeroClaw installs as a pre-built binary (no Rust required)",
     "openClawWsl2Note": "Some OpenClaw features work best with WSL2 on Windows",
     "configureLurusRelay": "Configure All Tools via Lurus",
-    "relayConfigured": "{{count}} tools configured",
-    "useLurusPlatform": "Use Lurus Platform"
+    "relayConfigured": "All tools configured with Lurus relay",
+    "useLurusPlatform": "Use Lurus Platform",
+    "installSuccess": "installed successfully",
+    "installAllSuccess": "All tools installed successfully",
+    "updateSuccess": "updated successfully",
+    "updateAllSuccess": "All tools updated successfully",
+    "uninstallSuccess": "uninstalled",
+    "selfUpdateSuccess": "App updated, please restart",
+    "proxySaved": "Proxy settings saved",
+    "proxyConfigured": "Proxy applied to all tools",
+    "retry": "Retry",
+    "configure": "Configure"
   },
   "gateway": {
     "title": "Gateway",
@@ -400,6 +418,19 @@
     "requestsTotal": "Total Requests",
     "requestsPerSec": "Requests/sec"
   },
+  "promoter": {
+    "title": "Promoter Hub",
+    "subtitle": "Manage promo codes, track earnings and referrals",
+    "affCode": "Promo Code",
+    "copyLink": "Copy Promo Link",
+    "totalReferrals": "Total Referrals",
+    "totalEarned": "Total Earned",
+    "pendingEarned": "Pending",
+    "gatewayUrl": "Gateway URL",
+    "gatewayUrlDesc": "Promoters can configure a public URL for referred users to connect to your local gateway.",
+    "gatewayUrlHint": "Start the local gateway in Gateway > Server Control, then share your public IP and port with users.",
+    "connectHint": "Connect your Lurus account in the Dashboard first"
+  },
   "wizard": {
     "title": "Welcome to Lurus Switch",
     "subtitle": "Let's quickly set up your AI development environment",
@@ -422,6 +453,7 @@
       "verifyFailed": "Verification failed. Check your token and try again.",
       "skipHint": "No account? You can configure a custom proxy in the next step."
     },
+    "promoCode": "Promo Code (optional)",
     "tools": {
       "title": "Tool Detection",
       "desc": "Detect AI CLI tools installed on your system",

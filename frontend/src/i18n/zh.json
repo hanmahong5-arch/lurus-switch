@@ -14,7 +14,8 @@
     "documents": "上下文文件",
     "relay": "中转站",
     "cliRunner": "CLI 运行器",
-    "gyProducts": "GY 产品"
+    "gyProducts": "GY 产品",
+    "promoterHub": "推广管理"
   },
   "schema": {
     "claude": {
@@ -116,6 +117,13 @@
       "update": "更新",
       "data": "数据"
     },
+    "appMode": "应用模式",
+    "appModeDesc": "选择应用运行模式",
+    "modeUser": "使用者端",
+    "modePromoter": "推广者端",
+    "modeSwitchConfirm": "切换到{{mode}}？",
+    "modeSwitchUserBody": "网关管理和推广功能将隐藏，您可以随时在设置中切换回来。",
+    "modeSwitchPromoterBody": "将显示网关管理和推广功能，用于运行本地网关和管理推荐用户。",
     "appearance": {
       "theme": "主题",
       "themeDesc": "选择界面颜色主题",
@@ -213,8 +221,18 @@
     "zeroClawBinaryNote": "ZeroClaw 以预编译二进制文件安装（无需 Rust 环境）",
     "openClawWsl2Note": "部分 OpenClaw 功能在 Windows 上建议在 WSL2 中使用",
     "configureLurusRelay": "一键配置所有工具使用 Lurus 中转",
-    "relayConfigured": "已配置 {{count}} 个工具",
-    "useLurusPlatform": "使用 Lurus 平台"
+    "relayConfigured": "所有工具已配置 Lurus 中转",
+    "useLurusPlatform": "使用 Lurus 平台",
+    "installSuccess": "安装成功",
+    "installAllSuccess": "所有工具安装完成",
+    "updateSuccess": "更新成功",
+    "updateAllSuccess": "所有工具更新完成",
+    "uninstallSuccess": "已卸载",
+    "selfUpdateSuccess": "应用更新成功，请重启",
+    "proxySaved": "代理设置已保存",
+    "proxyConfigured": "代理配置已应用到所有工具",
+    "retry": "重试",
+    "configure": "前往配置"
   },
   "gateway": {
     "title": "网关",
@@ -400,6 +418,19 @@
     "requestsTotal": "总请求数",
     "requestsPerSec": "请求/秒"
   },
+  "promoter": {
+    "title": "推广管理",
+    "subtitle": "管理推广码、查看收益和推荐用户",
+    "affCode": "推广码",
+    "copyLink": "复制推广链接",
+    "totalReferrals": "推荐人数",
+    "totalEarned": "累计佣金",
+    "pendingEarned": "待结算",
+    "gatewayUrl": "网关地址",
+    "gatewayUrlDesc": "推广者可配置公网地址让推荐用户连接您的本地网关。",
+    "gatewayUrlHint": "在 Gateway > 服务端控制 页面启动本地网关后，将您的公网 IP 和端口分享给用户。",
+    "connectHint": "请先在仪表盘连接 Lurus 账号"
+  },
   "wizard": {
     "title": "欢迎使用 Lurus Switch",
     "subtitle": "让我们快速配置您的 AI 开发环境",
@@ -422,6 +453,7 @@
       "verifyFailed": "验证失败，请检查 Token 后重试。",
       "skipHint": "还没有账号？您可以在下一步手动配置自定义代理。"
     },
+    "promoCode": "推广码（选填）",
     "tools": {
       "title": "工具检测",
       "desc": "检测系统中已安装的 AI CLI 工具",

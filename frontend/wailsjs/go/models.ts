@@ -30,11 +30,12 @@ export namespace appconfig {
 	    editorFontSize: number;
 	    startupPage: string;
 	    onboardingCompleted: boolean;
-	
+	    appMode: string;
+
 	    static createFrom(source: any = {}) {
 	        return new AppSettings(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
@@ -43,6 +44,7 @@ export namespace appconfig {
 	        this.editorFontSize = source["editorFontSize"];
 	        this.startupPage = source["startupPage"];
 	        this.onboardingCompleted = source["onboardingCompleted"];
+	        this.appMode = source["appMode"];
 	    }
 	}
 
@@ -1215,6 +1217,55 @@ export namespace envmgr {
 
 }
 
+export namespace gy {
+	
+	export class GYProduct {
+	    id: string;
+	    name: string;
+	    description: string;
+	    kind: string;
+	    launchUrl?: string;
+	    downloadUrl?: string;
+	    serviceUrl?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GYProduct(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.kind = source["kind"];
+	        this.launchUrl = source["launchUrl"];
+	        this.downloadUrl = source["downloadUrl"];
+	        this.serviceUrl = source["serviceUrl"];
+	    }
+	}
+	export class GYStatus {
+	    productId: string;
+	    available: boolean;
+	    latencyMs: number;
+	    version?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GYStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.productId = source["productId"];
+	        this.available = source["available"];
+	        this.latencyMs = source["latencyMs"];
+	        this.version = source["version"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace installer {
 	
 	export class RuntimeStatus {
@@ -1419,6 +1470,33 @@ export namespace preset {
 
 }
 
+export namespace promoter {
+
+	export class PromoterInfo {
+	    aff_code: string;
+	    share_link: string;
+	    gateway_url: string;
+	    total_referrals: number;
+	    total_earned: number;
+	    pending_earned: number;
+
+	    static createFrom(source: any = {}) {
+	        return new PromoterInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.aff_code = source["aff_code"];
+	        this.share_link = source["share_link"];
+	        this.gateway_url = source["gateway_url"];
+	        this.total_referrals = source["total_referrals"];
+	        this.total_earned = source["total_earned"];
+	        this.pending_earned = source["pending_earned"];
+	    }
+	}
+
+}
+
 export namespace process {
 	
 	export class ProcessInfo {
@@ -1527,11 +1605,45 @@ export namespace proxydetect {
 
 }
 
+export namespace relay {
+	
+	export class RelayEndpoint {
+	    id: string;
+	    name: string;
+	    kind: string;
+	    url: string;
+	    apiKey: string;
+	    description?: string;
+	    latencyMs: number;
+	    healthy: boolean;
+	    lastChecked?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RelayEndpoint(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.url = source["url"];
+	        this.apiKey = source["apiKey"];
+	        this.description = source["description"];
+	        this.latencyMs = source["latencyMs"];
+	        this.healthy = source["healthy"];
+	        this.lastChecked = source["lastChecked"];
+	    }
+	}
+
+}
+
 export namespace serverctl {
 	
 	export class ServerConfig {
 	    port: number;
 	    session_secret: string;
+	    admin_password: string;
 	    admin_token: string;
 	    auto_start: boolean;
 	
@@ -1543,6 +1655,7 @@ export namespace serverctl {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.port = source["port"];
 	        this.session_secret = source["session_secret"];
+	        this.admin_password = source["admin_password"];
 	        this.admin_token = source["admin_token"];
 	        this.auto_start = source["auto_start"];
 	    }
@@ -1643,6 +1756,94 @@ export namespace toolhealth {
 
 }
 
+export namespace toolmanifest {
+	
+	export class PlatformAsset {
+	    url: string;
+	    sha256?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlatformAsset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.url = source["url"];
+	        this.sha256 = source["sha256"];
+	    }
+	}
+	export class ToolEntry {
+	    type: string;
+	    npm_package?: string;
+	    latest_version: string;
+	    platforms?: Record<string, PlatformAsset>;
+	
+	    static createFrom(source: any = {}) {
+	        return new ToolEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.npm_package = source["npm_package"];
+	        this.latest_version = source["latest_version"];
+	        this.platforms = this.convertValues(source["platforms"], PlatformAsset, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Manifest {
+	    generated_at: string;
+	    tools: Record<string, ToolEntry>;
+	
+	    static createFrom(source: any = {}) {
+	        return new Manifest(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.generated_at = source["generated_at"];
+	        this.tools = this.convertValues(source["tools"], ToolEntry, true);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+
+}
+
 export namespace updater {
 	
 	export class UpdateInfo {
@@ -1719,141 +1920,3 @@ export namespace validator {
 
 }
 
-
-export namespace relay {
-
-	export type ToolRelayMapping = Record<string, string>;
-
-	export class RelayEndpoint {
-	    id: string;
-	    name: string;
-	    kind: string;
-	    url: string;
-	    apiKey: string;
-	    description: string;
-	    latencyMs: number;
-	    healthy: boolean;
-	    lastChecked: string;
-
-	    static createFrom(source: any = {}) {
-	        return new RelayEndpoint(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.kind = source["kind"];
-	        this.url = source["url"];
-	        this.apiKey = source["apiKey"];
-	        this.description = source["description"];
-	        this.latencyMs = source["latencyMs"];
-	        this.healthy = source["healthy"];
-	        this.lastChecked = source["lastChecked"];
-	    }
-	}
-
-}
-
-export namespace gy {
-
-	export class GYProduct {
-	    id: string;
-	    name: string;
-	    description: string;
-	    kind: string;
-	    launchUrl: string;
-	    downloadUrl: string;
-	    serviceUrl: string;
-
-	    static createFrom(source: any = {}) {
-	        return new GYProduct(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.name = source["name"];
-	        this.description = source["description"];
-	        this.kind = source["kind"];
-	        this.launchUrl = source["launchUrl"];
-	        this.downloadUrl = source["downloadUrl"];
-	        this.serviceUrl = source["serviceUrl"];
-	    }
-	}
-
-	export class GYStatus {
-	    productId: string;
-	    available: boolean;
-	    latencyMs: number;
-	    version: string;
-	    error: string;
-
-	    static createFrom(source: any = {}) {
-	        return new GYStatus(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.productId = source["productId"];
-	        this.available = source["available"];
-	        this.latencyMs = source["latencyMs"];
-	        this.version = source["version"];
-	        this.error = source["error"];
-	    }
-	}
-
-}
-
-export namespace toolmanifest {
-
-	export class PlatformAsset {
-	    url: string;
-	    sha256: string;
-
-	    static createFrom(source: any = {}) {
-	        return new PlatformAsset(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.url = source["url"];
-	        this.sha256 = source["sha256"];
-	    }
-	}
-
-	export class ToolEntry {
-	    type: string;
-	    npm_package: string;
-	    latest_version: string;
-	    platforms: Record<string, PlatformAsset>;
-
-	    static createFrom(source: any = {}) {
-	        return new ToolEntry(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.type = source["type"];
-	        this.npm_package = source["npm_package"];
-	        this.latest_version = source["latest_version"];
-	        this.platforms = source["platforms"];
-	    }
-	}
-
-	export class Manifest {
-	    generated_at: string;
-	    tools: Record<string, ToolEntry>;
-
-	    static createFrom(source: any = {}) {
-	        return new Manifest(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.generated_at = source["generated_at"];
-	        this.tools = source["tools"];
-	    }
-	}
-
-}

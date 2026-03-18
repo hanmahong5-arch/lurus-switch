@@ -12,6 +12,7 @@ import (
 	"lurus-switch/internal/installer"
 	"lurus-switch/internal/mcp"
 	"lurus-switch/internal/process"
+	"lurus-switch/internal/promoter"
 	"lurus-switch/internal/promptlib"
 	"lurus-switch/internal/proxy"
 	"lurus-switch/internal/relay"
@@ -45,8 +46,9 @@ type services struct {
 	envMgr      *envmgr.Manager
 	tracker     *analytics.Tracker
 
-	serverMgr  *serverctl.Manager
-	relayStore *relay.Store
+	serverMgr   *serverctl.Manager
+	relayStore  *relay.Store
+	promoterSvc *promoter.Service
 }
 
 // newServices constructs all service dependencies. Initialization failures for
@@ -89,7 +91,7 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("relay store: %v", err))
 	}
 
-	return &services{
+	svc := &services{
 		store:       store,
 		validator:   validator.NewValidator(),
 		instMgr:     installer.NewManager(),
@@ -105,7 +107,9 @@ func newServices(appDataDir, version string) (*services, []string) {
 		tracker:     tracker,
 		serverMgr:   serverctl.NewManager(appDataDir),
 		relayStore:  relayStr,
-	}, warnings
+	}
+	svc.promoterSvc = promoter.NewService(svc.ensureBillingClient)
+	return svc, warnings
 }
 
 // ensureBillingClient lazily initializes the billing client from proxy settings.
