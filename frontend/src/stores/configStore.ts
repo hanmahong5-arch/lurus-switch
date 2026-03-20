@@ -31,6 +31,7 @@ export type ActiveTool =
   | 'gateway-logs'
   | 'gateway-subscriptions'
   | 'gateway-settings'
+  | 'switch-hub'
 
 export interface ConfigPreset {
   id: string

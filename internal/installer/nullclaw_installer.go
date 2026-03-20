@@ -105,6 +105,48 @@ func (n *NullClawInstaller) Uninstall(_ context.Context) (*InstallResult, error)
 	return &InstallResult{Tool: ToolNullClaw, Success: true, Message: "uninstalled successfully"}, nil
 }
 
+// ConfigureModel updates the model_name for the "code-switch" entry in NullClaw's config
+func (n *NullClawInstaller) ConfigureModel(ctx context.Context, model string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	configPath := filepath.Join(home, ".nullclaw", "config.json")
+
+	cfg := make(map[string]interface{})
+	if data, err := os.ReadFile(configPath); err == nil {
+		_ = json.Unmarshal(data, &cfg)
+	}
+
+	modelList, _ := cfg["model_list"].([]interface{})
+	found := false
+	for i, m := range modelList {
+		if entry, ok := m.(map[string]interface{}); ok {
+			if entry["name"] == "code-switch" {
+				entry["model_name"] = model
+				modelList[i] = entry
+				found = true
+				break
+			}
+		}
+	}
+	if !found {
+		modelList = append(modelList, map[string]interface{}{
+			"name":       "code-switch",
+			"model_name": model,
+		})
+	}
+	cfg["model_list"] = modelList
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal nullclaw config: %w", err)
+	}
+
+	return os.WriteFile(configPath, data, 0600)
+}
+
 // ConfigureProxy writes NewAPI proxy settings into NullClaw's config
 func (n *NullClawInstaller) ConfigureProxy(_ context.Context, endpoint, apiKey string) error {
 	home, err := os.UserHomeDir()

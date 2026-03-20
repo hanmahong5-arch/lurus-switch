@@ -40,6 +40,12 @@ type ToolInstaller interface {
 	ConfigureProxy(ctx context.Context, endpoint, apiKey string) error
 }
 
+// ModelConfigurable is optionally implemented by tool installers that support model selection.
+type ModelConfigurable interface {
+	// ConfigureModel writes the model ID into the tool's config file.
+	ConfigureModel(ctx context.Context, model string) error
+}
+
 // ManifestAware is implemented by binary installers that can accept a manifest-provided
 // download URL, SHA-256 checksum, and a download-progress callback.
 type ManifestAware interface {
@@ -220,7 +226,8 @@ func (m *Manager) UninstallAll(ctx context.Context) []InstallResult {
 	return results
 }
 
-// ConfigureAllProxy applies proxy settings to all installed tools, skipping uninstalled ones
+// ConfigureAllProxy applies proxy settings to all installed tools, skipping uninstalled ones.
+// The endpoint is automatically adapted per tool via ToolEndpoint (e.g. Codex needs /v1 suffix).
 func (m *Manager) ConfigureAllProxy(ctx context.Context, endpoint, apiKey string) map[string]error {
 	errs := make(map[string]error)
 	for name, inst := range m.installers {
@@ -228,7 +235,36 @@ func (m *Manager) ConfigureAllProxy(ctx context.Context, endpoint, apiKey string
 		if err != nil || !status.Installed {
 			continue
 		}
-		if err := inst.ConfigureProxy(ctx, endpoint, apiKey); err != nil {
+		toolEP := ToolEndpoint(name, endpoint)
+		if err := inst.ConfigureProxy(ctx, toolEP, apiKey); err != nil {
+			errs[name] = err
+		}
+	}
+	return errs
+}
+
+// ConfigureAllModels sets the model for all installed tools that support model selection.
+func (m *Manager) ConfigureAllModels(ctx context.Context, globalModel string, toolModels map[string]string) map[string]error {
+	errs := make(map[string]error)
+	for name, inst := range m.installers {
+		mc, ok := inst.(ModelConfigurable)
+		if !ok {
+			continue
+		}
+		status, err := inst.Detect(ctx)
+		if err != nil || !status.Installed {
+			continue
+		}
+		model := globalModel
+		if toolModels != nil {
+			if tm, exists := toolModels[name]; exists && tm != "" {
+				model = tm
+			}
+		}
+		if model == "" {
+			continue
+		}
+		if err := mc.ConfigureModel(ctx, model); err != nil {
 			errs[name] = err
 		}
 	}
@@ -269,6 +305,16 @@ func (m *Manager) SetProgressCallback(name string, fn func(downloaded, total int
 			ma.SetProgressFn(fn)
 		}
 	}
+}
+
+// ConfigureTool writes proxy/API settings into a single tool's config file.
+// The endpoint should already be formatted per-tool via ToolEndpoint.
+func (m *Manager) ConfigureTool(ctx context.Context, name, endpoint, apiKey string) error {
+	inst, ok := m.installers[name]
+	if !ok {
+		return fmt.Errorf("unknown tool: %s", name)
+	}
+	return inst.ConfigureProxy(ctx, endpoint, apiKey)
 }
 
 // GetRuntime returns the bun runtime manager

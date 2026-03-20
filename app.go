@@ -50,12 +50,24 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
-	// Auto-start gateway server if configured to do so.
+	// Auto-start legacy gateway server if configured to do so.
 	if a.serverMgr != nil {
 		if cfg := a.serverMgr.GetConfig(); cfg.AutoStart {
 			go func() {
 				if err := a.serverMgr.Start(ctx); err != nil {
-					fmt.Printf("Warning: auto-start gateway server failed: %v\n", err)
+					fmt.Printf("Warning: auto-start legacy gateway server failed: %v\n", err)
+				}
+			}()
+		}
+	}
+
+	// Auto-start the new local API gateway if configured.
+	if a.gatewaySrv != nil {
+		a.syncGatewayUpstream()
+		if cfg := a.gatewaySrv.GetConfig(); cfg.AutoStart {
+			go func() {
+				if err := a.gatewaySrv.Start(ctx); err != nil {
+					fmt.Printf("Warning: auto-start gateway failed: %v\n", err)
 				}
 			}()
 		}
@@ -63,6 +75,9 @@ func (a *App) startup(ctx context.Context) {
 
 	// Migrate legacy proxy settings to relay store (one-time, idempotent).
 	a.migrateProxyToRelay()
+
+	// Sync tool connection status from actual config files (non-blocking).
+	go a.SyncToolConnectionStatus()
 
 	// Fetch tool download manifest in the background so it is ready before the
 	// user reaches the install step. Does not block startup.

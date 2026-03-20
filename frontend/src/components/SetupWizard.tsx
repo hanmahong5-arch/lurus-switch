@@ -1,25 +1,24 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, CheckCircle2, XCircle, ArrowRight, ArrowLeft, SkipForward, Wifi, Zap, User } from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle, ArrowRight, ArrowLeft, SkipForward, Zap, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { ModelPicker, type Model } from './ModelPicker'
 import {
   DetectAllTools,
   InstallAllTools,
-  DetectSystemProxy,
   SaveProxySettings,
   GetAppSettings,
   SaveAppSettings,
   BillingValidateToken,
-  ConfigureAllToolsRelay,
+  FetchModelCatalog,
+  QuickSetup,
 } from '../../wailsjs/go/main/App'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { proxy, appconfig } from '../../wailsjs/go/models'
 import type { ToolStatus } from '../stores/dashboardStore'
 
-// Default Lurus relay endpoint — the newapi gateway
-const LURUS_RELAY_ENDPOINT = 'https://newapi.lurus.cn'
-
-const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw'] as const
+// Default Lurus relay endpoint — the full-format gateway (OpenAI/Claude/Gemini)
+const LURUS_RELAY_ENDPOINT = 'https://api.lurus.cn'
 
 const toolLabels: Record<string, string> = {
   claude: 'Claude Code',
@@ -29,14 +28,6 @@ const toolLabels: Record<string, string> = {
   nullclaw: 'NullClaw',
   zeroclaw: 'ZeroClaw',
   openclaw: 'OpenClaw',
-}
-
-interface DetectedProxy {
-  source: string
-  host: string
-  port: number
-  type: string
-  url: string
 }
 
 interface AccountInfo {
@@ -52,7 +43,7 @@ interface SetupWizardProps {
 export function SetupWizard({ onComplete }: SetupWizardProps) {
   const { t, i18n } = useTranslation()
   const [step, setStep] = useState(0)
-  const totalSteps = 5
+  const totalSteps = 4
 
   // Step 0 — language
   const [language, setLanguage] = useState(i18n.language || 'zh')
@@ -63,30 +54,22 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const [accountError, setAccountError] = useState('')
   const [promoCode, setPromoCode] = useState('')
-
-  // Step 2 — tools
-  const [tools, setTools] = useState<Record<string, ToolStatus>>({})
-  const [detectingTools, setDetectingTools] = useState(false)
-  const [detectError, setDetectError] = useState('')
-  const [installingAll, setInstallingAll] = useState(false)
-  // Per-tool install progress: 0-99 = downloading, 100 = done, -1 = failed
-  const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
-
-  // Step 3 — proxy
-  const [proxies, setProxies] = useState<DetectedProxy[]>([])
-  const [detectingProxy, setDetectingProxy] = useState(false)
-  const [selectedProxy, setSelectedProxy] = useState<string>('')
-  const [manualEndpoint, setManualEndpoint] = useState('')
-  const [manualKey, setManualKey] = useState('')
   const [proxySaved, setProxySaved] = useState(false)
 
-  // Step 4 — done: relay config
-  const [configuringRelay, setConfiguringRelay] = useState(false)
-  const [relayConfigured, setRelayConfigured] = useState(false)
+  // Step 2 — Model selection
+  const [models, setModels] = useState<Model[]>([])
+  const [loadingModels, setLoadingModels] = useState(false)
+  const [selectedModel, setSelectedModel] = useState('')
 
-  // Prevent re-triggering on back/forward navigation
-  const toolsDetectedRef = useRef(false)
-  const proxyDetectedRef = useRef(false)
+  // Step 3 — Done: results of one-click setup
+  const [configuring, setConfiguring] = useState(false)
+  const [configResults, setConfigResults] = useState<Record<string, string>>({})
+  const [tools, setTools] = useState<Record<string, ToolStatus>>({})
+  const [setupDone, setSetupDone] = useState(false)
+
+  // Background state
+  const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
+  const modelsFetchedRef = useRef(false)
 
   // Subscribe to per-tool install progress events from the Go backend.
   useEffect(() => {
@@ -99,40 +82,37 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     return () => { offProgress(); offDone() }
   }, [])
 
-  // Detect tools on step 2
+  // Fetch model catalog on step 2
   useEffect(() => {
-    if (step === 2 && !toolsDetectedRef.current) {
-      toolsDetectedRef.current = true
-      setDetectingTools(true)
-      setDetectError('')
-      DetectAllTools()
-        .then((r) => setTools(r))
-        .catch((err) => setDetectError(`${err}`))
-        .finally(() => setDetectingTools(false))
-    }
-  }, [step])
-
-  // Detect proxy on step 3
-  useEffect(() => {
-    if (step === 3 && !proxyDetectedRef.current) {
-      proxyDetectedRef.current = true
-
-      // Auto-prefill endpoint with Lurus relay if account was connected
-      if (accountInfo && !manualEndpoint) {
-        setManualEndpoint(LURUS_RELAY_ENDPOINT)
-        setManualKey(lurusToken)
-      }
-
-      setDetectingProxy(true)
-      DetectSystemProxy()
-        .then((r) => {
-          setProxies(r || [])
-          if (r && r.length > 0 && !accountInfo) setSelectedProxy(r[0].url)
+    if (step === 2 && !modelsFetchedRef.current) {
+      modelsFetchedRef.current = true
+      setLoadingModels(true)
+      FetchModelCatalog()
+        .then((catalog) => {
+          if (catalog?.models) {
+            setModels(catalog.models)
+            // Auto-select default based on language
+            if (!selectedModel) {
+              const defaultId = language === 'zh' ? 'deepseek-chat' : 'claude-sonnet-4-20250514'
+              const exists = catalog.models.some((m: Model) => m.id === defaultId)
+              if (exists) setSelectedModel(defaultId)
+              else if (catalog.models.length > 0) setSelectedModel(catalog.models[0].id)
+            }
+          }
         })
-        .catch(() => {})
-        .finally(() => setDetectingProxy(false))
+        .catch(() => {
+          // Fallback models will be empty, user can skip
+        })
+        .finally(() => setLoadingModels(false))
     }
-  }, [step, accountInfo, lurusToken, manualEndpoint])
+  }, [step, language, selectedModel])
+
+  // Run one-click setup on step 3 entry
+  useEffect(() => {
+    if (step === 3 && !setupDone) {
+      runSetup()
+    }
+  }, [step, setupDone])
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang)
@@ -153,7 +133,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
           balance: overview.wallet?.balance ?? 0,
           planCode: overview.subscription?.planCode,
         })
-        // Auto-save Lurus relay as the proxy endpoint so Step 3 can be skipped.
+        // Auto-save Lurus relay as the proxy endpoint
         await SaveProxySettings(proxy.ProxySettings.createFrom({
           apiEndpoint: LURUS_RELAY_ENDPOINT,
           apiKey: '',
@@ -168,57 +148,26 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     }
   }
 
-  const handleInstallAll = async () => {
-    setInstallingAll(true)
+  // Step 3 — run one-click setup: install all tools + configure endpoint + model
+  const runSetup = async () => {
+    setConfiguring(true)
     setInstallProgress({})
     try {
-      await InstallAllTools()
+      // 1. Install all tools in background
+      await InstallAllTools().catch(() => {})
       const statuses = await DetectAllTools()
       setTools(statuses)
 
-      // For Lurus members: auto-configure relay and skip manual proxy step.
-      if (accountInfo) {
-        await ConfigureAllToolsRelay().catch(() => {/* best-effort */})
-        await handleFinish()
+      // 2. QuickSetup: configure endpoint + API key + model on all installed tools
+      if (proxySaved && selectedModel) {
+        const errors = await QuickSetup(selectedModel)
+        setConfigResults(errors)
       }
     } catch {
-      // Ignore errors in wizard — user can retry from Dashboard
+      // Non-critical: user can retry from Dashboard
     } finally {
-      setInstallingAll(false)
-    }
-  }
-
-  const handleUseLurusPlatform = () => {
-    setManualEndpoint(LURUS_RELAY_ENDPOINT)
-    if (lurusToken) setManualKey(lurusToken)
-    setSelectedProxy('')
-  }
-
-  const handleSaveProxy = async () => {
-    const endpoint = selectedProxy || manualEndpoint.trim()
-    const key = manualKey.trim() || lurusToken.trim()
-    if (!endpoint) return
-    try {
-      await SaveProxySettings(proxy.ProxySettings.createFrom({
-        apiEndpoint: endpoint,
-        apiKey: key,
-        userToken: lurusToken.trim(),
-      }))
-      setProxySaved(true)
-    } catch {
-      // Ignore
-    }
-  }
-
-  const handleConfigureAllRelay = async () => {
-    setConfiguringRelay(true)
-    try {
-      await ConfigureAllToolsRelay()
-      setRelayConfigured(true)
-    } catch {
-      // Non-critical
-    } finally {
-      setConfiguringRelay(false)
+      setConfiguring(false)
+      setSetupDone(true)
     }
   }
 
@@ -241,8 +190,8 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   }
 
   const installedCount = Object.values(tools).filter((t) => t.installed).length
-  const hasProxy = proxySaved || selectedProxy !== '' || manualEndpoint.trim() !== ''
-  const canConfigureRelay = proxySaved && (installedCount > 0) && !relayConfigured
+  const errorCount = Object.keys(configResults).filter(k => k !== 'error').length
+  const selectedModelDisplay = models.find(m => m.id === selectedModel)
 
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background text-foreground p-6">
@@ -355,243 +304,80 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             </div>
           )}
 
-          {/* Step 2 — Tools */}
+          {/* Step 2 — Model selection */}
           {step === 2 && (
             <div className="flex-1 flex flex-col gap-3">
-              <h2 className="text-lg font-medium">{t('wizard.tools.title')}</h2>
-              <p className="text-sm text-muted-foreground">{t('wizard.tools.desc')}</p>
-              {detectError && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-500 text-xs mt-1">
-                  <XCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>{detectError}</span>
-                  <button
-                    onClick={() => {
-                      toolsDetectedRef.current = false
-                      setDetectError('')
-                      setStep(2)
-                    }}
-                    className="ml-auto underline hover:no-underline"
-                  >
-                    {t('wizard.tools.retry')}
-                  </button>
-                </div>
+              <h2 className="text-lg font-medium">{t('wizard.model.title')}</h2>
+              <p className="text-sm text-muted-foreground">{t('wizard.model.desc')}</p>
+              <div className="flex-1 overflow-y-auto max-h-[320px]">
+                <ModelPicker
+                  models={models}
+                  selected={selectedModel}
+                  onSelect={setSelectedModel}
+                  loading={loadingModels}
+                />
+              </div>
+              {selectedModelDisplay && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('wizard.model.selected', { model: selectedModelDisplay.displayName })}
+                </p>
               )}
-              {detectingTools ? (
-                <div className="flex items-center gap-2 py-4">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">{t('wizard.tools.detecting')}</span>
-                </div>
-              ) : (
-                <div className="space-y-2 mt-2">
-                  {TOOL_ORDER.map((name) => {
-                    const tool = tools[name]
-                    const installed = tool?.installed
-                    const pct = installProgress[name]
-                    const isDownloading = installingAll && pct !== undefined && pct >= 0 && pct < 100
-                    return (
-                      <div key={name} className="flex flex-col gap-0.5 py-1.5 px-3 rounded-md bg-muted/50">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{toolLabels[name]}</span>
-                          <span className={cn('flex items-center gap-1 text-xs',
-                            isDownloading ? 'text-primary' :
-                            installed ? 'text-green-500' : 'text-muted-foreground'
-                          )}>
-                            {isDownloading ? (
-                              <>
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                {pct}%
-                              </>
-                            ) : installed ? (
-                              <>
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                {t('wizard.tools.installed')} {tool?.version && `v${tool.version}`}
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="h-3.5 w-3.5" />
-                                {t('wizard.tools.notInstalled')}
-                              </>
-                            )}
-                          </span>
-                        </div>
-                        {isDownloading && (
-                          <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary transition-all duration-300"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                  <button
-                    onClick={handleInstallAll}
-                    disabled={installingAll}
-                    className={cn(
-                      'mt-2 w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                      'bg-primary text-primary-foreground hover:bg-primary/90',
-                      'disabled:opacity-50 disabled:cursor-not-allowed'
-                    )}
-                  >
-                    {installingAll && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {t('wizard.tools.installAll')}
-                  </button>
-                </div>
-              )}
+              <p className="text-[10px] text-muted-foreground">{t('wizard.model.changeLater')}</p>
             </div>
           )}
 
-          {/* Step 3 — Proxy */}
+          {/* Step 3 — Done: setup results */}
           {step === 3 && (
-            <div className="flex-1 flex flex-col gap-3">
-              <h2 className="text-lg font-medium">{t('wizard.proxy.title')}</h2>
-              <p className="text-sm text-muted-foreground">{t('wizard.proxy.desc')}</p>
-
-              {/* Lurus Platform shortcut — highlight if account connected */}
-              <div className={cn(
-                'flex items-center justify-between p-3 rounded-md border',
-                accountInfo
-                  ? 'border-primary/40 bg-primary/5'
-                  : 'border-border bg-muted/30'
-              )}>
-                <div className="text-sm">
-                  <p className="font-medium">{t('wizard.proxy.lurusPlatform')}</p>
-                  <p className="text-xs text-muted-foreground">{LURUS_RELAY_ENDPOINT}</p>
-                </div>
-                <button
-                  onClick={handleUseLurusPlatform}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors shrink-0',
-                    accountInfo
-                      ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'border border-border hover:bg-muted'
-                  )}
-                >
-                  <Zap className="h-3.5 w-3.5" />
-                  {t('dashboard.useLurusPlatform')}
-                </button>
-              </div>
-
-              {detectingProxy ? (
-                <div className="flex items-center gap-2 py-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm">{t('wizard.proxy.detecting')}</span>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {proxies.length > 0 && (
-                    <>
-                      <p className="text-xs text-muted-foreground">{t('wizard.proxy.detected')}</p>
-                      <div className="space-y-1.5">
-                        {proxies.map((p) => (
-                          <button
-                            key={p.url}
-                            onClick={() => { setSelectedProxy(p.url); setManualEndpoint('') }}
-                            className={cn(
-                              'w-full text-left px-3 py-2 rounded-md border text-sm transition-colors',
-                              selectedProxy === p.url
-                                ? 'border-primary bg-primary/10'
-                                : 'border-border hover:bg-muted'
-                            )}
-                          >
-                            <div className="flex items-center gap-2">
-                              <Wifi className="h-3.5 w-3.5 text-primary" />
-                              <span className="font-medium capitalize">{p.source}</span>
-                              <span className="text-muted-foreground">{p.url}</span>
-                            </div>
-                          </button>
-                        ))}
+            <div className="flex-1 flex flex-col gap-4 items-center justify-center text-center">
+              {configuring ? (
+                <>
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                  <h2 className="text-lg font-medium">{t('wizard.done.configuring')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('wizard.done.configuringDesc')}</p>
+                  {/* Per-tool install progress */}
+                  <div className="w-full max-w-xs space-y-1 mt-2">
+                    {Object.entries(installProgress).map(([tool, pct]) => (
+                      <div key={tool} className="flex items-center gap-2 text-xs">
+                        <span className="w-20 text-right text-muted-foreground">{toolLabels[tool] || tool}</span>
+                        <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className={cn('h-full transition-all duration-300', pct === -1 ? 'bg-red-500' : 'bg-primary')}
+                            style={{ width: `${Math.max(0, pct)}%` }}
+                          />
+                        </div>
+                        <span className="w-8 text-muted-foreground">
+                          {pct === -1 ? '!' : pct === 100 ? <CheckCircle2 className="h-3 w-3 text-green-500 inline" /> : `${pct}%`}
+                        </span>
                       </div>
-                    </>
-                  )}
-
-                  {/* Manual config */}
-                  <div className="border-t border-border pt-3 space-y-2">
-                    <p className="text-xs font-medium">{t('wizard.proxy.manualConfig')}</p>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-0.5">{t('wizard.proxy.apiEndpoint')}</label>
-                      <input
-                        type="url"
-                        value={manualEndpoint}
-                        onChange={(e) => { setManualEndpoint(e.target.value); setSelectedProxy('') }}
-                        placeholder="https://api.example.com/v1"
-                        className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-muted-foreground mb-0.5">{t('wizard.proxy.apiKey')}</label>
-                      <input
-                        type="password"
-                        value={manualKey}
-                        onChange={(e) => setManualKey(e.target.value)}
-                        placeholder="sk-..."
-                        className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                    </div>
-                    {(selectedProxy || manualEndpoint.trim()) && (
-                      <button
-                        onClick={handleSaveProxy}
-                        disabled={proxySaved}
-                        className={cn(
-                          'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                          proxySaved
-                            ? 'bg-green-500/10 text-green-500 border border-green-500/20'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        )}
-                      >
-                        {proxySaved ? <CheckCircle2 className="h-3.5 w-3.5" /> : null}
-                        {proxySaved ? t('wizard.proxy.saved') : t('settings.save')}
-                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-12 w-12 text-green-500" />
+                  <h2 className="text-lg font-medium">{t('wizard.done.title')}</h2>
+                  <p className="text-sm text-muted-foreground">{t('wizard.done.desc')}</p>
+                  <div className="text-sm space-y-1 mt-2">
+                    {accountInfo && (
+                      <p className="text-green-500 flex items-center justify-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {t('wizard.account.connected')}: {accountInfo.displayName}
+                      </p>
+                    )}
+                    <p>{t('wizard.done.toolsDetected', { count: installedCount })}</p>
+                    {selectedModel && (
+                      <p className="flex items-center justify-center gap-1">
+                        <Zap className="h-3.5 w-3.5 text-primary" />
+                        {t('wizard.done.modelConfigured', { model: selectedModelDisplay?.displayName || selectedModel })}
+                      </p>
+                    )}
+                    {errorCount > 0 && (
+                      <p className="text-xs text-amber-500 mt-2">
+                        {t('wizard.done.someErrors', { count: errorCount })}
+                      </p>
                     )}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Step 4 — Done */}
-          {step === 4 && (
-            <div className="flex-1 flex flex-col gap-4 items-center justify-center text-center">
-              <CheckCircle2 className="h-12 w-12 text-green-500" />
-              <h2 className="text-lg font-medium">{t('wizard.done.title')}</h2>
-              <p className="text-sm text-muted-foreground">{t('wizard.done.desc')}</p>
-              <div className="text-sm space-y-1 mt-2">
-                <p className="text-muted-foreground">{t('wizard.done.summary')}</p>
-                {accountInfo && (
-                  <p className="text-green-500 flex items-center justify-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    {t('wizard.account.connected')}: {accountInfo.displayName}
-                  </p>
-                )}
-                <p>{t('wizard.done.toolsDetected', { count: installedCount })}</p>
-                <p>{hasProxy ? t('wizard.done.proxyConfigured') : t('wizard.done.proxyNotConfigured')}</p>
-              </div>
-
-              {/* One-click relay config button */}
-              {canConfigureRelay && (
-                <button
-                  onClick={handleConfigureAllRelay}
-                  disabled={configuringRelay}
-                  className={cn(
-                    'mt-2 flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium transition-colors',
-                    'bg-primary text-primary-foreground hover:bg-primary/90',
-                    'disabled:opacity-50 disabled:cursor-not-allowed'
-                  )}
-                >
-                  {configuringRelay ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Zap className="h-4 w-4" />
-                  )}
-                  {t('dashboard.configureLurusRelay')}
-                </button>
-              )}
-              {relayConfigured && (
-                <p className="text-xs text-green-500 flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  {t('dashboard.relayConfigured', { count: installedCount })}
-                </p>
+                </>
               )}
             </div>
           )}
@@ -634,9 +420,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
             ) : (
               <button
                 onClick={handleFinish}
+                disabled={configuring}
                 className={cn(
                   'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                  'bg-primary text-primary-foreground hover:bg-primary/90'
+                  'bg-primary text-primary-foreground hover:bg-primary/90',
+                  'disabled:opacity-50 disabled:cursor-not-allowed'
                 )}
               >
                 {t('wizard.done.goToDashboard')}

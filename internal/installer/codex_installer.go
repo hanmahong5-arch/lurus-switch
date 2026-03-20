@@ -151,40 +151,36 @@ func (c *CodexInstaller) Uninstall(ctx context.Context) (*InstallResult, error) 
 	}, nil
 }
 
-// ConfigureProxy writes NewAPI proxy settings into Codex's config
+// ConfigureProxy writes NewAPI proxy settings into Codex's config using
+// the model_providers.custom format (compatible with current Codex CLI).
 func (c *CodexInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey string) error {
-	home, err := os.UserHomeDir()
+	configPath, err := c.configPath()
 	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
+		return err
 	}
 
-	configDir := filepath.Join(home, ".codex")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create codex config directory: %w", err)
-	}
-
-	configPath := filepath.Join(configDir, "config.toml")
-
-	// Build TOML config structure
-	type providerConfig struct {
-		Type    string `toml:"type"`
-		BaseURL string `toml:"base_url,omitempty"`
-	}
-
-	type codexConfig struct {
-		Provider providerConfig `toml:"provider"`
-	}
-
-	// Load existing config or start fresh
-	cfg := codexConfig{}
+	// Load existing config as generic map to preserve unknown fields
+	cfg := make(map[string]interface{})
 	if data, err := os.ReadFile(configPath); err == nil {
-		toml.Unmarshal(data, &cfg)
+		_ = toml.Unmarshal(data, &cfg)
 	}
 
-	cfg.Provider.Type = "custom"
-	if endpoint != "" {
-		cfg.Provider.BaseURL = endpoint
+	// Write model_providers.custom section
+	providers, _ := cfg["model_providers"].(map[string]interface{})
+	if providers == nil {
+		providers = make(map[string]interface{})
 	}
+	custom, _ := providers["custom"].(map[string]interface{})
+	if custom == nil {
+		custom = make(map[string]interface{})
+	}
+	if endpoint != "" {
+		custom["base_url"] = endpoint
+	}
+	custom["env_key"] = "OPENAI_API_KEY"
+	custom["wire_api"] = "chat"
+	providers["custom"] = custom
+	cfg["model_providers"] = providers
 
 	var buf strings.Builder
 	enc := toml.NewEncoder(&buf)
@@ -196,7 +192,7 @@ func (c *CodexInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey st
 		return fmt.Errorf("failed to write codex config: %w", err)
 	}
 
-	// Also set environment variables for the current session (persisted via proxy settings)
+	// Set environment variables for the current session
 	if apiKey != "" {
 		os.Setenv("OPENAI_API_KEY", apiKey)
 	}
@@ -205,6 +201,44 @@ func (c *CodexInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey st
 	}
 
 	return nil
+}
+
+// ConfigureModel writes the model ID into Codex's config.toml
+func (c *CodexInstaller) ConfigureModel(ctx context.Context, model string) error {
+	configPath, err := c.configPath()
+	if err != nil {
+		return err
+	}
+
+	cfg := make(map[string]interface{})
+	if data, err := os.ReadFile(configPath); err == nil {
+		_ = toml.Unmarshal(data, &cfg)
+	}
+
+	cfg["model"] = model
+
+	var buf strings.Builder
+	enc := toml.NewEncoder(&buf)
+	if err := enc.Encode(cfg); err != nil {
+		return fmt.Errorf("failed to encode codex config: %w", err)
+	}
+
+	return os.WriteFile(configPath, []byte(buf.String()), 0600)
+}
+
+// configPath returns the Codex config.toml path, creating the directory if needed.
+func (c *CodexInstaller) configPath() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	configDir := filepath.Join(home, ".codex")
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create codex config directory: %w", err)
+	}
+
+	return filepath.Join(configDir, "config.toml"), nil
 }
 
 // findExecutable locates the codex binary

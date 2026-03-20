@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react'
-import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap } from 'lucide-react'
+import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap, Repeat } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
@@ -9,6 +9,7 @@ import { ToolCard } from '../components/ToolCard'
 import { ProxyConfigPanel } from '../components/ProxyConfigPanel'
 import { DashboardQuotaWidget } from '../components/DashboardQuotaWidget'
 import { DepTreePanel } from '../components/DepTreePanel'
+import { ModelPicker, type Model } from '../components/ModelPicker'
 import {
   DetectAllTools,
   InstallTool,
@@ -27,6 +28,8 @@ import {
   ApplySelfUpdate,
   SaveAppSettings,
   GetAppSettings,
+  FetchModelCatalog,
+  SwitchModel,
 } from '../../wailsjs/go/main/App'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { proxy, appconfig } from '../../wailsjs/go/models'
@@ -56,6 +59,12 @@ export function DashboardPage() {
   // Per-tool install progress: 0-99 = in-progress, 100 = done, -1 = failed
   const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
 
+  // Model selection state
+  const [currentModel, setCurrentModel] = useState('')
+  const [showModelPicker, setShowModelPicker] = useState(false)
+  const [catalogModels, setCatalogModels] = useState<Model[]>([])
+  const [switchingModel, setSwitchingModel] = useState(false)
+
   // Subscribe to install progress events emitted by the Go backend.
   useEffect(() => {
     const offProgress = EventsOn('tool:install:progress', (d: { tool: string; percent: number }) => {
@@ -72,10 +81,16 @@ export function DashboardPage() {
     picoclaw: 'PicoClaw', nullclaw: 'NullClaw', zeroclaw: 'ZeroClaw', openclaw: 'OpenClaw',
   }
 
-  // Load fast data immediately (version + proxy settings), then detect tools in background
+  // Load fast data immediately (version + proxy settings + model), then detect tools in background
   useEffect(() => {
     GetAppVersion().then(setAppVersion).catch(() => {})
-    GetProxySettings().then((r) => setProxySettings(r)).catch(() => {})
+    GetProxySettings().then((r) => {
+      setProxySettings(r)
+      if (r.model) setCurrentModel(r.model)
+    }).catch(() => {})
+    FetchModelCatalog().then((cat) => {
+      if (cat?.models) setCatalogModels(cat.models)
+    }).catch(() => {})
     const timer = setTimeout(() => detectTools(), 100)
     return () => clearTimeout(timer)
   }, [])
@@ -289,6 +304,26 @@ export function DashboardPage() {
     }
   }
 
+  const handleSwitchModel = async (modelId: string) => {
+    setSwitchingModel(true)
+    try {
+      const errors = await SwitchModel(modelId)
+      setCurrentModel(modelId)
+      setShowModelPicker(false)
+      if (Object.keys(errors).length > 0) {
+        const failed = Object.entries(errors).map(([tool, e]) => `${tool}: ${e}`).join('; ')
+        toast('warning', failed)
+      } else {
+        const display = catalogModels.find(m => m.id === modelId)?.displayName || modelId
+        toast('success', t('dashboard.modelSwitched', { model: display }))
+      }
+    } catch (err) {
+      toast('error', `${err}`)
+    } finally {
+      setSwitchingModel(false)
+    }
+  }
+
   const anyInstalling = Object.values(installing).some(Boolean)
   const anyUpdating = Object.values(updating).some(Boolean)
   const hasUpdates = TOOL_ORDER.some((name) => tools[name]?.updateAvailable)
@@ -358,6 +393,50 @@ export function DashboardPage() {
 
         {/* Quota Widget */}
         <DashboardQuotaWidget />
+
+        {/* Current Model */}
+        {currentModel && (
+          <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+            <div className="flex items-center gap-3">
+              <Zap className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm font-medium">{t('dashboard.currentModel')}</p>
+                <p className="text-xs text-muted-foreground">
+                  {catalogModels.find(m => m.id === currentModel)?.displayName || currentModel}
+                  <span className="ml-2 font-mono text-[10px]">{currentModel}</span>
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowModelPicker(!showModelPicker)}
+              disabled={switchingModel}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                'border border-border hover:bg-muted',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+            >
+              {switchingModel ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Repeat className="h-3.5 w-3.5" />
+              )}
+              {t('dashboard.switchModel')}
+            </button>
+          </div>
+        )}
+
+        {/* Model Picker Modal */}
+        {showModelPicker && (
+          <div className="border border-border rounded-lg p-4 bg-card">
+            <ModelPicker
+              models={catalogModels}
+              selected={currentModel}
+              onSelect={handleSwitchModel}
+              loading={switchingModel}
+            />
+          </div>
+        )}
 
         {/* Runtime Dependencies */}
         <DepTreePanel />

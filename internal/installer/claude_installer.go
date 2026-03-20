@@ -201,6 +201,30 @@ func (c *ClaudeInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey s
 	return nil
 }
 
+// ConfigureModel writes the model ID into Claude's settings.json
+func (c *ClaudeInstaller) ConfigureModel(ctx context.Context, model string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	settingsPath := filepath.Join(home, ".claude", "settings.json")
+
+	settings := make(map[string]interface{})
+	if data, err := os.ReadFile(settingsPath); err == nil {
+		_ = json.Unmarshal(data, &settings)
+	}
+
+	settings["model"] = model
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal claude settings: %w", err)
+	}
+
+	return os.WriteFile(settingsPath, data, 0600)
+}
+
 // findExecutable locates the claude binary
 func (c *ClaudeInstaller) findExecutable() (string, error) {
 	if path, err := exec.LookPath("claude"); err == nil {

@@ -29,11 +29,13 @@ import { GatewayLogPage } from './pages/GatewayLogPage'
 import { GatewaySubscriptionPage } from './pages/GatewaySubscriptionPage'
 import { GatewaySettingsPage } from './pages/GatewaySettingsPage'
 import { PromoterHubPage } from './pages/PromoterHubPage'
+import { SwitchHubPage } from './pages/SwitchHubPage'
 import { useConfigStore, type ActiveTool } from './stores/configStore'
 import { useGatewayStore } from './stores/gatewayStore'
 import { useBillingStore } from './stores/billingStore'
 import { useDashboardStore } from './stores/dashboardStore'
-import { GetAppSettings, GetServerStatus, GetServerAdminToken, BillingGetUserInfo, BillingGetQuotaSummary } from '../wailsjs/go/main/App'
+import { useSwitchStore } from './stores/switchStore'
+import { GetAppSettings, GetServerStatus, GetServerAdminToken, BillingGetUserInfo, BillingGetQuotaSummary, GetGatewayStatus } from '../wailsjs/go/main/App'
 import i18n from './i18n'
 
 // Pages that can be used as a startup page
@@ -47,6 +49,7 @@ function App() {
   const { startPolling, stopPolling } = useGatewayStore()
   const { setUserInfo } = useBillingStore()
   const { proxySettings } = useDashboardStore()
+  const setGwStatus = useSwitchStore((s) => s.setStatus)
 
   useEffect(() => {
     GetAppSettings()
@@ -88,6 +91,14 @@ function App() {
     )
     return () => stopPolling()
   }, [])
+
+  // Poll Switch gateway status globally so StatusBar indicator stays current.
+  useEffect(() => {
+    const poll = () => { GetGatewayStatus().then(setGwStatus).catch(() => {}) }
+    poll()
+    const h = setInterval(poll, 10_000)
+    return () => clearInterval(h)
+  }, [setGwStatus])
 
   // Poll billing user info every 5 minutes to keep AccountStatusBadge fresh.
   useEffect(() => {
@@ -146,6 +157,8 @@ function App() {
         return <CLIRunner />
       case 'promoter-hub':
         return <PromoterHubPage />
+      case 'switch-hub':
+        return <SwitchHubPage />
       case 'gateway':
         return <GatewayPage />
       case 'gateway-dashboard':

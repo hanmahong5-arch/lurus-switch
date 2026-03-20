@@ -2,7 +2,7 @@ import {
   Settings, LayoutDashboard, Wrench,
   CreditCard, Activity, BookOpen, FileText, Shield,
   Server, Layers, Key, Users, BarChart3, Box, Gift, Settings2,
-  Terminal, Network, Package, Megaphone,
+  Terminal, Network, Package, Megaphone, Cpu,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -109,6 +109,16 @@ export function Sidebar() {
             iconColor="text-purple-500"
             active={activeTool === 'dashboard'}
             onClick={() => setActiveTool('dashboard')}
+          />
+
+          {/* Switch Gateway Hub */}
+          <NavButton
+            id="switch-hub"
+            name={t('nav.switchHub')}
+            icon={Cpu}
+            iconColor="text-cyan-500"
+            active={activeTool === 'switch-hub'}
+            onClick={() => setActiveTool('switch-hub')}
           />
 
           {/* Separator */}

@@ -31,11 +31,11 @@ export namespace appconfig {
 	    startupPage: string;
 	    onboardingCompleted: boolean;
 	    appMode: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AppSettings(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.theme = source["theme"];
@@ -46,6 +46,61 @@ export namespace appconfig {
 	        this.onboardingCompleted = source["onboardingCompleted"];
 	        this.appMode = source["appMode"];
 	    }
+	}
+
+}
+
+export namespace appreg {
+	
+	export class App {
+	    id: string;
+	    name: string;
+	    kind: string;
+	    tier: number;
+	    token: string;
+	    icon: string;
+	    description: string;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    lastSeenAt?: any;
+	    connected: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new App(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.tier = source["tier"];
+	        this.token = source["token"];
+	        this.icon = source["icon"];
+	        this.description = source["description"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.lastSeenAt = this.convertValues(source["lastSeenAt"], null);
+	        this.connected = source["connected"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }
@@ -1217,6 +1272,51 @@ export namespace envmgr {
 
 }
 
+export namespace gateway {
+	
+	export class Config {
+	    port: number;
+	    upstreamUrl: string;
+	    userToken: string;
+	    autoStart: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Config(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.port = source["port"];
+	        this.upstreamUrl = source["upstreamUrl"];
+	        this.userToken = source["userToken"];
+	        this.autoStart = source["autoStart"];
+	    }
+	}
+	export class Status {
+	    running: boolean;
+	    port: number;
+	    url: string;
+	    uptime: number;
+	    totalRequests: number;
+	    activeConns: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.running = source["running"];
+	        this.port = source["port"];
+	        this.url = source["url"];
+	        this.uptime = source["uptime"];
+	        this.totalRequests = source["totalRequests"];
+	        this.activeConns = source["activeConns"];
+	    }
+	}
+
+}
+
 export namespace gy {
 	
 	export class GYProduct {
@@ -1365,6 +1465,155 @@ export namespace installer {
 
 export namespace main {
 	
+	export class RuntimeDiagnostic {
+	    id: string;
+	    name: string;
+	    installed: boolean;
+	    version: string;
+	    required: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new RuntimeDiagnostic(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.installed = source["installed"];
+	        this.version = source["version"];
+	        this.required = source["required"];
+	    }
+	}
+	export class ToolDiagnostic {
+	    tool: string;
+	    installed: boolean;
+	    version: string;
+	    path: string;
+	    configExists: boolean;
+	    healthStatus: string;
+	    healthIssues: string[];
+	    gatewayBound: boolean;
+	    connected: boolean;
+	    currentEndpoint: string;
+	    currentModel: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ToolDiagnostic(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool = source["tool"];
+	        this.installed = source["installed"];
+	        this.version = source["version"];
+	        this.path = source["path"];
+	        this.configExists = source["configExists"];
+	        this.healthStatus = source["healthStatus"];
+	        this.healthIssues = source["healthIssues"];
+	        this.gatewayBound = source["gatewayBound"];
+	        this.connected = source["connected"];
+	        this.currentEndpoint = source["currentEndpoint"];
+	        this.currentModel = source["currentModel"];
+	    }
+	}
+	export class EnvironmentCheck {
+	    tools: ToolDiagnostic[];
+	    runtimes: RuntimeDiagnostic[];
+	    gatewayRunning: boolean;
+	    gatewayUrl: string;
+	    allToolsBound: boolean;
+	    installedCount: number;
+	    boundCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new EnvironmentCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tools = this.convertValues(source["tools"], ToolDiagnostic);
+	        this.runtimes = this.convertValues(source["runtimes"], RuntimeDiagnostic);
+	        this.gatewayRunning = source["gatewayRunning"];
+	        this.gatewayUrl = source["gatewayUrl"];
+	        this.allToolsBound = source["allToolsBound"];
+	        this.installedCount = source["installedCount"];
+	        this.boundCount = source["boundCount"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ToolConfigResult {
+	    tool: string;
+	    success: boolean;
+	    message: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ToolConfigResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool = source["tool"];
+	        this.success = source["success"];
+	        this.message = source["message"];
+	    }
+	}
+	export class FullSetupResult {
+	    gatewayStarted: boolean;
+	    snapshotsTaken: number;
+	    configResults: ToolConfigResult[];
+	    gatewayUrl: string;
+	    errors: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new FullSetupResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.gatewayStarted = source["gatewayStarted"];
+	        this.snapshotsTaken = source["snapshotsTaken"];
+	        this.configResults = this.convertValues(source["configResults"], ToolConfigResult);
+	        this.gatewayUrl = source["gatewayUrl"];
+	        this.errors = source["errors"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
 	export class SystemInfo {
 	    appVersion: string;
 	    goos: string;
@@ -1379,6 +1628,28 @@ export namespace main {
 	        this.appVersion = source["appVersion"];
 	        this.goos = source["goos"];
 	        this.goarch = source["goarch"];
+	    }
+	}
+	
+	
+	export class ToolSnapshotInfo {
+	    id: string;
+	    tool: string;
+	    label: string;
+	    createdAt: string;
+	    size: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ToolSnapshotInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.tool = source["tool"];
+	        this.label = source["label"];
+	        this.createdAt = source["createdAt"];
+	        this.size = source["size"];
 	    }
 	}
 
@@ -1449,6 +1720,149 @@ export namespace mcp {
 
 }
 
+export namespace metering {
+	
+	export class ActivityEntry {
+	    timestamp: string;
+	    appId: string;
+	    model: string;
+	    tokens: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ActivityEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.timestamp = source["timestamp"];
+	        this.appId = source["appId"];
+	        this.model = source["model"];
+	        this.tokens = source["tokens"];
+	    }
+	}
+	export class AppSummary {
+	    appId: string;
+	    totalCalls: number;
+	    tokensIn: number;
+	    tokensOut: number;
+	    cacheHits: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AppSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appId = source["appId"];
+	        this.totalCalls = source["totalCalls"];
+	        this.tokensIn = source["tokensIn"];
+	        this.tokensOut = source["tokensOut"];
+	        this.cacheHits = source["cacheHits"];
+	    }
+	}
+	export class DailySummary {
+	    date: string;
+	    totalCalls: number;
+	    tokensIn: number;
+	    tokensOut: number;
+	    cacheHits: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DailySummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.date = source["date"];
+	        this.totalCalls = source["totalCalls"];
+	        this.tokensIn = source["tokensIn"];
+	        this.tokensOut = source["tokensOut"];
+	        this.cacheHits = source["cacheHits"];
+	    }
+	}
+	export class ModelSummary {
+	    model: string;
+	    totalCalls: number;
+	    tokensIn: number;
+	    tokensOut: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelSummary(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model = source["model"];
+	        this.totalCalls = source["totalCalls"];
+	        this.tokensIn = source["tokensIn"];
+	        this.tokensOut = source["tokensOut"];
+	    }
+	}
+
+}
+
+export namespace modelcatalog {
+	
+	export class Model {
+	    id: string;
+	    displayName: string;
+	    provider: string;
+	    inputRatio: number;
+	    outputRatio: number;
+	    tags: string[];
+	    recommended: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Model(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.displayName = source["displayName"];
+	        this.provider = source["provider"];
+	        this.inputRatio = source["inputRatio"];
+	        this.outputRatio = source["outputRatio"];
+	        this.tags = source["tags"];
+	        this.recommended = source["recommended"];
+	    }
+	}
+	export class Catalog {
+	    models: Model[];
+	    // Go type: time
+	    fetchedAt: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new Catalog(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.models = this.convertValues(source["models"], Model);
+	        this.fetchedAt = this.convertValues(source["fetchedAt"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace preset {
 	
 	export class Preset {
@@ -1465,33 +1879,6 @@ export namespace preset {
 	        this.id = source["id"];
 	        this.name = source["name"];
 	        this.description = source["description"];
-	    }
-	}
-
-}
-
-export namespace promoter {
-
-	export class PromoterInfo {
-	    aff_code: string;
-	    share_link: string;
-	    gateway_url: string;
-	    total_referrals: number;
-	    total_earned: number;
-	    pending_earned: number;
-
-	    static createFrom(source: any = {}) {
-	        return new PromoterInfo(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.aff_code = source["aff_code"];
-	        this.share_link = source["share_link"];
-	        this.gateway_url = source["gateway_url"];
-	        this.total_referrals = source["total_referrals"];
-	        this.total_earned = source["total_earned"];
-	        this.pending_earned = source["pending_earned"];
 	    }
 	}
 
@@ -1519,6 +1906,33 @@ export namespace process {
 	        this.status = source["status"];
 	        this.memory = source["memory"];
 	        this.since = source["since"];
+	    }
+	}
+
+}
+
+export namespace promoter {
+	
+	export class PromoterInfo {
+	    aff_code: string;
+	    share_link: string;
+	    gateway_url: string;
+	    total_referrals: number;
+	    total_earned: number;
+	    pending_earned: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new PromoterInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.aff_code = source["aff_code"];
+	        this.share_link = source["share_link"];
+	        this.gateway_url = source["gateway_url"];
+	        this.total_referrals = source["total_referrals"];
+	        this.total_earned = source["total_earned"];
+	        this.pending_earned = source["pending_earned"];
 	    }
 	}
 
@@ -1563,6 +1977,8 @@ export namespace proxy {
 	    registrationUrl?: string;
 	    tenantSlug?: string;
 	    userToken?: string;
+	    model?: string;
+	    toolModels?: Record<string, string>;
 	
 	    static createFrom(source: any = {}) {
 	        return new ProxySettings(source);
@@ -1575,6 +1991,8 @@ export namespace proxy {
 	        this.registrationUrl = source["registrationUrl"];
 	        this.tenantSlug = source["tenantSlug"];
 	        this.userToken = source["userToken"];
+	        this.model = source["model"];
+	        this.toolModels = source["toolModels"];
 	    }
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"lurus-switch/internal/appconfig"
 	"lurus-switch/internal/billing"
+	"lurus-switch/internal/modelcatalog"
 	"lurus-switch/internal/proxy"
 	"lurus-switch/internal/proxydetect"
 )
@@ -108,6 +109,95 @@ func (a *App) GetAppSettings() (*appconfig.AppSettings, error) {
 // SaveAppSettings persists application settings
 func (a *App) SaveAppSettings(s *appconfig.AppSettings) error {
 	return appconfig.SaveAppSettings(s)
+}
+
+// FetchModelCatalog retrieves the model catalog from the gateway API.
+func (a *App) FetchModelCatalog() (*modelcatalog.Catalog, error) {
+	if a.catalogMgr == nil {
+		return modelcatalog.DefaultCatalog(), nil
+	}
+	apiBase := ""
+	apiKey := ""
+	if a.proxyMgr != nil {
+		s := a.proxyMgr.GetSettings()
+		apiBase = s.APIEndpoint
+		apiKey = s.BuildToolAPIKey()
+	}
+	return a.catalogMgr.Fetch(a.ctx, apiBase, apiKey)
+}
+
+// QuickSetup performs one-click configuration: saves the model, applies endpoint+key+model
+// to all installed tools. Returns a per-tool error map (empty = all succeeded).
+func (a *App) QuickSetup(model string) map[string]string {
+	result := make(map[string]string)
+
+	if a.proxyMgr == nil {
+		result["error"] = "proxy manager not initialized"
+		return result
+	}
+
+	settings := a.proxyMgr.GetSettings()
+	settings.Model = model
+	if err := a.proxyMgr.SaveSettings(settings); err != nil {
+		result["error"] = fmt.Sprintf("failed to save settings: %v", err)
+		return result
+	}
+
+	apiKey := settings.BuildToolAPIKey()
+	if settings.APIEndpoint == "" {
+		result["error"] = "API endpoint not configured"
+		return result
+	}
+	if apiKey == "" {
+		result["error"] = "no API key or user token configured"
+		return result
+	}
+
+	// Apply endpoint + key
+	proxyErrs := a.instMgr.ConfigureAllProxy(a.ctx, settings.APIEndpoint, apiKey)
+	for name, err := range proxyErrs {
+		result[name] = fmt.Sprintf("proxy: %v", err)
+	}
+
+	// Apply model
+	if model != "" {
+		modelErrs := a.instMgr.ConfigureAllModels(a.ctx, model, settings.ToolModels)
+		for name, err := range modelErrs {
+			if existing, ok := result[name]; ok {
+				result[name] = existing + "; " + fmt.Sprintf("model: %v", err)
+			} else {
+				result[name] = fmt.Sprintf("model: %v", err)
+			}
+		}
+	}
+
+	return result
+}
+
+// SwitchModel changes the model for all installed tools without reconfiguring endpoint/key.
+func (a *App) SwitchModel(model string) map[string]string {
+	result := make(map[string]string)
+
+	if a.proxyMgr == nil {
+		result["error"] = "proxy manager not initialized"
+		return result
+	}
+
+	settings := a.proxyMgr.GetSettings()
+	settings.Model = model
+	if err := a.proxyMgr.SaveSettings(settings); err != nil {
+		result["error"] = fmt.Sprintf("failed to save settings: %v", err)
+		return result
+	}
+
+	if model != "" {
+		modelErrs := a.instMgr.ConfigureAllModels(a.ctx, model, settings.ToolModels)
+		for name, err := range modelErrs {
+			result[name] = err.Error()
+		}
+	}
+
+	return result
 }
 
 // PingEndpoint tests connectivity to the given endpoint URL.

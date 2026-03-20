@@ -19,7 +19,7 @@ const CloudFetchTimeout = cloudTimeout
 const MigratedLegacyRelayID = "migrated-legacy"
 
 // FetchCloudRelays fetches the recommended relay endpoint list from the Lurus API.
-// apiBase should be the configured API endpoint (e.g. "https://newapi.lurus.cn").
+// apiBase should be the configured API endpoint (e.g. "https://api.lurus.cn").
 func FetchCloudRelays(ctx context.Context, apiBase string) ([]RelayEndpoint, error) {
 	if apiBase == "" {
 		return nil, fmt.Errorf("apiBase is required")

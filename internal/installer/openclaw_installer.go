@@ -152,6 +152,35 @@ func (o *OpenClawInstaller) Uninstall(ctx context.Context) (*InstallResult, erro
 	return &InstallResult{Tool: ToolOpenClaw, Success: true, Message: "uninstalled successfully"}, nil
 }
 
+// ConfigureModel writes the model ID into OpenClaw's openclaw.json provider section
+func (o *OpenClawInstaller) ConfigureModel(ctx context.Context, model string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	configPath := filepath.Join(home, ".openclaw", "openclaw.json")
+
+	cfg := make(map[string]interface{})
+	if data, err := os.ReadFile(configPath); err == nil {
+		_ = json.Unmarshal(data, &cfg)
+	}
+
+	provider, _ := cfg["provider"].(map[string]interface{})
+	if provider == nil {
+		provider = make(map[string]interface{})
+	}
+	provider["model"] = model
+	cfg["provider"] = provider
+
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal openclaw config: %w", err)
+	}
+
+	return os.WriteFile(configPath, data, 0600)
+}
+
 // ConfigureProxy writes proxy/API settings into OpenClaw's openclaw.json
 func (o *OpenClawInstaller) ConfigureProxy(_ context.Context, endpoint, apiKey string) error {
 	home, err := os.UserHomeDir()

@@ -16,7 +16,7 @@ interface EndpointPresetPickerProps {
   onChange: (url: string) => void
 }
 
-export function EndpointPresetPicker({ localURL, platformURL = 'https://newapi.lurus.cn/v1', value, onChange }: EndpointPresetPickerProps) {
+export function EndpointPresetPicker({ localURL, platformURL = 'https://api.lurus.cn', value, onChange }: EndpointPresetPickerProps) {
   const { t } = useTranslation()
 
   const presets: EndpointPreset[] = []

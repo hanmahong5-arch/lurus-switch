@@ -11,11 +11,23 @@ import (
 
 // ProxySettings holds the NewAPI proxy configuration
 type ProxySettings struct {
-	APIEndpoint     string `json:"apiEndpoint"`
-	APIKey          string `json:"apiKey"`
-	RegistrationURL string `json:"registrationUrl,omitempty"`
-	TenantSlug      string `json:"tenantSlug,omitempty"`
-	UserToken       string `json:"userToken,omitempty"`
+	APIEndpoint     string            `json:"apiEndpoint"`
+	APIKey          string            `json:"apiKey"`
+	RegistrationURL string            `json:"registrationUrl,omitempty"`
+	TenantSlug      string            `json:"tenantSlug,omitempty"`
+	UserToken       string            `json:"userToken,omitempty"`
+	Model           string            `json:"model,omitempty"`
+	ToolModels      map[string]string `json:"toolModels,omitempty"`
+}
+
+// ModelForTool returns the model for a specific tool, falling back to the global model.
+func (s *ProxySettings) ModelForTool(tool string) string {
+	if s.ToolModels != nil {
+		if m, ok := s.ToolModels[tool]; ok && m != "" {
+			return m
+		}
+	}
+	return s.Model
 }
 
 // ProxyManager handles loading and saving proxy settings

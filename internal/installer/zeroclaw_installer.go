@@ -109,6 +109,36 @@ func (z *ZeroClawInstaller) Uninstall(_ context.Context) (*InstallResult, error)
 	return &InstallResult{Tool: ToolZeroClaw, Success: true, Message: "uninstalled successfully"}, nil
 }
 
+// ConfigureModel writes the model ID into ZeroClaw's config.toml provider section
+func (z *ZeroClawInstaller) ConfigureModel(ctx context.Context, model string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	configPath := filepath.Join(home, ".zeroclaw", "config.toml")
+
+	cfg := make(map[string]interface{})
+	if data, err := os.ReadFile(configPath); err == nil {
+		_ = toml.Unmarshal(data, &cfg)
+	}
+
+	provider, _ := cfg["provider"].(map[string]interface{})
+	if provider == nil {
+		provider = make(map[string]interface{})
+	}
+	provider["model"] = model
+	cfg["provider"] = provider
+
+	var buf strings.Builder
+	enc := toml.NewEncoder(&buf)
+	if err := enc.Encode(cfg); err != nil {
+		return fmt.Errorf("failed to encode zeroclaw config: %w", err)
+	}
+
+	return os.WriteFile(configPath, []byte(buf.String()), 0600)
+}
+
 // ConfigureProxy writes proxy/API settings into ZeroClaw's config.toml
 func (z *ZeroClawInstaller) ConfigureProxy(_ context.Context, endpoint, apiKey string) error {
 	home, err := os.UserHomeDir()

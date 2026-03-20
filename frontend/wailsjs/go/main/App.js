@@ -26,6 +26,18 @@ export function ApplySelfUpdate() {
   return window['go']['main']['App']['ApplySelfUpdate']();
 }
 
+export function AutoConfigureToolForGateway(arg1) {
+  return window['go']['main']['App']['AutoConfigureToolForGateway'](arg1);
+}
+
+export function AutoConfigureToolsForGateway() {
+  return window['go']['main']['App']['AutoConfigureToolsForGateway']();
+}
+
+export function AutoFixToolConfig(arg1) {
+  return window['go']['main']['App']['AutoFixToolConfig'](arg1);
+}
+
 export function BillingCancelSubscription(arg1) {
   return window['go']['main']['App']['BillingCancelSubscription'](arg1);
 }
@@ -134,6 +146,10 @@ export function ConfigureAllToolsRelay() {
   return window['go']['main']['App']['ConfigureAllToolsRelay']();
 }
 
+export function DeleteApp(arg1) {
+  return window['go']['main']['App']['DeleteApp'](arg1);
+}
+
 export function DeleteClaudeConfig(arg1) {
   return window['go']['main']['App']['DeleteClaudeConfig'](arg1);
 }
@@ -190,6 +206,14 @@ export function DiffConfigSnapshots(arg1, arg2, arg3) {
   return window['go']['main']['App']['DiffConfigSnapshots'](arg1, arg2, arg3);
 }
 
+export function DisconnectAllToolsFromGateway() {
+  return window['go']['main']['App']['DisconnectAllToolsFromGateway']();
+}
+
+export function DisconnectToolFromGateway(arg1) {
+  return window['go']['main']['App']['DisconnectToolFromGateway'](arg1);
+}
+
 export function DownloadCodexBinary(arg1) {
   return window['go']['main']['App']['DownloadCodexBinary'](arg1);
 }
@@ -208,6 +232,10 @@ export function ExportClaudeConfig(arg1) {
 
 export function ExportCodexConfig(arg1) {
   return window['go']['main']['App']['ExportCodexConfig'](arg1);
+}
+
+export function ExportDiagnostics() {
+  return window['go']['main']['App']['ExportDiagnostics']();
 }
 
 export function ExportGeminiConfig(arg1) {
@@ -240,6 +268,14 @@ export function FetchCloudPresets(arg1) {
 
 export function FetchCloudRelayEndpoints() {
   return window['go']['main']['App']['FetchCloudRelayEndpoints']();
+}
+
+export function FetchModelCatalog() {
+  return window['go']['main']['App']['FetchModelCatalog']();
+}
+
+export function FullSetupForGateway() {
+  return window['go']['main']['App']['FullSetupForGateway']();
 }
 
 export function GenerateClaudeConfig(arg1) {
@@ -278,6 +314,10 @@ export function GetAppSettings() {
   return window['go']['main']['App']['GetAppSettings']();
 }
 
+export function GetAppSummaries(arg1) {
+  return window['go']['main']['App']['GetAppSummaries'](arg1);
+}
+
 export function GetAppVersion() {
   return window['go']['main']['App']['GetAppVersion']();
 }
@@ -306,8 +346,16 @@ export function GetConfigDir() {
   return window['go']['main']['App']['GetConfigDir']();
 }
 
+export function GetConnectedAppCount() {
+  return window['go']['main']['App']['GetConnectedAppCount']();
+}
+
 export function GetContextFile(arg1, arg2) {
   return window['go']['main']['App']['GetContextFile'](arg1, arg2);
+}
+
+export function GetDaySummaries(arg1) {
+  return window['go']['main']['App']['GetDaySummaries'](arg1);
 }
 
 export function GetDefaultClaudeConfig() {
@@ -342,16 +390,44 @@ export function GetGYProducts() {
   return window['go']['main']['App']['GetGYProducts']();
 }
 
+export function GetGatewayConfig() {
+  return window['go']['main']['App']['GetGatewayConfig']();
+}
+
+export function GetGatewayStatus() {
+  return window['go']['main']['App']['GetGatewayStatus']();
+}
+
+export function GetGatewayURL() {
+  return window['go']['main']['App']['GetGatewayURL']();
+}
+
 export function GetGeminiPresets() {
   return window['go']['main']['App']['GetGeminiPresets']();
+}
+
+export function GetModelSummaries(arg1) {
+  return window['go']['main']['App']['GetModelSummaries'](arg1);
 }
 
 export function GetProxySettings() {
   return window['go']['main']['App']['GetProxySettings']();
 }
 
+export function GetRecentActivity(arg1) {
+  return window['go']['main']['App']['GetRecentActivity'](arg1);
+}
+
 export function GetRecommendedConfig(arg1) {
   return window['go']['main']['App']['GetRecommendedConfig'](arg1);
+}
+
+export function GetRegisteredApp(arg1) {
+  return window['go']['main']['App']['GetRegisteredApp'](arg1);
+}
+
+export function GetRegisteredApps() {
+  return window['go']['main']['App']['GetRegisteredApps']();
 }
 
 export function GetRelayEndpoints() {
@@ -376,6 +452,10 @@ export function GetServerURL() {
 
 export function GetSystemInfo() {
   return window['go']['main']['App']['GetSystemInfo']();
+}
+
+export function GetTodaySummary() {
+  return window['go']['main']['App']['GetTodaySummary']();
 }
 
 export function GetToolConfigPath(arg1) {
@@ -474,6 +554,10 @@ export function ListPrompts(arg1) {
   return window['go']['main']['App']['ListPrompts'](arg1);
 }
 
+export function ListToolSnapshots(arg1) {
+  return window['go']['main']['App']['ListToolSnapshots'](arg1);
+}
+
 export function ListZeroClawConfigs() {
   return window['go']['main']['App']['ListZeroClawConfigs']();
 }
@@ -514,14 +598,6 @@ export function OpenConfigDir() {
   return window['go']['main']['App']['OpenConfigDir']();
 }
 
-export function PromoterGetInfo() {
-  return window['go']['main']['App']['PromoterGetInfo']();
-}
-
-export function PromoterGetShareLink() {
-  return window['go']['main']['App']['PromoterGetShareLink']();
-}
-
 export function OpenFolderAndScanContext() {
   return window['go']['main']['App']['OpenFolderAndScanContext']();
 }
@@ -546,12 +622,40 @@ export function PingLurusAPI() {
   return window['go']['main']['App']['PingLurusAPI']();
 }
 
+export function PromoterGetInfo() {
+  return window['go']['main']['App']['PromoterGetInfo']();
+}
+
+export function PromoterGetShareLink() {
+  return window['go']['main']['App']['PromoterGetShareLink']();
+}
+
+export function QuickSetup(arg1) {
+  return window['go']['main']['App']['QuickSetup'](arg1);
+}
+
 export function ReadToolConfig(arg1) {
   return window['go']['main']['App']['ReadToolConfig'](arg1);
 }
 
+export function RegisterApp(arg1, arg2, arg3) {
+  return window['go']['main']['App']['RegisterApp'](arg1, arg2, arg3);
+}
+
+export function ResetAppToken(arg1) {
+  return window['go']['main']['App']['ResetAppToken'](arg1);
+}
+
 export function RestoreConfigSnapshot(arg1, arg2) {
   return window['go']['main']['App']['RestoreConfigSnapshot'](arg1, arg2);
+}
+
+export function RestoreToolSnapshot(arg1, arg2) {
+  return window['go']['main']['App']['RestoreToolSnapshot'](arg1, arg2);
+}
+
+export function RunEnvironmentCheck() {
+  return window['go']['main']['App']['RunEnvironmentCheck']();
 }
 
 export function SaveAppSettings(arg1) {
@@ -572,6 +676,10 @@ export function SaveCodexConfig(arg1, arg2) {
 
 export function SaveContextFile(arg1) {
   return window['go']['main']['App']['SaveContextFile'](arg1);
+}
+
+export function SaveGatewayConfig(arg1) {
+  return window['go']['main']['App']['SaveGatewayConfig'](arg1);
 }
 
 export function SaveGeminiConfig(arg1, arg2) {
@@ -622,8 +730,20 @@ export function SaveZeroClawConfig(arg1, arg2) {
   return window['go']['main']['App']['SaveZeroClawConfig'](arg1, arg2);
 }
 
+export function SetAppConnected(arg1, arg2) {
+  return window['go']['main']['App']['SetAppConnected'](arg1, arg2);
+}
+
+export function StartGateway() {
+  return window['go']['main']['App']['StartGateway']();
+}
+
 export function StartServer() {
   return window['go']['main']['App']['StartServer']();
+}
+
+export function StopGateway() {
+  return window['go']['main']['App']['StopGateway']();
 }
 
 export function StopServer() {
@@ -632,6 +752,14 @@ export function StopServer() {
 
 export function StopToolSession(arg1) {
   return window['go']['main']['App']['StopToolSession'](arg1);
+}
+
+export function SwitchModel(arg1) {
+  return window['go']['main']['App']['SwitchModel'](arg1);
+}
+
+export function SyncToolConnectionStatus() {
+  return window['go']['main']['App']['SyncToolConnectionStatus']();
 }
 
 export function TakeConfigSnapshot(arg1, arg2) {

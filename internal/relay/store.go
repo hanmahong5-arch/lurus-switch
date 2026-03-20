@@ -173,11 +173,11 @@ func (s *Store) saveMapping(m ToolRelayMapping) error {
 func builtinEndpoints() []RelayEndpoint {
 	return []RelayEndpoint{
 		{
-			ID:          "lurus-newapi",
-			Name:        "Lurus 官方中转站",
+			ID:          "lurus-api",
+			Name:        "Lurus 官方网关",
 			Kind:        KindLurus,
-			URL:         "https://newapi.lurus.cn",
-			Description: "Lurus 自营 OpenAI 兼容中转，支持 30+ LLM 供应商",
+			URL:         "https://api.lurus.cn",
+			Description: "全格式 AI 网关，支持 OpenAI/Claude/Gemini，30+ 模型供应商",
 		},
 	}
 }

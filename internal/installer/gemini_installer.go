@@ -2,6 +2,7 @@ package installer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -184,6 +185,36 @@ func (g *GeminiInstaller) ConfigureProxy(ctx context.Context, endpoint, apiKey s
 	}
 
 	return nil
+}
+
+// ConfigureModel writes the model ID into Gemini's settings.json
+func (g *GeminiInstaller) ConfigureModel(ctx context.Context, model string) error {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("failed to get home directory: %w", err)
+	}
+
+	settingsPath := filepath.Join(home, ".gemini", "settings.json")
+
+	settings := make(map[string]interface{})
+	if data, err := os.ReadFile(settingsPath); err == nil {
+		_ = json.Unmarshal(data, &settings)
+	}
+
+	// Gemini uses nested model.name
+	modelObj, _ := settings["model"].(map[string]interface{})
+	if modelObj == nil {
+		modelObj = make(map[string]interface{})
+	}
+	modelObj["name"] = model
+	settings["model"] = modelObj
+
+	data, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal gemini settings: %w", err)
+	}
+
+	return os.WriteFile(settingsPath, data, 0600)
 }
 
 // findExecutable locates the gemini binary

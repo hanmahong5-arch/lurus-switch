@@ -5,12 +5,16 @@ import (
 	"sync"
 
 	"lurus-switch/internal/analytics"
+	"lurus-switch/internal/appreg"
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/config"
 	"lurus-switch/internal/docmgr"
 	"lurus-switch/internal/envmgr"
+	"lurus-switch/internal/gateway"
 	"lurus-switch/internal/installer"
 	"lurus-switch/internal/mcp"
+	"lurus-switch/internal/metering"
+	"lurus-switch/internal/modelcatalog"
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promoter"
 	"lurus-switch/internal/promptlib"
@@ -46,9 +50,15 @@ type services struct {
 	envMgr      *envmgr.Manager
 	tracker     *analytics.Tracker
 
-	serverMgr   *serverctl.Manager
-	relayStore  *relay.Store
-	promoterSvc *promoter.Service
+	serverMgr    *serverctl.Manager
+	relayStore   *relay.Store
+	promoterSvc  *promoter.Service
+	catalogMgr   *modelcatalog.Manager
+
+	// Local API gateway (replaces serverctl for new architecture).
+	appRegistry *appreg.Registry
+	meterStore  *metering.Store
+	gatewaySrv  *gateway.Server
 }
 
 // newServices constructs all service dependencies. Initialization failures for
@@ -91,6 +101,16 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("relay store: %v", err))
 	}
 
+	appReg, err := appreg.NewRegistry(appDataDir)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("app registry: %v", err))
+	}
+
+	meterStr, err := metering.NewStore(appDataDir)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("metering store: %v", err))
+	}
+
 	svc := &services{
 		store:       store,
 		validator:   validator.NewValidator(),
@@ -107,6 +127,13 @@ func newServices(appDataDir, version string) (*services, []string) {
 		tracker:     tracker,
 		serverMgr:   serverctl.NewManager(appDataDir),
 		relayStore:  relayStr,
+		catalogMgr:  modelcatalog.NewManager(appDataDir),
+		appRegistry: appReg,
+		meterStore:  meterStr,
+	}
+	// Gateway depends on appRegistry and meterStore, so create after the struct.
+	if appReg != nil && meterStr != nil {
+		svc.gatewaySrv = gateway.NewServer(appDataDir, appReg, meterStr)
 	}
 	svc.promoterSvc = promoter.NewService(svc.ensureBillingClient)
 	return svc, warnings
