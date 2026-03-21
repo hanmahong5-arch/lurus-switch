@@ -71,6 +71,16 @@ export function AccountPanel() {
         </span>
       </div>
 
+      {/* Frozen amount (if any) */}
+      {(ov.wallet?.frozen ?? 0) > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-white/50">{t('account.frozen')}</span>
+          <span className="font-mono tabular-nums text-xs text-white/30">
+            {(ov.wallet!.frozen).toFixed(2)} LB
+          </span>
+        </div>
+      )}
+
       {/* Subscription status */}
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/50">{t('account.subscriptionStatus')}</span>
