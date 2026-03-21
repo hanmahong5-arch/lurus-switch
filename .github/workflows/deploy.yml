@@ -207,3 +207,49 @@ jobs:
           draft: false
           prerelease: ${{ contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'rc') }}
           files: artifacts/lurus-switch-*
+
+  # Upload release binaries to the www server so nginx can serve
+  # them at /releases/lurus-switch/<tag>/ (static fallback for Download page).
+  # Requires secrets: DEPLOY_SSH_KEY (private key), DEPLOY_HOST, DEPLOY_USER
+  sync-to-server:
+    name: Sync to Download Server
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+          merge-multiple: true
+
+      - name: Resolve version tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload to server
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          TAG="${{ steps.version.outputs.tag }}"
+          REMOTE_DIR="/opt/releases/lurus-switch/${TAG}"
+
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "mkdir -p ${REMOTE_DIR}"
+          scp -i ~/.ssh/deploy_key artifacts/lurus-switch-* "${USER}@${HOST}:${REMOTE_DIR}/"
+
+          echo "Uploaded to ${REMOTE_DIR}:"
+          ssh -i ~/.ssh/deploy_key "${USER}@${HOST}" "ls -lh ${REMOTE_DIR}/"
+
+          # Clean up
+          rm -f ~/.ssh/deploy_key
