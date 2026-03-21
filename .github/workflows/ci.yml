@@ -76,3 +76,20 @@ jobs:
       - name: TypeScript typecheck
         working-directory: frontend
         run: bun run tsc --noEmit
+
+  build-go:
+    name: Go Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Verify Go build
+        run: CGO_ENABLED=0 GOOS=linux go build ./...
+
+      - name: Verify Windows cross-compile
+        run: CGO_ENABLED=0 GOOS=windows go build ./...

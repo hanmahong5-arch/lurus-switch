@@ -1,4 +1,4 @@
-name: Deploy
+name: Release
 
 on:
   push:
@@ -6,33 +6,34 @@ on:
       - "v*"
   workflow_dispatch:
     inputs:
-      environment:
-        description: "Deployment environment"
+      tag:
+        description: "Release tag (e.g. v1.0.0)"
         required: true
-        default: "production"
-        type: choice
-        options:
-          - production
-          - staging
+        type: string
 
 env:
-  GO_VERSION: '1.25'
+  GO_VERSION: "1.25"
+  APP_NAME: "lurus-switch"
 
 jobs:
   build:
-    name: Build Wails App
+    name: Build — ${{ matrix.platform }}
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: windows-latest
             platform: windows/amd64
-            binary: lurus-switch.exe
+            output: lurus-switch.exe
+            asset_name: lurus-switch-windows-amd64.exe
           - os: macos-latest
             platform: darwin/universal
-            binary: lurus-switch
-          - os: ubuntu-latest
+            output: lurus-switch
+            asset_name: lurus-switch-darwin-universal
+          - os: ubuntu-22.04
             platform: linux/amd64
-            binary: lurus-switch
+            output: lurus-switch
+            asset_name: lurus-switch-linux-amd64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -41,37 +42,105 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - uses: oven-sh/setup-bun@v1
+      - uses: oven-sh/setup-bun@v2
 
-      - name: Install Wails
+      - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
-      - name: Build frontend
-        working-directory: frontend
-        run: bun install && bun run build
-
-      - name: Build Wails app
-        run: wails build -platform ${{ matrix.platform }} -ldflags "-X main.AppVersion=${{ github.ref_name }}" -o ${{ matrix.binary }}
-
-      - name: Generate SHA-256 checksum
+      - name: Resolve version tag
+        id: version
         shell: bash
         run: |
-          sha256sum build/bin/${{ matrix.binary }} > build/bin/${{ matrix.binary }}.sha256
-          cat build/bin/${{ matrix.binary }}.sha256
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: bun install --frozen-lockfile
+
+      - name: Build Wails app
+        shell: bash
+        run: |
+          wails build \
+            -platform ${{ matrix.platform }} \
+            -ldflags "-s -w -X main.AppVersion=${{ steps.version.outputs.tag }}" \
+            -o ${{ matrix.output }}
+
+      - name: Rename & checksum
+        shell: bash
+        run: |
+          cd build/bin
+          cp ${{ matrix.output }} ${{ matrix.asset_name }}
+          sha256sum ${{ matrix.asset_name }} > ${{ matrix.asset_name }}.sha256
+          cat ${{ matrix.asset_name }}.sha256
+
+      - name: Create Windows NSIS installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          # Generate NSIS script
+          @"
+          !include "MUI2.nsh"
+          Name "Lurus Switch"
+          OutFile "build\bin\lurus-switch-setup-windows-amd64.exe"
+          InstallDir "`$LOCALAPPDATA\Lurus Switch"
+          RequestExecutionLevel user
+
+          !insertmacro MUI_PAGE_DIRECTORY
+          !insertmacro MUI_PAGE_INSTFILES
+          !insertmacro MUI_LANGUAGE "English"
+          !insertmacro MUI_LANGUAGE "SimpChinese"
+
+          Section "Install"
+            SetOutPath "`$INSTDIR"
+            File "build\bin\${{ matrix.output }}"
+            CreateShortCut "`$DESKTOP\Lurus Switch.lnk" "`$INSTDIR\${{ matrix.output }}"
+            CreateDirectory "`$SMPROGRAMS\Lurus Switch"
+            CreateShortCut "`$SMPROGRAMS\Lurus Switch\Lurus Switch.lnk" "`$INSTDIR\${{ matrix.output }}"
+            CreateShortCut "`$SMPROGRAMS\Lurus Switch\Uninstall.lnk" "`$INSTDIR\uninstall.exe"
+            WriteUninstaller "`$INSTDIR\uninstall.exe"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LurusSwitch" "DisplayName" "Lurus Switch"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LurusSwitch" "UninstallString" "`$INSTDIR\uninstall.exe"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LurusSwitch" "DisplayVersion" "${{ steps.version.outputs.tag }}"
+            WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LurusSwitch" "Publisher" "Lurus"
+          SectionEnd
+
+          Section "Uninstall"
+            Delete "`$INSTDIR\${{ matrix.output }}"
+            Delete "`$INSTDIR\uninstall.exe"
+            Delete "`$DESKTOP\Lurus Switch.lnk"
+            RMDir /r "`$SMPROGRAMS\Lurus Switch"
+            RMDir "`$INSTDIR"
+            DeleteRegKey HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\LurusSwitch"
+          SectionEnd
+          "@ | Out-File -Encoding ASCII installer.nsi
+          & "C:\Program Files (x86)\NSIS\makensis.exe" installer.nsi
+
+      - name: Checksum installer
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cd build/bin
+          sha256sum lurus-switch-setup-windows-amd64.exe > lurus-switch-setup-windows-amd64.exe.sha256
 
       - uses: actions/upload-artifact@v4
         with:
-          name: lurus-switch-${{ matrix.os }}
-          path: |
-            build/bin/${{ matrix.binary }}
-            build/bin/${{ matrix.binary }}.sha256
+          name: ${{ matrix.asset_name }}
+          path: build/bin/lurus-switch-*
+          retention-days: 7
 
   release:
-    name: Create GitHub Release
+    name: Publish GitHub Release
     runs-on: ubuntu-latest
     needs: build
     permissions:
@@ -84,28 +153,57 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: artifacts/
+          merge-multiple: true
+
+      - name: List artifacts
+        run: find artifacts/ -type f | sort
+
+      - name: Resolve version tag
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Generate changelog
         id: changelog
         run: |
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "$PREV_TAG" ]; then
-            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            LOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
           else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+            LOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
           fi
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$CHANGELOG" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "body<<CHANGELOG_EOF"
+            echo "$LOG"
+            echo "CHANGELOG_EOF"
+          } >> $GITHUB_OUTPUT
 
-      - uses: softprops/action-gh-release@v1
+      - uses: softprops/action-gh-release@v2
         with:
-          name: Release ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Lurus Switch ${{ steps.version.outputs.tag }}
           body: |
-            ## Changes in ${{ github.ref_name }}
+            ## Lurus Switch ${{ steps.version.outputs.tag }}
 
-            ${{ steps.changelog.outputs.changelog }}
+            ### Downloads
+
+            | Platform | File | Type |
+            |----------|------|------|
+            | Windows | `lurus-switch-setup-windows-amd64.exe` | Installer (recommended) |
+            | Windows | `lurus-switch-windows-amd64.exe` | Portable |
+            | macOS | `lurus-switch-darwin-universal` | Universal binary |
+            | Linux | `lurus-switch-linux-amd64` | Binary |
+
+            ### Changes
+
+            ${{ steps.changelog.outputs.body }}
+
+            ---
+            Verify checksums: `sha256sum -c <file>.sha256`
           draft: false
-          prerelease: false
-          files: |
-            artifacts/**/*
+          prerelease: ${{ contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'rc') }}
+          files: artifacts/lurus-switch-*
