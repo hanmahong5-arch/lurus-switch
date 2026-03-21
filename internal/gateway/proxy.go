@@ -86,6 +86,37 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	defer resp.Body.Close()
 
+	// Thinking Budget Rectifier: if upstream returns a budget constraint error,
+	// auto-fix the request and retry once (inspired by CC-Switch).
+	if resp.StatusCode == http.StatusBadRequest {
+		errBody, readErr := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		resp.Body.Close()
+		if readErr == nil && ShouldRectifyThinkingBudget(string(errBody)) {
+			rectifiedBody, result := RectifyThinkingBudget(body)
+			if result.Applied {
+				retryReq, _ := http.NewRequestWithContext(r.Context(), r.Method, targetURL, bytes.NewReader(rectifiedBody))
+				copyRequestHeaders(retryReq, r)
+				retryReq.Header.Set("Authorization", "Bearer "+userToken)
+				retryReq.Header.Set("Content-Length", fmt.Sprintf("%d", len(rectifiedBody)))
+				retryResp, retryErr := client.Do(retryReq)
+				if retryErr == nil {
+					defer retryResp.Body.Close()
+					resp = retryResp
+					body = rectifiedBody
+					// Fall through to normal response handling below
+					goto handleResponse
+				}
+			}
+		}
+		// Budget rectifier didn't apply or retry failed — return original error
+		copyResponseHeaders(w, resp)
+		w.WriteHeader(resp.StatusCode)
+		w.Write(errBody)
+		s.recordError(meta, model, string(errBody))
+		return
+	}
+
+handleResponse:
 	// Determine if this is a streaming response.
 	isStreaming := strings.Contains(resp.Header.Get("Content-Type"), "text/event-stream")
 
