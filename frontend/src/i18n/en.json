@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "Lurus Switch",
-    "subtitle": "AI CLI Manager"
+    "subtitle": "Local AI Gateway"
   },
   "nav": {
     "home": "Home",
@@ -728,6 +728,7 @@
   },
   "account": {
     "balance": "Balance",
+    "frozen": "Frozen",
     "subscriptionStatus": "Subscription",
     "topUp": "Top Up",
     "subStatus": {
@@ -749,7 +750,8 @@
     "connectFailed": "Connection failed: unreachable",
     "testConnection": "Test Connection",
     "connecting": "Connecting...",
-    "connectedMs": "Connected ({{ms}}ms)"
+    "connectedMs": "Connected ({{ms}}ms)",
+    "chooseProvider": "Choose Provider"
   },
   "hooks": {
     "events": {

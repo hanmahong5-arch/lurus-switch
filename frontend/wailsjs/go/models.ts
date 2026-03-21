@@ -31,6 +31,7 @@ export namespace appconfig {
 	    startupPage: string;
 	    onboardingCompleted: boolean;
 	    appMode: string;
+	    userLevel: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppSettings(source);
@@ -45,6 +46,7 @@ export namespace appconfig {
 	        this.startupPage = source["startupPage"];
 	        this.onboardingCompleted = source["onboardingCompleted"];
 	        this.appMode = source["appMode"];
+	        this.userLevel = source["userLevel"];
 	    }
 	}
 
@@ -1366,6 +1368,87 @@ export namespace gy {
 
 }
 
+export namespace healthscore {
+	
+	export class CategoryScore {
+	    category: string;
+	    score: number;
+	    max: number;
+	    label: string;
+	    issues: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new CategoryScore(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.category = source["category"];
+	        this.score = source["score"];
+	        this.max = source["max"];
+	        this.label = source["label"];
+	        this.issues = source["issues"];
+	    }
+	}
+	export class Suggestion {
+	    id: string;
+	    priority: number;
+	    title: string;
+	    action: string;
+	    target: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Suggestion(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.priority = source["priority"];
+	        this.title = source["title"];
+	        this.action = source["action"];
+	        this.target = source["target"];
+	    }
+	}
+	export class ScoreReport {
+	    totalScore: number;
+	    maxScore: number;
+	    categories: CategoryScore[];
+	    suggestions: Suggestion[];
+	
+	    static createFrom(source: any = {}) {
+	        return new ScoreReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalScore = source["totalScore"];
+	        this.maxScore = source["maxScore"];
+	        this.categories = this.convertValues(source["categories"], CategoryScore);
+	        this.suggestions = this.convertValues(source["suggestions"], Suggestion);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace installer {
 	
 	export class RuntimeStatus {
@@ -1981,6 +2064,93 @@ export namespace modelcatalog {
 
 }
 
+export namespace optimizer {
+	
+	export class Optimization {
+	    id: string;
+	    category: string;
+	    priority: number;
+	    title: string;
+	    description: string;
+	    action: string;
+	    target: string;
+	    autoFixable: boolean;
+	    status: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Optimization(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.category = source["category"];
+	        this.priority = source["priority"];
+	        this.title = source["title"];
+	        this.description = source["description"];
+	        this.action = source["action"];
+	        this.target = source["target"];
+	        this.autoFixable = source["autoFixable"];
+	        this.status = source["status"];
+	        this.error = source["error"];
+	    }
+	}
+	export class AnalysisResult {
+	    optimizations: Optimization[];
+	    fixableCount: number;
+	    totalCount: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AnalysisResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.optimizations = this.convertValues(source["optimizations"], Optimization);
+	        this.fixableCount = source["fixableCount"];
+	        this.totalCount = source["totalCount"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class FixResult {
+	    id: string;
+	    status: string;
+	    message?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FixResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.status = source["status"];
+	        this.message = source["message"];
+	        this.error = source["error"];
+	    }
+	}
+
+}
+
 export namespace preset {
 	
 	export class Preset {
@@ -2082,6 +2252,41 @@ export namespace promptlib {
 	        this.targetTools = source["targetTools"];
 	        this.createdAt = source["createdAt"];
 	        this.updatedAt = source["updatedAt"];
+	    }
+	}
+
+}
+
+export namespace provider {
+	
+	export class Preset {
+	    id: string;
+	    name: string;
+	    icon: string;
+	    iconColor: string;
+	    category: string;
+	    baseUrl: string;
+	    keyFormat: string;
+	    docsUrl: string;
+	    models: string;
+	    description: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Preset(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.icon = source["icon"];
+	        this.iconColor = source["iconColor"];
+	        this.category = source["category"];
+	        this.baseUrl = source["baseUrl"];
+	        this.keyFormat = source["keyFormat"];
+	        this.docsUrl = source["docsUrl"];
+	        this.models = source["models"];
+	        this.description = source["description"];
 	    }
 	}
 
@@ -2242,6 +2447,130 @@ export namespace snapshot {
 	        this.createdAt = source["createdAt"];
 	        this.size = source["size"];
 	    }
+	}
+
+}
+
+export namespace sysenv {
+	
+	export class AutostartConfig {
+	    enabled: boolean;
+	    args: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new AutostartConfig(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.args = source["args"];
+	    }
+	}
+	export class GitInfo {
+	    installed: boolean;
+	    version: string;
+	    userName: string;
+	    userEmail: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GitInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.version = source["version"];
+	        this.userName = source["userName"];
+	        this.userEmail = source["userEmail"];
+	    }
+	}
+	export class PathEntry {
+	    dir: string;
+	    exists: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PathEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.dir = source["dir"];
+	        this.exists = source["exists"];
+	    }
+	}
+	export class RollbackEntry {
+	    id: string;
+	    action: string;
+	    oldValue: string;
+	    newValue: string;
+	    // Go type: time
+	    timestamp: any;
+	
+	    static createFrom(source: any = {}) {
+	        return new RollbackEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.action = source["action"];
+	        this.oldValue = source["oldValue"];
+	        this.newValue = source["newValue"];
+	        this.timestamp = this.convertValues(source["timestamp"], null);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class SystemEnvironment {
+	    pathEntries: PathEntry[];
+	    autostart: AutostartConfig;
+	    git?: GitInfo;
+	
+	    static createFrom(source: any = {}) {
+	        return new SystemEnvironment(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pathEntries = this.convertValues(source["pathEntries"], PathEntry);
+	        this.autostart = this.convertValues(source["autostart"], AutostartConfig);
+	        this.git = this.convertValues(source["git"], GitInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

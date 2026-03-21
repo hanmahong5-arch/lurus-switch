@@ -1,7 +1,7 @@
 {
   "app": {
     "title": "Lurus Switch",
-    "subtitle": "AI CLI 管理器"
+    "subtitle": "本地 AI 网关"
   },
   "nav": {
     "home": "首页",
@@ -728,6 +728,7 @@
   },
   "account": {
     "balance": "鹿贝余额",
+    "frozen": "冻结金额",
     "subscriptionStatus": "订阅状态",
     "topUp": "充值鹿贝",
     "subStatus": {
@@ -749,7 +750,8 @@
     "connectFailed": "连接失败: 无法到达",
     "testConnection": "测试连接",
     "connecting": "连接中...",
-    "connectedMs": "已连接 ({{ms}}ms)"
+    "connectedMs": "已连接 ({{ms}}ms)",
+    "chooseProvider": "选择供应商"
   },
   "hooks": {
     "events": {

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Save, Settings2, Loader2, ExternalLink, CheckCircle2, WifiOff, Wifi } from 'lucide-react'
+import { Save, Settings2, Loader2, ExternalLink, CheckCircle2, WifiOff, Wifi, Sparkles } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { classifyError } from '../lib/errorClassifier'
 import type { ProxySettings } from '../stores/dashboardStore'
 import { PingEndpoint } from '../../wailsjs/go/main/App'
+import { ProviderPicker } from './ProviderPicker'
 
 interface ProxyConfigPanelProps {
   settings: ProxySettings
@@ -20,11 +21,15 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
   const { t } = useTranslation()
   const [endpoint, setEndpoint] = useState(settings.apiEndpoint)
   const [apiKey, setApiKey] = useState(settings.apiKey)
-  const [registrationUrl] = useState(settings.registrationUrl || '')
+  const [registrationUrl, setRegistrationUrl] = useState(settings.registrationUrl || '')
+  const [keyPlaceholder, setKeyPlaceholder] = useState('sk-...')
+  const [providerName, setProviderName] = useState('')
 
   const [pingState, setPingState] = useState<PingState>('idle')
   const [pingMs, setPingMs] = useState(0)
   const [pingError, setPingError] = useState('')
+
+  const [showPicker, setShowPicker] = useState(false)
 
   const hasChanges = endpoint !== settings.apiEndpoint || apiKey !== settings.apiKey
   const hasValues = endpoint.trim() !== '' && apiKey.trim() !== ''
@@ -54,7 +59,6 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
       apiKey: apiKey.trim(),
       registrationUrl,
     })
-    // Auto-ping after save to verify connectivity
     if (endpoint.trim()) {
       handlePing(endpoint.trim())
     } else {
@@ -62,12 +66,33 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
     }
   }
 
+  const handleProviderSelect = (preset: { baseUrl: string; keyFormat: string; docsUrl: string; name: string }) => {
+    setEndpoint(preset.baseUrl)
+    setKeyPlaceholder(preset.keyFormat || 'sk-...')
+    setRegistrationUrl(preset.docsUrl || '')
+    setProviderName(preset.name)
+    setShowPicker(false)
+    setPingState('idle')
+  }
+
   return (
     <div className="border border-border rounded-lg p-4 bg-card">
-      <h3 className="text-sm font-medium mb-3 flex items-center gap-2">
-        <Settings2 className="h-4 w-4 text-purple-500" />
-        NewAPI Proxy Configuration
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium flex items-center gap-2">
+          <Settings2 className="h-4 w-4 text-purple-500" />
+          {providerName ? `${providerName} — API Configuration` : 'API Provider Configuration'}
+        </h3>
+        <button
+          onClick={() => setShowPicker(true)}
+          className={cn(
+            'flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors',
+            'bg-primary/10 text-primary hover:bg-primary/20'
+          )}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          {t('proxyPanel.chooseProvider', 'Choose Provider')}
+        </button>
+      </div>
 
       <div className="space-y-3">
         {/* API Endpoint */}
@@ -89,7 +114,7 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
+            placeholder={keyPlaceholder}
             className="w-full px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
@@ -103,7 +128,7 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
             className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
           >
             <ExternalLink className="h-3 w-3" />
-            Register for an API key
+            {providerName ? `${providerName} docs` : 'Register for an API key'}
           </a>
         )}
 
@@ -178,6 +203,14 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
           </div>
         )}
       </div>
+
+      {/* Provider picker modal */}
+      {showPicker && (
+        <ProviderPicker
+          onSelect={handleProviderSelect}
+          onClose={() => setShowPicker(false)}
+        />
+      )}
     </div>
   )
 }
