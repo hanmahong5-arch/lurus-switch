@@ -32,7 +32,7 @@ export function BillingPage() {
     userInfo, plans, subscriptions, topUpInfo,
     loading,
     setUserInfo, setPlans, setSubscriptions, setTopUpInfo,
-    setLoading,
+    setLoading, reset: resetBilling,
   } = useBillingStore()
 
   const { proxySettings, setProxySettings } = useDashboardStore()
@@ -94,6 +94,8 @@ export function BillingPage() {
       const updated: ProxySettings = { ...proxySettings, userToken: tokenInput.trim() }
       await SaveProxySettings(proxy.ProxySettings.createFrom(updated))
       setProxySettings(updated)
+      // Reset stale data from previous account before loading new account
+      resetBilling()
       await loadBillingData()
       toast('success', 'Connected successfully')
     } catch (err) {

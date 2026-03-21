@@ -74,7 +74,7 @@ func (s *Server) Start(ctx context.Context) error {
 	defer s.mu.Unlock()
 
 	if s.running.Load() {
-		return nil // already running
+		return fmt.Errorf("gateway is already running on port %d", s.cfg.Port)
 	}
 
 	if s.cfg.UpstreamURL == "" {
@@ -95,7 +95,7 @@ func (s *Server) Start(ctx context.Context) error {
 
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("listen on %s: %w", addr, err)
+		return fmt.Errorf("port %d is in use by another process — try a different port in Settings, or close the conflicting program: %w", s.cfg.Port, err)
 	}
 
 	s.startTime = time.Now()
@@ -183,7 +183,7 @@ func (s *Server) Stop() error {
 	defer s.mu.Unlock()
 
 	if !s.running.Load() {
-		return nil
+		return nil // already stopped, idempotent
 	}
 
 	// Signal watchdog to stop (don't auto-restart after intentional stop).

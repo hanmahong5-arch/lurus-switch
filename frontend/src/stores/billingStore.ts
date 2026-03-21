@@ -24,6 +24,8 @@ interface BillingState {
   setIdentityOverview: (ov: IdentityOverview | null) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
+  /** Clear all billing data — call before loading a different account's data. */
+  reset: () => void
 }
 
 export const useBillingStore = create<BillingState>((set) => ({
@@ -42,4 +44,13 @@ export const useBillingStore = create<BillingState>((set) => ({
   setIdentityOverview: (ov) => set({ identityOverview: ov }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  reset: () => set({
+    userInfo: null,
+    plans: [],
+    subscriptions: [],
+    topUpInfo: null,
+    identityOverview: null,
+    loading: false,
+    error: null,
+  }),
 }))

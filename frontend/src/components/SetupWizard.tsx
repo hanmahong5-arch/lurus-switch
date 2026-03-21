@@ -42,16 +42,41 @@ interface SetupWizardProps {
   onComplete: () => void
 }
 
+const WIZARD_STORAGE_KEY = 'lurus-switch-wizard-progress'
+
+function loadWizardProgress(): { step: number; language: string; token: string } | null {
+  try {
+    const raw = localStorage.getItem(WIZARD_STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (typeof data.step === 'number' && data.step >= 0 && data.step <= 3) return data
+    return null
+  } catch {
+    return null
+  }
+}
+
+function saveWizardProgress(step: number, language: string, token: string) {
+  try {
+    localStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify({ step, language, token }))
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function clearWizardProgress() {
+  try { localStorage.removeItem(WIZARD_STORAGE_KEY) } catch { /* ignore */ }
+}
+
 export function SetupWizard({ onComplete }: SetupWizardProps) {
   const { t, i18n } = useTranslation()
-  const [step, setStep] = useState(0)
+  const saved = loadWizardProgress()
+  const [step, setStep] = useState(saved?.step ?? 0)
   const totalSteps = 4
 
   // Step 0 — language
-  const [language, setLanguage] = useState(i18n.language || 'zh')
+  const [language, setLanguage] = useState(saved?.language ?? i18n.language ?? 'zh')
 
   // Step 1 — Lurus account
-  const [lurusToken, setLurusToken] = useState('')
+  const [lurusToken, setLurusToken] = useState(saved?.token ?? '')
   const [validatingToken, setValidatingToken] = useState(false)
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
   const { classified: accountError, setError: setAccountError, clearError: clearAccountError } = useClassifiedError()
@@ -72,6 +97,11 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   // Background state
   const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
   const modelsFetchedRef = useRef(false)
+
+  // Persist wizard progress on step/token/language changes.
+  useEffect(() => {
+    saveWizardProgress(step, language, lurusToken)
+  }, [step, language, lurusToken])
 
   // Subscribe to per-tool install progress events from the Go backend.
   useEffect(() => {
@@ -155,9 +185,13 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
     setConfiguring(true)
     setInstallProgress({})
     try {
-      // 1. Install all tools in background
-      await InstallAllTools().catch(() => {})
+      // 1. Install all tools (best-effort — partial install is OK)
+      let installFailed = false
+      await InstallAllTools().catch(() => { installFailed = true })
       const statuses = await DetectAllTools()
+      if (installFailed) {
+        setConfigResults(prev => ({ ...prev, _install: 'Some tools failed to install — you can retry from the Home page' }))
+      }
       setTools(statuses)
 
       // 2. QuickSetup: configure endpoint + API key + model on all installed tools
@@ -182,8 +216,9 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         onboardingCompleted: true,
       }))
     } catch {
-      // Ignore
+      // Ignore — worst case, wizard shows again next launch
     }
+    clearWizardProgress()
     onComplete()
   }
 

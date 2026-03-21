@@ -523,6 +523,10 @@ export function SwitchHubPage() {
     PingGatewayUpstream().then(setUpstreamHealth).catch(() => {})
     GetRequestLog(50, '', '').then(r => setRequestLog(safeArray(r))).catch(() => {})
 
+    // Clear any stale interval from previous mount (React StrictMode double-mount).
+    const prevHandle = useSwitchStore.getState().pollHandle
+    if (prevHandle !== null) clearInterval(prevHandle)
+
     const h = setInterval(() => {
       refreshStatus()
       // Refresh env check every 3rd poll cycle (~15s).

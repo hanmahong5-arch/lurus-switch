@@ -221,6 +221,9 @@ export function HomePage() {
   }, [t, toast, setActiveTool, detectTools, loadHealthScore])
 
   const handleInstall = async (toolName: string) => {
+    // Guard: skip if any install/update is already running
+    const { installing: curInstalling, updating: curUpdating } = useHomeStore.getState()
+    if (curInstalling[toolName] || Object.values(curInstalling).some(Boolean) || Object.values(curUpdating).some(Boolean)) return
     setInstalling(toolName, true)
     try {
       await InstallTool(toolName)
@@ -239,6 +242,9 @@ export function HomePage() {
   }
 
   const handleInstallAll = async () => {
+    // Guard: skip if any install is already running
+    const { installing: curInstalling } = useHomeStore.getState()
+    if (Object.values(curInstalling).some(Boolean)) return
     for (const name of TOOL_ORDER) setInstalling(name, true)
     try {
       await InstallAllTools()
