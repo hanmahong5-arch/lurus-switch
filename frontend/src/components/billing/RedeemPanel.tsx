@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Gift } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { classifyError } from '../../lib/errorClassifier'
 
 interface RedeemPanelProps {
   onRedeem: (code: string) => Promise<number>
@@ -20,7 +21,7 @@ export function RedeemPanel({ onRedeem }: RedeemPanelProps) {
       setResult({ success: true, message: `Redeemed ${amount} credits` })
       setCode('')
     } catch (err) {
-      setResult({ success: false, message: `${err}` })
+      setResult({ success: false, message: classifyError(err).message })
     } finally {
       setSubmitting(false)
     }

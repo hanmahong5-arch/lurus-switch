@@ -1,4 +1,5 @@
 import { Server } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../stores/configStore'
 import { useGatewayStore } from '../stores/gatewayStore'
 
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export function GatewayRequiredGuard({ children }: Props) {
+  const { t } = useTranslation()
   const running = useGatewayStore((s) => s.status?.running ?? false)
   const { setActiveTool } = useConfigStore()
 
@@ -17,15 +19,15 @@ export function GatewayRequiredGuard({ children }: Props) {
           <Server className="h-8 w-8 text-muted-foreground" />
         </div>
         <div>
-          <h3 className="text-sm font-semibold">网关服务未运行</h3>
-          <p className="text-xs text-muted-foreground mt-1">访问此功能需要先启动网关服务</p>
+          <h3 className="text-sm font-semibold">{t('gatewayGuard.title')}</h3>
+          <p className="text-xs text-muted-foreground mt-1">{t('gatewayGuard.desc')}</p>
         </div>
         <button
           onClick={() => setActiveTool('gateway')}
           className="flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
         >
           <Server className="h-4 w-4" />
-          前往启动
+          {t('gatewayGuard.goStart')}
         </button>
       </div>
     )

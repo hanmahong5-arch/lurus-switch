@@ -434,6 +434,10 @@ export function GetRelayEndpoints() {
   return window['go']['main']['App']['GetRelayEndpoints']();
 }
 
+export function GetRequestLog(arg1, arg2, arg3) {
+  return window['go']['main']['App']['GetRequestLog'](arg1, arg2, arg3);
+}
+
 export function GetServerAdminToken() {
   return window['go']['main']['App']['GetServerAdminToken']();
 }
@@ -472,6 +476,10 @@ export function GetToolOutput(arg1, arg2) {
 
 export function GetToolRelayMapping() {
   return window['go']['main']['App']['GetToolRelayMapping']();
+}
+
+export function GetUsageInsights(arg1) {
+  return window['go']['main']['App']['GetUsageInsights'](arg1);
 }
 
 export function GetUsageReport(arg1) {
@@ -616,6 +624,10 @@ export function PackageClaudeConfig(arg1) {
 
 export function PingEndpoint(arg1) {
   return window['go']['main']['App']['PingEndpoint'](arg1);
+}
+
+export function PingGatewayUpstream() {
+  return window['go']['main']['App']['PingGatewayUpstream']();
 }
 
 export function PingLurusAPI() {

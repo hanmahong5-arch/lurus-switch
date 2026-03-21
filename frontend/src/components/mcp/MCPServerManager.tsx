@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Plus, Trash2, Loader2, Server, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { useClassifiedError } from '../../lib/useClassifiedError'
+import { InlineError } from '../InlineError'
 import { ListMCPPresets, SaveMCPPreset, DeleteMCPPreset, GetBuiltinMCPPresets, ApplyMCPServerToTool } from '../../../wailsjs/go/main/App'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -20,10 +23,11 @@ const EMPTY_SERVER: AnyServer = {
 const TOOLS = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw']
 
 export function MCPServerManager() {
+  const { t } = useTranslation()
   const [presets, setPresets] = useState<AnyPreset[]>([])
   const [builtins, setBuiltins] = useState<AnyPreset[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { classified: error, setError, clearError } = useClassifiedError()
   const [showForm, setShowForm] = useState(false)
   const [editPreset, setEditPreset] = useState<AnyPreset>({})
   const [saving, setSaving] = useState(false)
@@ -41,7 +45,7 @@ export function MCPServerManager() {
       setPresets(p || [])
       setBuiltins(b || [])
     } catch (err) {
-      setError(`Failed to load: ${err}`)
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -64,7 +68,7 @@ export function MCPServerManager() {
       setEditPreset({})
       await load()
     } catch (err) {
-      setError(`Failed to save: ${err}`)
+      setError(err)
     } finally {
       setSaving(false)
     }
@@ -75,7 +79,7 @@ export function MCPServerManager() {
       await DeleteMCPPreset(id)
       await load()
     } catch (err) {
-      setError(`Failed to delete: ${err}`)
+      setError(err)
     }
   }
 
@@ -86,7 +90,7 @@ export function MCPServerManager() {
       await ApplyMCPServerToTool(applyTool, preset.server)
       // Success feedback could be shown here
     } catch (err) {
-      setError(`Failed to apply: ${err}`)
+      setError(err)
     } finally {
       setApplying((prev) => ({ ...prev, [preset.id]: false }))
     }
@@ -136,21 +140,23 @@ export function MCPServerManager() {
   return (
     <div className="space-y-4">
       {error && (
-        <div className="px-3 py-2 text-xs text-red-500 bg-red-500/10 rounded border border-red-500/20 flex items-center justify-between">
-          {error}
-          <button onClick={() => setError('')}>✕</button>
-        </div>
+        <InlineError
+          category={error.category}
+          message={error.message}
+          details={error.details}
+          onDismiss={clearError}
+        />
       )}
 
       {/* Apply-to-tool selector */}
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground text-xs">应用到工具:</span>
+        <span className="text-muted-foreground text-xs">{t('mcp.applyToTools')}</span>
         <select
           value={applyTool}
           onChange={(e) => setApplyTool(e.target.value)}
           className="px-2 py-1 text-xs bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
         >
-          {TOOLS.map((t) => <option key={t} value={t}>{t}</option>)}
+          {TOOLS.map((tool) => <option key={tool} value={tool}>{tool}</option>)}
         </select>
       </div>
 
@@ -162,7 +168,7 @@ export function MCPServerManager() {
         >
           <span className="flex items-center gap-2">
             <Server className="h-4 w-4 text-muted-foreground" />
-            内置 MCP 预设 ({builtins.length})
+            {t('mcp.builtinPresets', { count: builtins.length })}
           </span>
           {expandedBuiltins ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </button>
@@ -182,7 +188,7 @@ export function MCPServerManager() {
                   disabled={applying[p.id]}
                   className="shrink-0 px-2 py-1 text-xs border border-primary text-primary rounded hover:bg-primary/10 transition-colors disabled:opacity-50"
                 >
-                  {applying[p.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : '应用'}
+                  {applying[p.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : t('mcp.apply')}
                 </button>
               </div>
             ))}
@@ -193,16 +199,16 @@ export function MCPServerManager() {
       {/* User presets */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">自定义预设</span>
+          <span className="text-sm font-medium">{t('mcp.customPresets')}</span>
           <button
             onClick={() => { setEditPreset({ server: { ...EMPTY_SERVER } }); setShowForm(true) }}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
           >
-            <Plus className="h-3 w-3" /> 新建
+            <Plus className="h-3 w-3" /> {t('mcp.newPreset')}
           </button>
         </div>
         {presets.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-4">暂无自定义预设</p>
+          <p className="text-xs text-muted-foreground text-center py-4">{t('mcp.emptyCustom')}</p>
         ) : (
           <div className="border border-border rounded-lg divide-y divide-border">
             {presets.map((p) => (
@@ -211,8 +217,8 @@ export function MCPServerManager() {
                   <p className="text-sm font-medium">{p.name}</p>
                   <p className="text-xs text-muted-foreground">{p.description}</p>
                   <div className="flex gap-1 mt-1">
-                    {p.tags?.map((t: string) => (
-                      <span key={t} className="text-xs bg-muted px-1.5 py-0.5 rounded">{t}</span>
+                    {p.tags?.map((tag: string) => (
+                      <span key={tag} className="text-xs bg-muted px-1.5 py-0.5 rounded">{tag}</span>
                     ))}
                   </div>
                 </div>
@@ -222,7 +228,7 @@ export function MCPServerManager() {
                     disabled={applying[p.id]}
                     className="px-2 py-1 text-xs border border-primary text-primary rounded hover:bg-primary/10 transition-colors disabled:opacity-50"
                   >
-                    {applying[p.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : '应用'}
+                    {applying[p.id] ? <Loader2 className="h-3 w-3 animate-spin" /> : t('mcp.apply')}
                   </button>
                   <button
                     onClick={() => handleDelete(p.id)}
@@ -241,25 +247,25 @@ export function MCPServerManager() {
       {showForm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl max-h-[80vh] overflow-y-auto space-y-4">
-            <h3 className="font-semibold">新建 MCP 预设</h3>
+            <h3 className="font-semibold">{t('mcp.newPresetTitle')}</h3>
 
             <input
               type="text"
               value={editPreset.name || ''}
               onChange={(e) => setEditPreset({ ...editPreset, name: e.target.value })}
-              placeholder="预设名称"
+              placeholder={t('mcp.namePlaceholder')}
               className="w-full px-3 py-2 text-sm bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <input
               type="text"
               value={editPreset.description || ''}
               onChange={(e) => setEditPreset({ ...editPreset, description: e.target.value })}
-              placeholder="描述（可选）"
+              placeholder={t('mcp.descPlaceholder')}
               className="w-full px-3 py-2 text-sm bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
             <div className="space-y-2">
-              <label className="text-xs font-medium">传输类型</label>
+              <label className="text-xs font-medium">{t('mcp.transportType')}</label>
               <select
                 value={editPreset.server?.type || 'stdio'}
                 onChange={(e) => updateServer('type', e.target.value)}
@@ -277,22 +283,22 @@ export function MCPServerManager() {
                   type="text"
                   value={editPreset.server?.command || ''}
                   onChange={(e) => updateServer('command', e.target.value)}
-                  placeholder="命令（如 npx、python）"
+                  placeholder={t('mcp.commandPlaceholder')}
                   className="w-full px-3 py-2 text-sm bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <div className="space-y-1">
-                  <label className="text-xs font-medium">参数</label>
+                  <label className="text-xs font-medium">{t('mcp.argsLabel')}</label>
                   <div className="flex gap-1">
                     <input
                       type="text"
                       value={newArg}
                       onChange={(e) => setNewArg(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && addArg()}
-                      placeholder="添加参数..."
+                      placeholder={t('mcp.addArgPlaceholder')}
                       className="flex-1 px-2 py-1 text-xs bg-muted border border-border rounded focus:outline-none"
                     />
                     <button onClick={addArg} className="px-2 py-1 text-xs bg-muted border border-border rounded hover:bg-muted/80">
-                      添加
+                      {t('mcp.add')}
                     </button>
                   </div>
                   {editPreset.server?.args?.map((arg: string, i: number) => (
@@ -308,13 +314,13 @@ export function MCPServerManager() {
                 type="text"
                 value={editPreset.server?.url || ''}
                 onChange={(e) => updateServer('url', e.target.value)}
-                placeholder="URL（如 http://localhost:3000/sse）"
+                placeholder={t('mcp.urlPlaceholder')}
                 className="w-full px-3 py-2 text-sm bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
               />
             )}
 
             <div className="space-y-1">
-              <label className="text-xs font-medium">环境变量</label>
+              <label className="text-xs font-medium">{t('mcp.envVarsLabel')}</label>
               <div className="flex gap-1">
                 <input
                   type="text"
@@ -331,7 +337,7 @@ export function MCPServerManager() {
                   className="flex-1 px-2 py-1 text-xs bg-muted border border-border rounded focus:outline-none"
                 />
                 <button onClick={addEnv} className="px-2 py-1 text-xs bg-muted border border-border rounded hover:bg-muted/80">
-                  添加
+                  {t('mcp.add')}
                 </button>
               </div>
               {Object.entries(editPreset.server?.env || {}).map(([k, v]) => (
@@ -349,14 +355,14 @@ export function MCPServerManager() {
                 onClick={() => { setShowForm(false); setEditPreset({}) }}
                 className="flex-1 px-4 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
               >
-                取消
+                {t('mcp.cancel')}
               </button>
               <button
                 onClick={handleSave}
                 disabled={saving}
                 className="flex-1 px-4 py-2 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin inline" /> : '保存'}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin inline" /> : t('mcp.save')}
               </button>
             </div>
           </div>

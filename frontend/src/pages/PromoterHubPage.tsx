@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Loader2, Copy, CheckCircle2, Users, DollarSign, Clock, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from '../components/InlineError'
 import { PromoterGetInfo } from '../../wailsjs/go/main/App'
 import { usePromoterStore, type PromoterInfo } from '../stores/promoterStore'
 
@@ -9,14 +11,14 @@ export function PromoterHubPage() {
   const { t } = useTranslation()
   const { info, loading, setInfo, setLoading } = usePromoterStore()
   const [copied, setCopied] = useState(false)
-  const [error, setError] = useState('')
+  const { classified: error, setError, clearError } = useClassifiedError()
 
   useEffect(() => {
     setLoading(true)
-    setError('')
+    clearError()
     PromoterGetInfo()
       .then((data: PromoterInfo) => setInfo(data))
-      .catch((err: unknown) => setError(String(err)))
+      .catch((err: unknown) => setError(err))
       .finally(() => setLoading(false))
   }, [setInfo, setLoading])
 
@@ -44,10 +46,16 @@ export function PromoterHubPage() {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <p className="text-sm text-red-500">{error}</p>
-          <p className="text-xs text-muted-foreground">{t('promoter.connectHint')}</p>
+      <div className="h-full flex items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-3">
+          <InlineError
+            category={error.category}
+            message={error.message}
+            details={error.details}
+            action={{ label: t('error.action.retry'), onClick: () => { clearError(); setLoading(true); PromoterGetInfo().then((data: PromoterInfo) => setInfo(data)).catch((err: unknown) => setError(err)).finally(() => setLoading(false)) } }}
+            onDismiss={clearError}
+          />
+          <p className="text-xs text-muted-foreground text-center">{t('promoter.connectHint')}</p>
         </div>
       </div>
     )

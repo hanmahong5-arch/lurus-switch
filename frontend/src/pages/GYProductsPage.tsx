@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Loader2, RefreshCw, ExternalLink, Download, Play } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from '../components/InlineError'
 import { useGYStore } from '../stores/gyStore'
 import { GetGYProducts, CheckGYStatus, LaunchGYProduct, DownloadCreator } from '../../wailsjs/go/main/App'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
@@ -13,18 +16,19 @@ const PRODUCT_ICONS: Record<string, string> = {
 }
 
 const KIND_BADGES: Record<string, { label: string; color: string }> = {
-  web: { label: 'Web 应用', color: 'bg-blue-500/10 text-blue-500' },
-  desktop: { label: '桌面应用', color: 'bg-violet-500/10 text-violet-500' },
-  service: { label: '后台服务', color: 'bg-teal-500/10 text-teal-500' },
+  web: { label: 'gyProducts.categories.web', color: 'bg-blue-500/10 text-blue-500' },
+  desktop: { label: 'gyProducts.categories.desktop', color: 'bg-violet-500/10 text-violet-500' },
+  service: { label: 'gyProducts.categories.service', color: 'bg-teal-500/10 text-teal-500' },
 }
 
 function StatusDot({ status }: { status: gy.GYStatus | undefined }) {
-  if (!status) return <span className="text-xs text-muted-foreground/60">检测中...</span>
+  const { t } = useTranslation()
+  if (!status) return <span className="text-xs text-muted-foreground/60">{t('gyProducts.checking')}</span>
   if (status.available) {
     return (
       <span className="flex items-center gap-1 text-xs text-green-500">
         <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-        在线
+        {t('gyProducts.online')}
         {status.latencyMs > 0 && <span className="text-muted-foreground">({status.latencyMs}ms)</span>}
       </span>
     )
@@ -32,25 +36,27 @@ function StatusDot({ status }: { status: gy.GYStatus | undefined }) {
   return (
     <span className="flex items-center gap-1 text-xs text-red-500">
       <span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />
-      不可达
+      {t('gyProducts.unreachable')}
     </span>
   )
 }
 
 function InstalledBadge({ status }: { status: gy.GYStatus | undefined }) {
+  const { t } = useTranslation()
   if (!status) return null
   if (status.version) {
-    return <span className="text-xs text-green-500">已安装 v{status.version}</span>
+    return <span className="text-xs text-green-500">{t('gyProducts.installedVersion', { version: status.version })}</span>
   }
-  return <span className="text-xs text-muted-foreground">未安装</span>
+  return <span className="text-xs text-muted-foreground">{t('gyProducts.notInstalled')}</span>
 }
 
 export function GYProductsPage() {
+  const { t } = useTranslation()
   const { products, statuses, loading, checking, setProducts, setStatuses, setLoading, setChecking } = useGYStore()
   const [launching, setLaunching] = useState<string | null>(null)
   const [downloading, setDownloading] = useState(false)
   const [creatorProgress, setCreatorProgress] = useState(-1) // -1=idle, 0-100=downloading
-  const [error, setError] = useState('')
+  const { classified: error, setError, clearError } = useClassifiedError()
 
   // Subscribe to Creator download-progress events from the Go backend.
   useEffect(() => {
@@ -66,7 +72,7 @@ export function GYProductsPage() {
       const ps = await GetGYProducts()
       setProducts(ps || [])
     } catch (err) {
-      setError(`加载失败: ${err}`)
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -74,7 +80,7 @@ export function GYProductsPage() {
 
   const checkStatus = async () => {
     setChecking(true)
-    setError('')
+    clearError()
     try {
       const ss = await CheckGYStatus()
       const map: Record<string, gy.GYStatus> = {}
@@ -83,7 +89,7 @@ export function GYProductsPage() {
       }
       setStatuses(map)
     } catch (err) {
-      setError(`状态检测失败: ${err}`)
+      setError(err)
     } finally {
       setChecking(false)
     }
@@ -95,11 +101,11 @@ export function GYProductsPage() {
 
   const handleLaunch = async (productId: string) => {
     setLaunching(productId)
-    setError('')
+    clearError()
     try {
       await LaunchGYProduct(productId)
     } catch (err) {
-      setError(`启动失败: ${err}`)
+      setError(err)
     } finally {
       setLaunching(null)
     }
@@ -108,13 +114,13 @@ export function GYProductsPage() {
   const handleDownloadCreator = async () => {
     setDownloading(true)
     setCreatorProgress(0)
-    setError('')
+    clearError()
     try {
       await DownloadCreator()
       setCreatorProgress(100)
     } catch (err) {
       setCreatorProgress(-1)
-      setError(`下载失败: ${err}`)
+      setError(err)
     } finally {
       setDownloading(false)
     }
@@ -126,8 +132,8 @@ export function GYProductsPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold">GY 产品套件</h2>
-            <p className="text-sm text-muted-foreground mt-0.5">Lurus 旗下产品集成入口</p>
+            <h2 className="text-lg font-semibold">{t('gyProducts.title')}</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">{t('gyProducts.subtitle')}</p>
           </div>
           <button
             onClick={checkStatus}
@@ -138,22 +144,25 @@ export function GYProductsPage() {
             )}
           >
             {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            刷新状态
+            {t('gyProducts.refreshStatus')}
           </button>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
-            {error}
-          </div>
+          <InlineError
+            category={error.category}
+            message={error.message}
+            details={error.details}
+            onDismiss={clearError}
+          />
         )}
 
         {/* Product cards */}
         {loading ? (
           <div className="flex items-center gap-2 py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">加载中...</span>
+            <span className="text-sm text-muted-foreground">{t('gyProducts.loading')}</span>
           </div>
         ) : (
           <div className="space-y-4">
@@ -172,7 +181,7 @@ export function GYProductsPage() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold">{product.name}</h3>
                         <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', badge.color)}>
-                          {badge.label}
+                          {t(badge.label)}
                         </span>
                         {product.kind === 'desktop' ? (
                           <InstalledBadge status={status} />
@@ -197,7 +206,7 @@ export function GYProductsPage() {
                         )}
                       >
                         {isLaunching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
-                        打开{product.name}
+                        {t('gyProducts.open', { name: product.name })}
                       </button>
                     )}
 
@@ -213,7 +222,7 @@ export function GYProductsPage() {
                           )}
                         >
                           {isLaunching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                          启动 {product.name}
+                          {t('gyProducts.launch', { name: product.name })}
                         </button>
                         <div className="flex flex-col gap-1">
                           <button
@@ -226,7 +235,7 @@ export function GYProductsPage() {
                             )}
                           >
                             {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-                            {downloading ? `下载中 ${creatorProgress >= 0 ? creatorProgress + '%' : ''}` : '重新下载'}
+                            {downloading ? t('gyProducts.downloading', { progress: creatorProgress >= 0 ? creatorProgress + '%' : '' }) : t('gyProducts.redownload')}
                           </button>
                           {downloading && creatorProgress >= 0 && (
                             <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
@@ -252,7 +261,7 @@ export function GYProductsPage() {
                           )}
                         >
                           {isLaunching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
-                          打开控制台
+                          {t('gyProducts.openConsole')}
                         </button>
                       </>
                     )}
@@ -268,7 +277,7 @@ export function GYProductsPage() {
 
             {products.length === 0 && !loading && (
               <div className="border border-dashed border-border rounded-lg p-8 text-center">
-                <p className="text-sm text-muted-foreground">暂无 GY 产品</p>
+                <p className="text-sm text-muted-foreground">{t('gyProducts.noProducts')}</p>
               </div>
             )}
           </div>

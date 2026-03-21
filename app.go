@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	goruntime "runtime"
 
 	"sync/atomic"
 
 	"lurus-switch/internal/packager"
 	"lurus-switch/internal/toolmanifest"
+
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // AppVersion is the current version of Lurus Switch, set at build time via -ldflags
@@ -53,23 +56,30 @@ func (a *App) startup(ctx context.Context) {
 	// Auto-start legacy gateway server if configured to do so.
 	if a.serverMgr != nil {
 		if cfg := a.serverMgr.GetConfig(); cfg.AutoStart {
-			go func() {
+			go safeGo("legacy-gateway-start", func() {
 				if err := a.serverMgr.Start(ctx); err != nil {
 					fmt.Printf("Warning: auto-start legacy gateway server failed: %v\n", err)
 				}
-			}()
+			})
 		}
 	}
 
 	// Auto-start the new local API gateway if configured.
 	if a.gatewaySrv != nil {
+		// Register crash recovery callback to notify the frontend.
+		a.gatewaySrv.SetCrashCallback(func(attempt int, err error) {
+			wailsRuntime.EventsEmit(ctx, "gateway:crash", map[string]any{
+				"attempt": attempt,
+				"error":   err.Error(),
+			})
+		})
 		a.syncGatewayUpstream()
 		if cfg := a.gatewaySrv.GetConfig(); cfg.AutoStart {
-			go func() {
+			go safeGo("gateway-start", func() {
 				if err := a.gatewaySrv.Start(ctx); err != nil {
 					fmt.Printf("Warning: auto-start gateway failed: %v\n", err)
 				}
-			}()
+			})
 		}
 	}
 
@@ -77,11 +87,21 @@ func (a *App) startup(ctx context.Context) {
 	a.migrateProxyToRelay()
 
 	// Sync tool connection status from actual config files (non-blocking).
-	go a.SyncToolConnectionStatus()
+	go safeGo("sync-tool-status", func() { a.SyncToolConnectionStatus() })
 
 	// Fetch tool download manifest in the background so it is ready before the
 	// user reaches the install step. Does not block startup.
-	go a.refreshManifest()
+	go safeGo("refresh-manifest", func() { a.refreshManifest() })
+}
+
+// safeGo wraps a function with panic recovery so goroutines never crash the app.
+func safeGo(label string, fn func()) {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(os.Stderr, "PANIC [%s]: %v\n", label, r)
+		}
+	}()
+	fn()
 }
 
 // refreshManifest fetches the latest tool manifest from the configured API endpoint,

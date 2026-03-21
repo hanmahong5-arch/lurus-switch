@@ -1,16 +1,20 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import {
   Power, PowerOff, RefreshCw, Loader2, Copy, Check, Plus, Trash2, RotateCw,
-  Activity, BarChart3, ChevronDown, ChevronRight,
+  Activity, BarChart3, ChevronDown, ChevronRight, DollarSign, Clock, ShieldAlert,
   Eye, EyeOff, Wifi, WifiOff, BookOpen, Zap, AlertTriangle, CheckCircle2,
-  Circle, CircleDot, Link2, Unlink, ClipboardCopy, Wrench,
+  Circle, CircleDot, Link2, Unlink, ClipboardCopy, Wrench, FolderOpen, Signal, Database,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { cn } from '../lib/utils'
+import { cn, safeArray } from '../lib/utils'
+import { errorToast } from '../lib/errorToast'
+import { exportErrorLog } from '../lib/errorLog'
+import { useConnectivityStore } from '../stores/connectivityStore'
 import {
   useSwitchStore,
   type RegisteredApp, type GatewayLocalConfig,
   type ToolDiagnostic, type ToolConfigResult, type ToolSnapshotInfo,
+  type UpstreamHealthResult, type UsageInsight, type RequestLogEntry,
 } from '../stores/switchStore'
 import { useToastStore } from '../stores/toastStore'
 import { ConnectGuide } from '../components/switch/ConnectGuide'
@@ -39,11 +43,18 @@ import {
   RestoreToolSnapshot,
   ExportDiagnostics,
   AutoFixToolConfig,
+  PingGatewayUpstream,
+  OpenToolConfigDir,
+  SyncToolConnectionStatus,
   InstallTool,
+  InstallDependency,
   FetchModelCatalog,
   SwitchModel,
   GetProxySettings,
+  GetUsageInsights,
+  GetRequestLog,
 } from '../../wailsjs/go/main/App'
+import { EventsOn } from '../../wailsjs/runtime/runtime'
 import { gateway } from '../../wailsjs/go/models'
 
 // --- Utility helpers ---
@@ -54,6 +65,12 @@ function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`
   return String(n)
+}
+
+function formatCost(usd: number): string {
+  if (usd < 0.01) return `$${usd.toFixed(4)}`
+  if (usd < 1) return `$${usd.toFixed(3)}`
+  return `$${usd.toFixed(2)}`
 }
 
 function formatUptime(seconds: number): string {
@@ -223,7 +240,7 @@ const HEALTH_ICON: Record<string, React.ReactNode> = {
 }
 
 function ToolDiagRow({
-  diag, onConnect, onDisconnect, onInstall, onShowSnapshots, onAutoFix, connecting, disconnecting, installing, fixing,
+  diag, onConnect, onDisconnect, onInstall, onShowSnapshots, onAutoFix, onOpenConfig, connecting, disconnecting, installing, fixing, installProgress,
 }: {
   diag: ToolDiagnostic
   onConnect: (tool: string) => void
@@ -231,10 +248,12 @@ function ToolDiagRow({
   onInstall: (tool: string) => void
   onShowSnapshots: (tool: string) => void
   onAutoFix: (tool: string) => void
+  onOpenConfig: (tool: string) => void
   connecting: string | null
   disconnecting: string | null
   installing: string | null
   fixing: string | null
+  installProgress: Record<string, number>
 }) {
   const { t } = useTranslation()
 
@@ -317,15 +336,24 @@ function ToolDiagRow({
             </button>
           )}
 
-          {/* Snapshot restore button for installed tools */}
+          {/* Snapshot + Open Config buttons for installed tools */}
           {diag.installed && (
-            <button
-              onClick={() => onShowSnapshots(diag.tool)}
-              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-              title={t('switch.snapshots')}
-            >
-              <RotateCw className="h-3 w-3" />
-            </button>
+            <>
+              <button
+                onClick={() => onOpenConfig(diag.tool)}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                title={t('switch.openConfig')}
+              >
+                <FolderOpen className="h-3 w-3" />
+              </button>
+              <button
+                onClick={() => onShowSnapshots(diag.tool)}
+                className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
+                title={t('switch.snapshots')}
+              >
+                <RotateCw className="h-3 w-3" />
+              </button>
+            </>
           )}
 
           {/* Install button for not-installed tools */}
@@ -340,7 +368,10 @@ function ToolDiagRow({
               ) : (
                 <Plus className="h-3 w-3" />
               )}
-              {t('switch.install')}
+              {installing === diag.tool && installProgress[diag.tool] > 0
+                ? `${installProgress[diag.tool]}%`
+                : t('switch.install')
+              }
             </button>
           )}
         </div>
@@ -382,6 +413,7 @@ export function SwitchHubPage() {
     setEnvCheck, setEnvLoading, setConfigResults, setConfiguring,
   } = useSwitchStore()
   const toast = useToastStore((s) => s.addToast)
+  const recordConnSuccess = useConnectivityStore((s) => s.recordSuccess)
 
   const [showRegister, setShowRegister] = useState(false)
   const [newAppName, setNewAppName] = useState('')
@@ -403,6 +435,16 @@ export function SwitchHubPage() {
   const [snapshots, setSnapshots] = useState<ToolSnapshotInfo[]>([])
   const [restoringSnapshot, setRestoringSnapshot] = useState<string | null>(null)
   const [fixingTool, setFixingTool] = useState<string | null>(null)
+  const [upstreamHealth, setUpstreamHealth] = useState<UpstreamHealthResult | null>(null)
+  const [installProgress, setInstallProgress] = useState<Record<string, number>>({})
+  const [usageInsights, setUsageInsights] = useState<UsageInsight | null>(null)
+  const [installingRuntime, setInstallingRuntime] = useState<string | null>(null)
+  const [requestLog, setRequestLog] = useState<RequestLogEntry[]>([])
+  const [logFilterApp, setLogFilterApp] = useState('')
+  const [logFilterModel, setLogFilterModel] = useState('')
+  const [backendStale, setBackendStale] = useState(false)
+  const envRefreshCount = useRef(0)
+  const pollFailCount = useRef(0)
 
   const loadAll = useCallback(async () => {
     setLoading(true)
@@ -417,22 +459,25 @@ export function SwitchHubPage() {
       ])
       setStatus(st)
       setConfig(cfg)
-      setApps(appsList || [])
+      setApps(safeArray(appsList))
       setTodaySummary(summary)
-      setDaySummaries(daySums || [])
-      setRecentActivity(activity || [])
+      setDaySummaries(safeArray(daySums))
+      setRecentActivity(safeArray(activity))
 
       const [appSums, modelSums] = await Promise.all([
         GetAppSummaries(meteringPeriod),
         GetModelSummaries(meteringPeriod),
       ])
-      setAppSummaries(appSums || [])
-      setModelSummaries(modelSums || [])
+      setAppSummaries(safeArray(appSums))
+      setModelSummaries(safeArray(modelSums))
+
+      setBackendStale(false)
+      pollFailCount.current = 0
 
       // Run environment check in the background.
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
 
-      // Load model catalog and current model.
+      // Load model catalog and current model (non-critical, silent on failure).
       FetchModelCatalog().then((cat) => {
         if (cat?.models) setModelCatalog(cat.models.map((m: any) => ({ id: m.id, name: m.name || m.id })))
       }).catch(() => {})
@@ -440,7 +485,7 @@ export function SwitchHubPage() {
         if (s?.model) setCurrentModel(s.model)
       }).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setLoading(false)
     }
@@ -455,24 +500,82 @@ export function SwitchHubPage() {
       ])
       setStatus(st)
       setTodaySummary(summary)
-      setRecentActivity(activity || [])
-    } catch { /* silent polling */ }
-  }, [])
+      setRecentActivity(safeArray(activity))
+      // Reset failure tracking on success.
+      if (pollFailCount.current > 0) {
+        pollFailCount.current = 0
+        setBackendStale(false)
+      }
+      recordConnSuccess()
+    } catch {
+      // Track consecutive poll failures — show stale indicator after 3 in a row.
+      pollFailCount.current++
+      if (pollFailCount.current >= 3 && !backendStale) {
+        setBackendStale(true)
+      }
+    }
+  }, [backendStale])
 
   useEffect(() => {
     loadAll()
-    const h = setInterval(refreshStatus, 5000)
+
+    // Upstream health + request log on load.
+    PingGatewayUpstream().then(setUpstreamHealth).catch(() => {})
+    GetRequestLog(50, '', '').then(r => setRequestLog(safeArray(r))).catch(() => {})
+
+    const h = setInterval(() => {
+      refreshStatus()
+      // Refresh env check every 3rd poll cycle (~15s).
+      envRefreshCount.current++
+      if (envRefreshCount.current % 3 === 0) {
+        RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
+        SyncToolConnectionStatus().catch(() => {})
+      }
+      // Refresh request log every 2nd cycle (~10s).
+      if (envRefreshCount.current % 2 === 0) {
+        GetRequestLog(50, '', '').then(r => setRequestLog(safeArray(r))).catch(() => {})
+      }
+      // Refresh upstream health every 6th cycle (~30s).
+      if (envRefreshCount.current % 6 === 0) {
+        PingGatewayUpstream().then(setUpstreamHealth).catch(() => {})
+      }
+    }, 5000)
     setPollHandle(h)
-    return () => { clearInterval(h); setPollHandle(null) }
+
+    // Subscribe to install progress events from backend.
+    const offProgress = EventsOn('tool:install:progress', (d: { tool: string; percent: number }) => {
+      setInstallProgress(p => ({ ...p, [d.tool]: d.percent }))
+    })
+    const offDone = EventsOn('tool:install:done', (d: { tool: string; success: boolean }) => {
+      setInstallProgress(p => ({ ...p, [d.tool]: d.success ? 100 : -1 }))
+      // Refresh env check after install completes.
+      RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
+    })
+
+    // Subscribe to gateway crash/restart events.
+    const offCrash = EventsOn('gateway:crash', (d: { attempt: number; error: string }) => {
+      toast('error', t('switch.gatewayCrashRestart', { attempt: d.attempt }), { persistent: true })
+      refreshStatus()
+    })
+
+    return () => {
+      clearInterval(h)
+      setPollHandle(null)
+      offProgress()
+      offDone()
+      offCrash()
+    }
   }, [])
 
   useEffect(() => {
     Promise.all([
       GetAppSummaries(meteringPeriod),
       GetModelSummaries(meteringPeriod),
-    ]).then(([a, m]) => {
-      setAppSummaries(a || [])
-      setModelSummaries(m || [])
+      GetUsageInsights(meteringPeriod),
+    ]).then(([a, m, ins]) => {
+      setAppSummaries(safeArray(a))
+      setModelSummaries(safeArray(m))
+      setUsageInsights(ins ?? null)
     }).catch(() => {})
   }, [meteringPeriod])
 
@@ -485,7 +588,7 @@ export function SwitchHubPage() {
       toast('success', t('switch.startSuccess'))
       await refreshStatus()
     } catch (err) {
-      toast('error', `${t('switch.startFailed')}: ${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally { setStarting(false) }
   }
 
@@ -496,7 +599,7 @@ export function SwitchHubPage() {
       toast('success', t('switch.stopSuccess'))
       await refreshStatus()
     } catch (err) {
-      toast('error', `${t('switch.stopFailed')}: ${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally { setStopping(false) }
   }
 
@@ -511,7 +614,7 @@ export function SwitchHubPage() {
       setShowRegister(false)
       setApps(await GetRegisteredApps() || [])
     } catch (err) {
-      toast('error', `${t('switch.registerFailed')}: ${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally { setRegistering(false) }
   }
 
@@ -521,7 +624,7 @@ export function SwitchHubPage() {
       toast('success', t('switch.deleteSuccess'))
       setConfirmDelete(null)
       setApps(await GetRegisteredApps() || [])
-    } catch (err) { toast('error', `${err}`) }
+    } catch (err) { errorToast(toast, err, { currentPage: 'gateway', t }) }
   }
 
   const handleResetToken = async (id: string) => {
@@ -530,7 +633,7 @@ export function SwitchHubPage() {
       await ResetAppToken(id)
       toast('success', t('switch.tokenReset'))
       setApps(await GetRegisteredApps() || [])
-    } catch (err) { toast('error', `${err}`) }
+    } catch (err) { errorToast(toast, err, { currentPage: 'gateway', t }) }
     finally { setResetting(null) }
   }
 
@@ -539,22 +642,22 @@ export function SwitchHubPage() {
   const handleConnectAll = async () => {
     setConfiguring(true)
     try {
-      const results = await AutoConfigureToolsForGateway()
-      setConfigResults(results || [])
-      const successes = (results || []).filter(r => r.success).length
-      const failures = (results || []).filter(r => !r.success).length
+      const results = safeArray(await AutoConfigureToolsForGateway())
+      setConfigResults(results)
+      const successes = results.filter(r => r.success).length
+      const failures = results.filter(r => !r.success).length
       if (failures === 0 && successes > 0) {
         toast('success', t('switch.connectAllSuccess', { count: successes }))
       } else if (successes > 0) {
         toast('info', t('switch.connectPartial', { ok: successes, fail: failures }))
       } else {
-        toast('error', t('switch.connectAllFailed'))
+        toast('error', t('switch.connectAllFailed'), { persistent: true })
       }
       // Refresh env check + apps after configuring.
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
-      GetRegisteredApps().then(a => setApps(a || [])).catch(() => {})
+      GetRegisteredApps().then(a => setApps(safeArray(a))).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setConfiguring(false)
     }
@@ -564,15 +667,15 @@ export function SwitchHubPage() {
     setConnectingSingle(tool)
     try {
       const result = await AutoConfigureToolForGateway(tool)
-      if (result.success) {
+      if (result?.success) {
         toast('success', `${tool}: ${result.message}`)
       } else {
-        toast('error', `${tool}: ${result.message}`)
+        errorToast(toast, result?.message || 'Configuration failed', { currentPage: 'gateway', t })
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
-      GetRegisteredApps().then(a => setApps(a || [])).catch(() => {})
+      GetRegisteredApps().then(a => setApps(safeArray(a))).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setConnectingSingle(null)
     }
@@ -582,14 +685,14 @@ export function SwitchHubPage() {
     setInstallingSingle(tool)
     try {
       const result = await InstallTool(tool)
-      if (result.success) {
-        toast('success', `${tool} v${result.version} ${t('switch.installSuccess')}`)
+      if (result?.success) {
+        toast('success', `${tool} v${result.version || '?'} ${t('switch.installSuccess')}`)
       } else {
-        toast('error', `${tool}: ${result.message}`)
+        errorToast(toast, result?.message || 'Installation failed', { currentPage: 'gateway', t })
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setInstallingSingle(null)
     }
@@ -599,16 +702,19 @@ export function SwitchHubPage() {
     setSettingUp(true)
     try {
       const result = await FullSetupForGateway()
-      const successes = (result.configResults || []).filter(r => r.success).length
-      setConfigResults(result.configResults || [])
+      if (!result) { errorToast(toast, 'Setup returned empty result', { currentPage: 'gateway', t }); return }
+      const cfgResults = safeArray(result.configResults)
+      const successes = cfgResults.filter(r => r.success).length
+      setConfigResults(cfgResults)
 
       let msg = ''
       if (result.gatewayStarted) msg += t('switch.gwAutoStarted') + ' '
       if (result.snapshotsTaken > 0) msg += t('switch.snapshotsTaken', { count: result.snapshotsTaken }) + ' '
       msg += t('switch.connectAllSuccess', { count: successes })
 
-      if (result.errors && result.errors.length > 0) {
-        toast('info', msg + ` (${result.errors.join('; ')})`)
+      const errors = safeArray(result.errors)
+      if (errors.length > 0) {
+        toast('info', msg + ` (${errors.join('; ')})`)
       } else {
         toast('success', msg)
       }
@@ -616,9 +722,9 @@ export function SwitchHubPage() {
       // Refresh everything.
       await refreshStatus()
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
-      GetRegisteredApps().then(a => setApps(a || [])).catch(() => {})
+      GetRegisteredApps().then(a => setApps(safeArray(a))).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setSettingUp(false)
     }
@@ -631,7 +737,7 @@ export function SwitchHubPage() {
       const errs = await SwitchModel(modelId)
       const errKeys = Object.keys(errs).filter(k => k !== 'error')
       if (errs['error']) {
-        toast('error', errs['error'])
+        errorToast(toast, errs['error'], { currentPage: 'gateway', t })
       } else if (errKeys.length === 0) {
         toast('success', t('switch.modelSwitched', { model: modelId }))
       } else {
@@ -639,7 +745,7 @@ export function SwitchHubPage() {
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setSwitchingModel(false)
     }
@@ -658,15 +764,15 @@ export function SwitchHubPage() {
     setDisconnectingSingle(tool)
     try {
       const result = await DisconnectToolFromGateway(tool)
-      if (result.success) {
+      if (result?.success) {
         toast('success', t('switch.disconnectSuccess', { tool }))
       } else {
-        toast('error', `${tool}: ${result.message}`)
+        errorToast(toast, result?.message || 'Disconnect failed', { currentPage: 'gateway', t })
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
-      GetRegisteredApps().then(a => setApps(a || [])).catch(() => {})
+      GetRegisteredApps().then(a => setApps(safeArray(a))).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setDisconnectingSingle(null)
     }
@@ -675,17 +781,17 @@ export function SwitchHubPage() {
   const handleDisconnectAll = async () => {
     setDisconnectingAll(true)
     try {
-      const results = await DisconnectAllToolsFromGateway()
-      const successes = (results || []).filter(r => r.success).length
+      const results = safeArray(await DisconnectAllToolsFromGateway())
+      const successes = results.filter(r => r.success).length
       if (successes > 0) {
         toast('success', t('switch.disconnectAllSuccess', { count: successes }))
       } else {
         toast('info', t('switch.disconnectAllFailed'))
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
-      GetRegisteredApps().then(a => setApps(a || [])).catch(() => {})
+      GetRegisteredApps().then(a => setApps(safeArray(a))).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setDisconnectingAll(false)
     }
@@ -695,7 +801,7 @@ export function SwitchHubPage() {
     setSnapshotTool(tool)
     try {
       const list = await ListToolSnapshots(tool)
-      setSnapshots(list || [])
+      setSnapshots(safeArray(list))
     } catch {
       setSnapshots([])
     }
@@ -705,45 +811,68 @@ export function SwitchHubPage() {
     setRestoringSnapshot(snapshotId)
     try {
       const result = await RestoreToolSnapshot(tool, snapshotId)
-      if (result.success) {
+      if (result?.success) {
         toast('success', t('switch.snapshotRestored', { tool }))
         setSnapshotTool(null)
       } else {
-        toast('error', `${tool}: ${result.message}`)
+        errorToast(toast, result?.message || 'Restore failed', { currentPage: 'gateway', t })
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
-      GetRegisteredApps().then(a => setApps(a || [])).catch(() => {})
+      GetRegisteredApps().then(a => setApps(safeArray(a))).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setRestoringSnapshot(null)
     }
+  }
+
+  const handleOpenConfig = (tool: string) => {
+    OpenToolConfigDir(tool).catch((err) => errorToast(toast, err, { currentPage: 'gateway', t }))
   }
 
   const handleAutoFix = async (tool: string) => {
     setFixingTool(tool)
     try {
       const result = await AutoFixToolConfig(tool)
-      if (result.success) {
+      if (result?.success) {
         toast('success', `${tool}: ${result.message}`)
       } else {
-        toast('error', `${tool}: ${result.message}`)
+        errorToast(toast, result?.message || 'Auto-fix failed', { currentPage: 'gateway', t })
       }
       RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     } finally {
       setFixingTool(null)
+    }
+  }
+
+  const handleInstallRuntime = async (runtimeId: string) => {
+    setInstallingRuntime(runtimeId)
+    try {
+      const result = await InstallDependency(runtimeId)
+      if (result?.success) {
+        toast('success', `${runtimeId}: ${result.message || 'installed'}`)
+      } else {
+        errorToast(toast, result?.message || 'Installation failed', { currentPage: 'gateway', t })
+      }
+      RunEnvironmentCheck().then(setEnvCheck).catch(() => {})
+    } catch (err) {
+      errorToast(toast, err, { currentPage: 'gateway', t })
+    } finally {
+      setInstallingRuntime(null)
     }
   }
 
   const handleExportDiagnostics = async () => {
     try {
       const report = await ExportDiagnostics()
-      await navigator.clipboard.writeText(report)
+      const errorHistory = exportErrorLog()
+      const fullReport = report + '\n\n--- Recent Errors ---\n' + errorHistory
+      await navigator.clipboard.writeText(fullReport)
       toast('success', t('switch.diagnosticsCopied'))
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { currentPage: 'gateway', t })
     }
   }
 
@@ -752,7 +881,7 @@ export function SwitchHubPage() {
       await SaveGatewayConfig(gateway.Config.createFrom(cfg))
       setConfig(cfg)
       toast('success', t('switch.configSaved'))
-    } catch (err) { toast('error', `${err}`) }
+    } catch (err) { errorToast(toast, err, { currentPage: 'gateway', t }) }
   }
 
   const running = status?.running ?? false
@@ -782,6 +911,22 @@ export function SwitchHubPage() {
             {t('switch.refresh')}
           </button>
         </div>
+
+        {/* ── Stale data warning ── */}
+        {backendStale && (
+          <div className="flex items-center justify-between rounded-md border border-amber-500/30 bg-amber-500/5 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+              <WifiOff className="h-4 w-4 flex-shrink-0" />
+              <span>{t('switch.backendStale')}</span>
+            </div>
+            <button
+              onClick={() => { pollFailCount.current = 0; setBackendStale(false); loadAll() }}
+              className="px-2.5 py-1 rounded text-xs font-medium border border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+            >
+              {t('switch.backendRetry')}
+            </button>
+          </div>
+        )}
 
         {/* ── Gateway Status Card ── */}
         <div className={cn(
@@ -849,6 +994,20 @@ export function SwitchHubPage() {
             </div>
           )}
 
+          {/* Upstream unreachable warning */}
+          {running && upstreamHealth && !upstreamHealth.reachable && (
+            <div className="mt-3 flex items-start gap-2.5 rounded-md border border-red-500/30 bg-red-500/5 p-3">
+              <WifiOff className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">{t('switch.upstreamWarning')}</p>
+                <p className="text-xs text-red-500/70 mt-0.5">{t('switch.upstreamWarningHint')}</p>
+                {upstreamHealth.error && (
+                  <p className="text-[10px] font-mono text-red-500/50 mt-1 truncate">{upstreamHealth.error}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Endpoint copy helper */}
           {running && gwUrl && (
             <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
@@ -887,7 +1046,7 @@ export function SwitchHubPage() {
             </div>
 
             {/* Status summary */}
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
               <span>{envCheck.installedCount} {t('switch.toolsInstalled')}</span>
               <span className="text-border">|</span>
               <span>{envCheck.boundCount}/{envCheck.installedCount} {t('switch.toolsBound')}</span>
@@ -895,6 +1054,24 @@ export function SwitchHubPage() {
                 <>
                   <span className="text-border">|</span>
                   <span className="text-green-600 dark:text-green-400">{t('switch.gwOnline')}</span>
+                </>
+              )}
+              {/* Upstream health indicator */}
+              {upstreamHealth && (
+                <>
+                  <span className="text-border">|</span>
+                  <span className="flex items-center gap-1">
+                    <Signal className={cn('h-3 w-3', upstreamHealth.reachable ? 'text-green-500' : 'text-red-500')} />
+                    {upstreamHealth.reachable ? (
+                      <span className="text-green-600 dark:text-green-400">
+                        {t('switch.upstreamOk')} ({upstreamHealth.latencyMs}ms)
+                      </span>
+                    ) : (
+                      <span className="text-red-500">
+                        {t('switch.upstreamDown')}
+                      </span>
+                    )}
+                  </span>
                 </>
               )}
             </div>
@@ -989,10 +1166,12 @@ export function SwitchHubPage() {
                   onInstall={handleInstallSingle}
                   onShowSnapshots={handleShowSnapshots}
                   onAutoFix={handleAutoFix}
+                  onOpenConfig={handleOpenConfig}
                   connecting={connectingSingle}
                   disconnecting={disconnectingSingle}
                   installing={installingSingle}
                   fixing={fixingTool}
+                  installProgress={installProgress}
                 />
               ))}
             </div>
@@ -1003,10 +1182,10 @@ export function SwitchHubPage() {
                 <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">{t('switch.runtimes')}</p>
                 <div className="flex flex-wrap gap-2">
                   {envCheck.runtimes.map((rt) => (
-                    <span
+                    <div
                       key={rt.id}
                       className={cn(
-                        'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border',
+                        'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs border',
                         rt.installed
                           ? 'border-green-500/20 bg-green-500/5 text-green-700 dark:text-green-400'
                           : rt.required
@@ -1015,8 +1194,21 @@ export function SwitchHubPage() {
                       )}
                     >
                       {rt.installed ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
-                      {rt.name} {rt.version ? `v${rt.version}` : ''}
-                    </span>
+                      <span>{rt.name} {rt.version ? `v${rt.version}` : ''}</span>
+                      {!rt.installed && rt.required && rt.id !== 'none' && (
+                        <button
+                          onClick={() => handleInstallRuntime(rt.id)}
+                          disabled={installingRuntime === rt.id}
+                          className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-50"
+                        >
+                          {installingRuntime === rt.id ? (
+                            <Loader2 className="h-3 w-3 animate-spin inline" />
+                          ) : (
+                            t('switch.installRuntime')
+                          )}
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1209,6 +1401,82 @@ export function SwitchHubPage() {
                 ))}
               </div>
 
+              {/* Insight summary cards */}
+              {usageInsights && usageInsights.totalCalls > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                      <DollarSign className="h-3 w-3" />
+                      <span className="text-[10px] uppercase tracking-wider">{t('switch.costEstimate')}</span>
+                    </div>
+                    <p className="text-lg font-semibold">{formatCost(usageInsights.totalCostUSD)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                      <Clock className="h-3 w-3" />
+                      <span className="text-[10px] uppercase tracking-wider">{t('switch.upstreamLatency')}</span>
+                    </div>
+                    <p className="text-lg font-semibold">{usageInsights.avgLatencyMs}ms</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                      <Database className="h-3 w-3" />
+                      <span className="text-[10px] uppercase tracking-wider">{t('switch.cacheHitRate')}</span>
+                    </div>
+                    <p className="text-lg font-semibold">{(usageInsights.cacheHitRate * 100).toFixed(1)}%</p>
+                  </div>
+                  <div className={cn(
+                    'rounded-lg border p-3',
+                    usageInsights.rateLimitEvents > 0
+                      ? 'border-red-500/30 bg-red-500/5'
+                      : 'border-border bg-card'
+                  )}>
+                    <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                      <ShieldAlert className="h-3 w-3" />
+                      <span className="text-[10px] uppercase tracking-wider">{t('switch.rateLimitTitle')}</span>
+                    </div>
+                    <p className={cn(
+                      'text-lg font-semibold',
+                      usageInsights.rateLimitEvents > 0 ? 'text-red-500' : ''
+                    )}>
+                      {usageInsights.rateLimitEvents > 0
+                        ? `${usageInsights.rateLimitEvents} ${t('switch.throttled')}`
+                        : '0'
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Cost breakdown by model */}
+              {usageInsights && usageInsights.modelCosts && usageInsights.modelCosts.length > 0 && (
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+                    <DollarSign className="h-3 w-3 inline mr-1" />
+                    {t('switch.topModelCost')}
+                  </p>
+                  <div className="space-y-2">
+                    {usageInsights.modelCosts.slice(0, 5).map((mc) => {
+                      const maxCost = usageInsights.modelCosts[0]?.costUSD || 1
+                      const pct = (mc.costUSD / maxCost) * 100
+                      return (
+                        <div key={mc.model} className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-medium font-mono">{mc.model}</span>
+                            <span className="text-muted-foreground">
+                              {formatCost(mc.costUSD)} — {formatTokens(mc.tokensIn + mc.tokensOut)} {t('switch.tokens')}
+                            </span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Per-app */}
               {appSummaries.length > 0 && (
                 <div className="rounded-lg border border-border bg-card p-4">
@@ -1287,22 +1555,75 @@ export function SwitchHubPage() {
                 </div>
               )}
 
-              {/* Recent activity */}
-              {recentActivity.length > 0 && (
+              {/* Request Log */}
+              {requestLog.length > 0 && (
                 <div className="rounded-lg border border-border bg-card p-4">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{t('switch.recentActivity')}</p>
-                  <div className="space-y-1 max-h-48 overflow-y-auto">
-                    {recentActivity.map((a, i) => {
-                      const appInfo = apps.find(ap => ap.id === a.appId)
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('switch.requestLog')}</p>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={logFilterApp}
+                        onChange={(e) => {
+                          setLogFilterApp(e.target.value)
+                          GetRequestLog(50, e.target.value, logFilterModel).then(r => setRequestLog(safeArray(r))).catch(() => {})
+                        }}
+                        className="px-1.5 py-0.5 rounded border border-border bg-background text-[10px]"
+                      >
+                        <option value="">{t('switch.allApps')}</option>
+                        {apps.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                      <select
+                        value={logFilterModel}
+                        onChange={(e) => {
+                          setLogFilterModel(e.target.value)
+                          GetRequestLog(50, logFilterApp, e.target.value).then(r => setRequestLog(safeArray(r))).catch(() => {})
+                        }}
+                        className="px-1.5 py-0.5 rounded border border-border bg-background text-[10px]"
+                      >
+                        <option value="">{t('switch.allModels')}</option>
+                        {[...new Set(requestLog.map(r => r.model))].filter(Boolean).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-0.5 max-h-64 overflow-y-auto">
+                    {requestLog.map((r) => {
+                      const appInfo = apps.find(a => a.id === r.appId)
+                      const isErr = r.statusCode >= 400
+                      const is429 = r.statusCode === 429
                       return (
-                        <div key={i} className="flex items-center justify-between text-xs py-1 border-b border-border/50 last:border-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-muted-foreground font-mono w-10">{a.timestamp}</span>
-                            <span className="font-medium">{appInfo?.name || a.appId}</span>
+                        <div
+                          key={r.id}
+                          className={cn(
+                            'flex items-center justify-between text-xs py-1.5 px-2 rounded border-b border-border/30 last:border-0',
+                            is429 ? 'bg-amber-500/5' : isErr ? 'bg-red-500/5' : ''
+                          )}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-muted-foreground font-mono text-[10px] w-12 flex-shrink-0">
+                              {r.timestamp.slice(11, 16)}
+                            </span>
+                            <span className={cn(
+                              'px-1 py-0.5 rounded text-[9px] font-mono font-bold flex-shrink-0',
+                              r.statusCode < 300 ? 'bg-green-500/10 text-green-600' :
+                              r.statusCode < 400 ? 'bg-blue-500/10 text-blue-500' :
+                              is429 ? 'bg-amber-500/10 text-amber-600' :
+                              'bg-red-500/10 text-red-500'
+                            )}>
+                              {r.statusCode}
+                            </span>
+                            <span className="font-medium truncate">{appInfo?.name || r.appId}</span>
+                            {r.cached && (
+                              <span className="text-[9px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-500 flex-shrink-0">
+                                {t('switch.cached')}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-3 text-muted-foreground">
-                            <span className="font-mono text-[10px]">{a.model}</span>
-                            <span>{formatTokens(a.tokens)} {t('switch.tok')}</span>
+                          <div className="flex items-center gap-3 text-muted-foreground flex-shrink-0">
+                            <span className="font-mono text-[10px] max-w-[120px] truncate">{r.model}</span>
+                            <span className="text-[10px] w-14 text-right">{r.latencyMs}ms</span>
+                            <span className="text-[10px] w-12 text-right">{formatTokens(r.tokensIn + r.tokensOut)}</span>
                           </div>
                         </div>
                       )
@@ -1312,7 +1633,7 @@ export function SwitchHubPage() {
               )}
 
               {/* Empty state */}
-              {appSummaries.length === 0 && modelSummaries.length === 0 && recentActivity.length === 0 && (
+              {appSummaries.length === 0 && modelSummaries.length === 0 && requestLog.length === 0 && (
                 <div className="rounded-lg border border-dashed border-border p-8 text-center">
                   <Activity className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
                   <p className="text-sm font-medium text-muted-foreground">{t('switch.noUsage')}</p>

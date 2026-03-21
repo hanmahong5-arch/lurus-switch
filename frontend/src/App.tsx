@@ -1,50 +1,39 @@
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import './style.css'
-import { Sidebar } from './components/Sidebar'
+import { Sidebar, PROMOTER_ONLY_PAGES } from './components/Sidebar'
 import { StatusBar } from './components/StatusBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastContainer } from './components/Toast'
+import { ConnectionBanner } from './components/ConnectionBanner'
 import { SetupWizard } from './components/SetupWizard'
-import { GatewayRequiredGuard } from './components/GatewayRequiredGuard'
-import { CLIRunner } from './components/CLIRunner'
-import { DashboardPage } from './pages/DashboardPage'
-import { ToolConfigPage } from './pages/ToolConfigPage'
-import { BillingPage } from './pages/BillingPage'
+import { HomePage } from './pages/HomePage'
+import { NewToolsPage } from './pages/NewToolsPage'
+import { NewGatewayPage } from './pages/NewGatewayPage'
+import { WorkspacePage } from './pages/WorkspacePage'
+import { AccountPage } from './pages/AccountPage'
 import { SettingsPage } from './pages/SettingsPage'
-import { ProcessPage } from './pages/ProcessPage'
-import { PromptLibraryPage } from './pages/PromptLibraryPage'
-import { DocumentPage } from './pages/DocumentPage'
-import { AdminPage } from './pages/AdminPage'
-import { RelayPage } from './pages/RelayPage'
-import { GYProductsPage } from './pages/GYProductsPage'
-import { GatewayPage } from './pages/GatewayPage'
-import { GatewayDashboardPage } from './pages/GatewayDashboardPage'
-import { GatewayChannelPage } from './pages/GatewayChannelPage'
-import { GatewayTokenPage } from './pages/GatewayTokenPage'
-import { GatewayModelPage } from './pages/GatewayModelPage'
-import { GatewayUserPage } from './pages/GatewayUserPage'
-import { GatewayRedemptionPage } from './pages/GatewayRedemptionPage'
-import { GatewayLogPage } from './pages/GatewayLogPage'
-import { GatewaySubscriptionPage } from './pages/GatewaySubscriptionPage'
-import { GatewaySettingsPage } from './pages/GatewaySettingsPage'
 import { PromoterHubPage } from './pages/PromoterHubPage'
-import { SwitchHubPage } from './pages/SwitchHubPage'
-import { useConfigStore, type ActiveTool } from './stores/configStore'
+import { ApiAdminPage } from './pages/ApiAdminPage'
+import { useConfigStore, migrateLegacyRoute, type ActiveTool, type UserLevel } from './stores/configStore'
+import { useNavPersist } from './lib/useNavPersist'
 import { useGatewayStore } from './stores/gatewayStore'
 import { useBillingStore } from './stores/billingStore'
 import { useDashboardStore } from './stores/dashboardStore'
 import { useSwitchStore } from './stores/switchStore'
-import { GetAppSettings, GetServerStatus, GetServerAdminToken, BillingGetUserInfo, BillingGetQuotaSummary, GetGatewayStatus } from '../wailsjs/go/main/App'
+import { GetAppSettings, GetProxySettings, GetServerStatus, GetServerAdminToken, BillingGetUserInfo, BillingGetQuotaSummary, GetGatewayStatus } from '../wailsjs/go/main/App'
 import i18n from './i18n'
 
-// Pages that can be used as a startup page
+// Legacy startup pages map to new routes
 const VALID_STARTUP_PAGES: ReadonlySet<string> = new Set([
+  'home', 'tools', 'gateway', 'workspace', 'account', 'settings',
+  // Legacy values still accepted for backward compatibility
   'dashboard', 'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw',
 ])
 
 function App() {
-  const { activeTool, setActiveTool, setAppMode } = useConfigStore()
+  const { activeTool, setActiveTool, setAppMode, setUserLevel, setSubTab } = useConfigStore()
+  useNavPersist()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   const { startPolling, stopPolling } = useGatewayStore()
   const { setUserInfo } = useBillingStore()
@@ -61,6 +50,12 @@ function App() {
           setAppMode(s.appMode)
         }
 
+        // Apply saved user level
+        const level = (s as any).userLevel
+        if (level === 'beginner' || level === 'regular' || level === 'power') {
+          setUserLevel(level as UserLevel)
+        }
+
         // Apply saved language preference at startup
         if (s.language && s.language !== i18n.language) {
           i18n.changeLanguage(s.language)
@@ -75,12 +70,24 @@ function App() {
           root.classList.toggle('dark', s.theme === 'dark')
         }
 
-        // Navigate to saved startup page if it is a valid page
+        // Navigate to saved startup page (with legacy migration)
         if (s.startupPage && VALID_STARTUP_PAGES.has(s.startupPage)) {
-          setActiveTool(s.startupPage as ActiveTool)
+          const migrated = migrateLegacyRoute(s.startupPage)
+          setActiveTool(migrated.tool)
+          if (migrated.subTab) {
+            setSubTab(migrated.tool, migrated.subTab)
+          }
         }
       })
       .catch(() => setShowWizard(false))
+  }, [])
+
+  // Load proxy settings into dashboardStore on startup so billing polling and
+  // AccountStatusBadge work immediately (not just after visiting Account page).
+  useEffect(() => {
+    GetProxySettings()
+      .then((r) => useDashboardStore.getState().setProxySettings(r))
+      .catch(() => {})
   }, [])
 
   // Start global gateway status polling when the main app mounts.
@@ -126,66 +133,37 @@ function App() {
   }
 
   const renderPage = () => {
+    // Guard promoter-only pages
+    const appMode = useConfigStore.getState().appMode
+    if (PROMOTER_ONLY_PAGES.has(activeTool) && appMode !== 'promoter') {
+      return <HomePage />
+    }
+
     switch (activeTool) {
-      case 'dashboard':
-        return <DashboardPage />
-      case 'claude':
-      case 'codex':
-      case 'gemini':
-      case 'picoclaw':
-      case 'nullclaw':
-      case 'zeroclaw':
-      case 'openclaw':
-        return <ToolConfigPage />
-      case 'billing':
-        return <BillingPage />
+      case 'home':
+        return <HomePage />
+      case 'tools':
+        return <NewToolsPage />
+      case 'gateway':
+        return <NewGatewayPage />
+      case 'workspace':
+        return <WorkspacePage />
+      case 'account':
+        return <AccountPage />
       case 'settings':
         return <SettingsPage />
-      case 'process':
-        return <ProcessPage />
-      case 'prompts':
-        return <PromptLibraryPage />
-      case 'documents':
-        return <DocumentPage />
-      case 'admin':
-        return <AdminPage />
-      case 'relay':
-        return <RelayPage />
-      case 'gy-products':
-        return <GYProductsPage />
-      case 'cli-runner':
-        return <CLIRunner />
-      case 'promoter-hub':
+      case 'promotion':
         return <PromoterHubPage />
-      case 'switch-hub':
-        return <SwitchHubPage />
-      case 'gateway':
-        return <GatewayPage />
-      case 'gateway-dashboard':
-        return <GatewayRequiredGuard><GatewayDashboardPage /></GatewayRequiredGuard>
-      case 'gateway-channels':
-        return <GatewayRequiredGuard><GatewayChannelPage /></GatewayRequiredGuard>
-      case 'gateway-tokens':
-        return <GatewayRequiredGuard><GatewayTokenPage /></GatewayRequiredGuard>
-      case 'gateway-models':
-        return <GatewayRequiredGuard><GatewayModelPage /></GatewayRequiredGuard>
-      case 'gateway-users':
-        return <GatewayRequiredGuard><GatewayUserPage /></GatewayRequiredGuard>
-      case 'gateway-redemptions':
-        return <GatewayRequiredGuard><GatewayRedemptionPage /></GatewayRequiredGuard>
-      case 'gateway-logs':
-        return <GatewayRequiredGuard><GatewayLogPage /></GatewayRequiredGuard>
-      case 'gateway-subscriptions':
-        return <GatewayRequiredGuard><GatewaySubscriptionPage /></GatewayRequiredGuard>
-      case 'gateway-settings':
-        return <GatewayRequiredGuard><GatewaySettingsPage /></GatewayRequiredGuard>
+      case 'api-admin':
+        return <ApiAdminPage />
       default:
-        return <DashboardPage />
+        return <HomePage />
     }
   }
 
   return (
     <div className="flex flex-col h-screen bg-background text-foreground">
+      <ConnectionBanner />
       <ToastContainer />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />

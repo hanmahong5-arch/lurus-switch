@@ -2,8 +2,10 @@ import { useEffect, useCallback, useState } from 'react'
 import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap, Repeat } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { errorToast } from '../lib/errorToast'
+import { withRetry } from '../lib/withRetry'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
-import { useConfigStore, type ActiveTool } from '../stores/configStore'
+import { useConfigStore, type ActiveTool, type ToolsSubTab } from '../stores/configStore'
 import { useToastStore } from '../stores/toastStore'
 import { ToolCard } from '../components/ToolCard'
 import { ProxyConfigPanel } from '../components/ProxyConfigPanel'
@@ -98,7 +100,7 @@ export function DashboardPage() {
   const detectTools = useCallback(async () => {
     setDetecting(true)
     try {
-      const toolStatuses = await DetectAllTools()
+      const toolStatuses = await withRetry(() => DetectAllTools())
       setTools(toolStatuses)
       // Also fetch health data
       try {
@@ -108,11 +110,11 @@ export function DashboardPage() {
         // Health check is non-critical
       }
     } catch (err) {
-      toast('error', `${t('dashboard.title')}: ${err}`, { label: t('dashboard.refresh'), onClick: () => detectTools() })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => detectTools(), t })
     } finally {
       setDetecting(false)
     }
-  }, [t, setDetecting, setTools, setToolHealth, toast])
+  }, [t, setDetecting, setTools, setToolHealth, toast, setActiveTool])
 
   const loadAll = useCallback(async () => {
     await detectTools()
@@ -122,8 +124,8 @@ export function DashboardPage() {
     setCheckingUpdates(true)
     try {
       const [toolUpdates, selfUpdate] = await Promise.all([
-        CheckAllUpdates(),
-        CheckSelfUpdate(),
+        withRetry(() => CheckAllUpdates()),
+        withRetry(() => CheckSelfUpdate()),
       ])
 
       const merged: Record<string, ToolStatus> = { ...(currentTools || tools) }
@@ -139,7 +141,7 @@ export function DashboardPage() {
       setTools(merged)
       setSelfUpdateInfo(selfUpdate)
     } catch (err) {
-      toast('error', `${err}`, { label: t('dashboard.refresh'), onClick: () => checkUpdates() })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => checkUpdates(), t })
     } finally {
       setCheckingUpdates(false)
     }
@@ -156,7 +158,7 @@ export function DashboardPage() {
         onClick: () => handleConfigure(toolName),
       })
     } catch (err) {
-      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleInstall(toolName) })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => handleInstall(toolName), t })
     } finally {
       setInstalling(toolName, false)
     }
@@ -172,7 +174,7 @@ export function DashboardPage() {
       setTools(statuses)
       toast('success', t('dashboard.installAllSuccess'))
     } catch (err) {
-      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleInstallAll() })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => handleInstallAll(), t })
     } finally {
       for (const name of TOOL_ORDER) {
         setInstalling(name, false)
@@ -188,7 +190,7 @@ export function DashboardPage() {
       setTools(statuses)
       toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.updateSuccess')}`)
     } catch (err) {
-      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleUpdate(toolName) })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => handleUpdate(toolName), t })
     } finally {
       setUpdating(toolName, false)
     }
@@ -204,7 +206,7 @@ export function DashboardPage() {
       setTools(statuses)
       toast('success', t('dashboard.updateAllSuccess'))
     } catch (err) {
-      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleUpdateAll() })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => handleUpdateAll(), t })
     } finally {
       for (const name of TOOL_ORDER) {
         setUpdating(name, false)
@@ -213,7 +215,9 @@ export function DashboardPage() {
   }
 
   const handleConfigure = (toolName: string) => {
-    setActiveTool(toolName as ActiveTool)
+    useConfigStore.getState().setSubTab('tools', toolName)
+    useConfigStore.getState().setLastActiveTool(toolName as ToolsSubTab)
+    setActiveTool('tools')
   }
 
   const handleUninstallRequest = (toolName: string) => {
@@ -231,7 +235,7 @@ export function DashboardPage() {
       setTools(statuses)
       toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.uninstallSuccess')}`)
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', t })
     } finally {
       setUninstalling((prev) => ({ ...prev, [toolName]: false }))
     }
@@ -244,7 +248,7 @@ export function DashboardPage() {
       setProxySettings(settings)
       toast('success', t('dashboard.proxySaved'))
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', t })
     } finally {
       setProxySaving(false)
     }
@@ -262,7 +266,7 @@ export function DashboardPage() {
         toast('success', t('dashboard.proxyConfigured'))
       }
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', t })
     } finally {
       setProxyConfiguring(false)
     }
@@ -279,7 +283,7 @@ export function DashboardPage() {
         toast('success', t('dashboard.relayConfigured'))
       }
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', t })
     } finally {
       setProxyConfiguring(false)
     }
@@ -290,7 +294,7 @@ export function DashboardPage() {
       await ApplySelfUpdate()
       toast('success', t('dashboard.selfUpdateSuccess'))
     } catch (err) {
-      toast('error', `${err}`, { label: t('dashboard.retry'), onClick: () => handleSelfUpdate() })
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', retry: () => handleSelfUpdate(), t })
     }
   }
 
@@ -318,7 +322,7 @@ export function DashboardPage() {
         toast('success', t('dashboard.modelSwitched', { model: display }))
       }
     } catch (err) {
-      toast('error', `${err}`)
+      errorToast(toast, err, { navigate: setActiveTool, currentPage: 'home', t })
     } finally {
       setSwitchingModel(false)
     }

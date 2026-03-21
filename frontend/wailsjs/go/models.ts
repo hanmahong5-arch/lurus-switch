@@ -1613,6 +1613,58 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class ModelCostBreakdown {
+	    model: string;
+	    tokensIn: number;
+	    tokensOut: number;
+	    inputRatio: number;
+	    outputRatio: number;
+	    costUSD: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ModelCostBreakdown(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model = source["model"];
+	        this.tokensIn = source["tokensIn"];
+	        this.tokensOut = source["tokensOut"];
+	        this.inputRatio = source["inputRatio"];
+	        this.outputRatio = source["outputRatio"];
+	        this.costUSD = source["costUSD"];
+	    }
+	}
+	export class RequestLogEntry {
+	    id: string;
+	    timestamp: string;
+	    appId: string;
+	    model: string;
+	    tokensIn: number;
+	    tokensOut: number;
+	    latencyMs: number;
+	    statusCode: number;
+	    cached: boolean;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RequestLogEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.timestamp = source["timestamp"];
+	        this.appId = source["appId"];
+	        this.model = source["model"];
+	        this.tokensIn = source["tokensIn"];
+	        this.tokensOut = source["tokensOut"];
+	        this.latencyMs = source["latencyMs"];
+	        this.statusCode = source["statusCode"];
+	        this.cached = source["cached"];
+	        this.error = source["error"];
+	    }
+	}
 	
 	export class SystemInfo {
 	    appVersion: string;
@@ -1651,6 +1703,72 @@ export namespace main {
 	        this.createdAt = source["createdAt"];
 	        this.size = source["size"];
 	    }
+	}
+	export class UpstreamHealthResult {
+	    reachable: boolean;
+	    latencyMs: number;
+	    statusCode: number;
+	    endpoint: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpstreamHealthResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.reachable = source["reachable"];
+	        this.latencyMs = source["latencyMs"];
+	        this.statusCode = source["statusCode"];
+	        this.endpoint = source["endpoint"];
+	        this.error = source["error"];
+	    }
+	}
+	export class UsageInsight {
+	    totalCalls: number;
+	    totalTokensIn: number;
+	    totalTokensOut: number;
+	    cacheHitRate: number;
+	    rateLimitEvents: number;
+	    errorEvents: number;
+	    avgLatencyMs: number;
+	    totalCostUSD: number;
+	    modelCosts: ModelCostBreakdown[];
+	
+	    static createFrom(source: any = {}) {
+	        return new UsageInsight(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.totalCalls = source["totalCalls"];
+	        this.totalTokensIn = source["totalTokensIn"];
+	        this.totalTokensOut = source["totalTokensOut"];
+	        this.cacheHitRate = source["cacheHitRate"];
+	        this.rateLimitEvents = source["rateLimitEvents"];
+	        this.errorEvents = source["errorEvents"];
+	        this.avgLatencyMs = source["avgLatencyMs"];
+	        this.totalCostUSD = source["totalCostUSD"];
+	        this.modelCosts = this.convertValues(source["modelCosts"], ModelCostBreakdown);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 
 }

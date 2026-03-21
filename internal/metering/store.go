@@ -179,6 +179,53 @@ func (s *Store) RecentActivity(n int) []ActivityEntry {
 	return out
 }
 
+// Insights returns aggregated insight data for a date range.
+func (s *Store) Insights(from, to time.Time) InsightsRaw {
+	records := s.recordsInRange(from, to)
+	ins := InsightsRaw{
+		ModelTokensIn:  make(map[string]int64),
+		ModelTokensOut: make(map[string]int64),
+	}
+	for _, r := range records {
+		ins.TotalCalls++
+		ins.TotalTokensIn += r.TokensIn
+		ins.TotalTokensOut += r.TokensOut
+		ins.TotalLatencyMs += r.LatencyMs
+		if r.CachedHit {
+			ins.CacheHits++
+		}
+		if r.StatusCode == 429 {
+			ins.RateLimitEvents++
+		}
+		if r.StatusCode >= 500 {
+			ins.ErrorEvents++
+		}
+		ins.ModelTokensIn[r.Model] += r.TokensIn
+		ins.ModelTokensOut[r.Model] += r.TokensOut
+	}
+	if ins.TotalCalls > 0 {
+		ins.AvgLatencyMs = ins.TotalLatencyMs / ins.TotalCalls
+	}
+	return ins
+}
+
+// RecentRecords returns the N most recent raw records from memory.
+func (s *Store) RecentRecords(n int) []Record {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if n <= 0 || n > len(s.recent) {
+		n = len(s.recent)
+	}
+	start := len(s.recent) - n
+	if start < 0 {
+		start = 0
+	}
+	out := make([]Record, len(s.recent)-start)
+	copy(out, s.recent[start:])
+	return out
+}
+
 // TotalRequests returns the lifetime request count (today + buffer).
 func (s *Store) TotalRequests() int64 {
 	s.mu.RLock()

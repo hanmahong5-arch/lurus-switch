@@ -293,8 +293,8 @@ func TestScenario_PartialConfig_MissingFieldsGetDefaults(t *testing.T) {
 	if s.EditorFontSize != 13 {
 		t.Errorf("missing EditorFontSize should default to 13, got %d", s.EditorFontSize)
 	}
-	if s.StartupPage != "dashboard" {
-		t.Errorf("missing StartupPage should default to dashboard, got %q", s.StartupPage)
+	if s.StartupPage != "home" {
+		t.Errorf("missing StartupPage should default to home, got %q", s.StartupPage)
 	}
 	if s.OnboardingCompleted {
 		t.Error("missing OnboardingCompleted should default to false (wizard shows)")
@@ -349,7 +349,7 @@ func TestScenario_RapidSaveCalls_NoDataCorruption(t *testing.T) {
 func TestScenario_UserSetsStartupPage_AllValidPages(t *testing.T) {
 	setupEnv(t)
 
-	pages := []string{"dashboard", "claude", "codex", "gemini", "picoclaw", "nullclaw"}
+	pages := []string{"home", "tools", "gateway", "workspace", "account", "settings"}
 
 	for _, page := range pages {
 		s := DefaultAppSettings()

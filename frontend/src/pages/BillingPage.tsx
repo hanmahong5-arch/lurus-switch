@@ -1,6 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { RefreshCw, Loader2, Copy, Check } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { errorToast } from '../lib/errorToast'
+import { withRetry } from '../lib/withRetry'
 import { useBillingStore } from '../stores/billingStore'
 import { useToastStore } from '../stores/toastStore'
 import { useDashboardStore, type ProxySettings } from '../stores/dashboardStore'
@@ -61,7 +63,7 @@ export function BillingPage() {
         }
       })
       .catch((err: unknown) => {
-        toast('error', `Failed to load proxy settings: ${err}`)
+        errorToast(toast, err, { currentPage: 'account' })
       })
   }, [])
 
@@ -69,7 +71,7 @@ export function BillingPage() {
     setLoading(true)
     try {
       const [info, planList, topUp, subs] = await Promise.all([
-        BillingGetUserInfo(),
+        withRetry(() => BillingGetUserInfo()),
         BillingGetPlans().catch(() => [] as billing.SubscriptionPlan[]),
         BillingGetTopUpInfo().catch(() => null),
         BillingGetSubscriptions().catch(() => [] as billing.SubscriptionInfo[]),
@@ -79,7 +81,7 @@ export function BillingPage() {
       setTopUpInfo(topUp || null)
       setSubscriptions(subs || [])
     } catch (err) {
-      toast('error', `Failed to load billing data: ${err}`, { label: 'Retry', onClick: () => loadBillingData() })
+      errorToast(toast, err, { currentPage: 'account', retry: () => loadBillingData() })
     } finally {
       setLoading(false)
     }
@@ -95,7 +97,7 @@ export function BillingPage() {
       await loadBillingData()
       toast('success', 'Connected successfully')
     } catch (err) {
-      toast('error', `Connection failed: ${err}`)
+      errorToast(toast, err, { currentPage: 'account' })
     } finally {
       setConnecting(false)
     }
@@ -112,7 +114,7 @@ export function BillingPage() {
         toast('warning', 'Top-up created but no payment URL received')
       }
     } catch (err) {
-      toast('error', `Top-up failed: ${err}`, { label: 'Retry', onClick: () => handleTopUp(amount, method) })
+      errorToast(toast, err, { currentPage: 'account', retry: () => handleTopUp(amount, method) })
     } finally {
       setPaymentPending(false)
     }
@@ -129,7 +131,7 @@ export function BillingPage() {
         toast('warning', 'Subscription created but no payment URL received')
       }
     } catch (err) {
-      toast('error', `Subscribe failed: ${err}`, { label: 'Retry', onClick: () => handleSubscribe(planCode, method) })
+      errorToast(toast, err, { currentPage: 'account', retry: () => handleSubscribe(planCode, method) })
     } finally {
       setPaymentPending(false)
     }

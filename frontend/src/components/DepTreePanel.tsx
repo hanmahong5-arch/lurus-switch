@@ -2,6 +2,8 @@ import { useEffect, useState, useCallback } from 'react'
 import { ChevronRight, ChevronDown, RefreshCw, Download, Loader2, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from './InlineError'
 import { CheckDependencies, InstallDependency } from '../../wailsjs/go/main/App'
 
 interface RuntimeStatus {
@@ -25,11 +27,11 @@ export function DepTreePanel() {
   const [loading, setLoading] = useState(true)
   const [installing, setInstalling] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { classified: error, setError, clearError } = useClassifiedError()
 
   const loadDeps = useCallback(async () => {
     setLoading(true)
-    setError(null)
+    clearError()
     try {
       const result = await CheckDependencies()
       setDeps(result)
@@ -38,7 +40,7 @@ export function DepTreePanel() {
         setExpanded(true)
       }
     } catch (err) {
-      setError(`${err}`)
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -50,7 +52,7 @@ export function DepTreePanel() {
 
   const handleInstall = async (runtimeId: string) => {
     setInstalling((prev) => ({ ...prev, [runtimeId]: true }))
-    setError(null)
+    clearError()
     try {
       const result = await InstallDependency(runtimeId)
       if (!result.success) {
@@ -58,7 +60,7 @@ export function DepTreePanel() {
       }
       await loadDeps()
     } catch (err) {
-      setError(`${err}`)
+      setError(err)
     } finally {
       setInstalling((prev) => ({ ...prev, [runtimeId]: false }))
     }
@@ -121,9 +123,12 @@ export function DepTreePanel() {
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
           {error && (
-            <div className="text-xs text-red-500 bg-red-500/10 rounded px-3 py-2">
-              {error}
-            </div>
+            <InlineError
+              category={error.category}
+              message={error.message}
+              details={error.details}
+              onDismiss={clearError}
+            />
           )}
 
           {/* Runtime tree */}

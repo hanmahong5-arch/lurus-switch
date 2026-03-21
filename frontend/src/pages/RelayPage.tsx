@@ -1,9 +1,12 @@
 import { useEffect, useState, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Network, Plus, Trash2, RefreshCw, Loader2, CheckCircle2,
   WifiOff, Zap, ChevronDown, ChevronUp, X, Save,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from '../components/InlineError'
 import { useRelayStore } from '../stores/relayStore'
 import {
   GetRelayEndpoints,
@@ -24,12 +27,6 @@ const TOOL_LABELS: Record<string, string> = {
   picoclaw: 'PicoClaw', nullclaw: 'NullClaw', zeroclaw: 'ZeroClaw', openclaw: 'OpenClaw',
 }
 
-const KIND_LABELS: Record<string, string> = {
-  lurus: 'Lurus 官方',
-  third_party: '第三方',
-  custom: '自定义',
-}
-
 function latencyColor(ms: number, healthy: boolean) {
   if (!healthy) return 'text-red-500'
   if (ms < 100) return 'text-green-500'
@@ -38,6 +35,7 @@ function latencyColor(ms: number, healthy: boolean) {
 }
 
 export function RelayPage() {
+  const { t } = useTranslation()
   const {
     endpoints, setEndpoints,
     cloudEndpoints, setCloudEndpoints,
@@ -46,6 +44,12 @@ export function RelayPage() {
     applying, setApplying,
   } = useRelayStore()
 
+  const KIND_LABELS: Record<string, string> = {
+    lurus: t('relay.kindLabels.lurus'),
+    third_party: t('relay.kindLabels.third_party'),
+    custom: t('relay.kindLabels.custom'),
+  }
+
   const [healthChecking, setHealthChecking] = useState(false)
   const [applyResults, setApplyResults] = useState<Record<string, string>>({})
   const [addOpen, setAddOpen] = useState(false)
@@ -53,11 +57,11 @@ export function RelayPage() {
   const [newUrl, setNewUrl] = useState('')
   const [newKey, setNewKey] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
+  const { classified: error, setError, clearError } = useClassifiedError()
 
   const load = useCallback(async () => {
     setLoading(true)
-    setError('')
+    clearError()
     try {
       const [eps, m] = await Promise.all([
         GetRelayEndpoints(),
@@ -66,7 +70,7 @@ export function RelayPage() {
       setEndpoints(eps || [])
       setMapping(m || {})
     } catch (err) {
-      setError(`加载失败: ${err}`)
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -75,19 +79,19 @@ export function RelayPage() {
   useEffect(() => { load() }, [load])
 
   const handleFetchCloud = async () => {
-    setError('')
+    clearError()
     try {
       const eps = await FetchCloudRelayEndpoints()
       setCloudEndpoints(eps || [])
     } catch (err) {
-      setError(`获取云端中转站失败: ${err}`)
+      setError(err)
     }
   }
 
   const handleAdd = async () => {
     if (!newName.trim() || !newUrl.trim()) return
     setSaving(true)
-    setError('')
+    clearError()
     try {
       const ep = relay.RelayEndpoint.createFrom({
         id: '',
@@ -105,7 +109,7 @@ export function RelayPage() {
       setAddOpen(false)
       await load()
     } catch (err) {
-      setError(`保存失败: ${err}`)
+      setError(err)
     } finally {
       setSaving(false)
     }
@@ -116,18 +120,18 @@ export function RelayPage() {
       await DeleteRelayEndpoint(id)
       await load()
     } catch (err) {
-      setError(`删除失败: ${err}`)
+      setError(err)
     }
   }
 
   const handleUseCloud = async (ep: relay.RelayEndpoint) => {
     setSaving(true)
-    setError('')
+    clearError()
     try {
       await SaveRelayEndpoint(ep)
       await load()
     } catch (err) {
-      setError(`添加失败: ${err}`)
+      setError(err)
     } finally {
       setSaving(false)
     }
@@ -135,12 +139,12 @@ export function RelayPage() {
 
   const handleHealthCheck = async () => {
     setHealthChecking(true)
-    setError('')
+    clearError()
     try {
       const updated = await CheckRelayHealth()
       setEndpoints(updated || [])
     } catch (err) {
-      setError(`健康检查失败: ${err}`)
+      setError(err)
     } finally {
       setHealthChecking(false)
     }
@@ -154,19 +158,19 @@ export function RelayPage() {
     try {
       await SaveToolRelayMapping(mapping)
     } catch (err) {
-      setError(`保存映射失败: ${err}`)
+      setError(err)
     }
   }
 
   const handleApplyAll = async () => {
     setApplying(true)
     setApplyResults({})
-    setError('')
+    clearError()
     try {
       const results = await ApplyAllToolRelays()
       setApplyResults(results || {})
     } catch (err) {
-      setError(`应用失败: ${err}`)
+      setError(err)
     } finally {
       setApplying(false)
     }
@@ -183,9 +187,9 @@ export function RelayPage() {
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
               <Network className="h-5 w-5 text-sky-500" />
-              中转站管理
+              {t('relay.title')}
             </h2>
-            <p className="text-sm text-muted-foreground mt-0.5">管理 API 中转站端点及工具路由映射</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{t('relay.subtitle')}</p>
           </div>
           <button
             onClick={handleHealthCheck}
@@ -196,32 +200,34 @@ export function RelayPage() {
             )}
           >
             {healthChecking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            健康检查
+            {t('relay.healthCheck')}
           </button>
         </div>
 
         {/* Error banner */}
         {error && (
-          <div className="flex items-center justify-between px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
-            <span>{error}</span>
-            <button onClick={() => setError('')}><X className="h-3.5 w-3.5" /></button>
-          </div>
+          <InlineError
+            category={error.category}
+            message={error.message}
+            details={error.details}
+            onDismiss={clearError}
+          />
         )}
 
         {/* Zone A: Recommended cloud relays */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">推荐中转站</h3>
+            <h3 className="text-sm font-semibold">{t('relay.recommended')}</h3>
             <button
               onClick={handleFetchCloud}
               className="text-xs text-primary hover:underline flex items-center gap-1"
             >
               <RefreshCw className="h-3 w-3" />
-              从云端获取
+              {t('relay.fetchFromCloud')}
             </button>
           </div>
           {cloudEndpoints.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">点击"从云端获取"加载推荐中转站列表</p>
+            <p className="text-xs text-muted-foreground py-2">{t('relay.fetchHint')}</p>
           ) : (
             <div className="space-y-2">
               {cloudEndpoints.map((ep) => (
@@ -248,7 +254,7 @@ export function RelayPage() {
                     disabled={saving}
                     className="shrink-0 px-2.5 py-1 rounded text-xs font-medium bg-primary/10 hover:bg-primary/20 text-primary transition-colors disabled:opacity-50"
                   >
-                    使用此中转站
+                    {t('relay.useRelay')}
                   </button>
                 </div>
               ))}
@@ -259,13 +265,13 @@ export function RelayPage() {
         {/* Zone B: Custom endpoints */}
         <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">自定义中转站</h3>
+            <h3 className="text-sm font-semibold">{t('relay.custom')}</h3>
             <button
               onClick={() => setAddOpen(!addOpen)}
               className="flex items-center gap-1 text-xs text-primary hover:underline"
             >
               <Plus className="h-3 w-3" />
-              添加中转站
+              {t('relay.addRelay')}
               {addOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
             </button>
           </div>
@@ -275,11 +281,11 @@ export function RelayPage() {
             <div className="border border-border rounded-lg p-3 bg-muted/30 space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-xs text-muted-foreground mb-1">名称 *</label>
+                  <label className="block text-xs text-muted-foreground mb-1">{t('relay.nameLabel')}</label>
                   <input
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
-                    placeholder="我的中转站"
+                    placeholder={t('relay.namePlaceholder')}
                     className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                   />
                 </div>
@@ -294,7 +300,7 @@ export function RelayPage() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground mb-1">API Key（可选）</label>
+                <label className="block text-xs text-muted-foreground mb-1">{t('relay.apiKeyLabel')}</label>
                 <input
                   type="password"
                   value={newKey}
@@ -308,7 +314,7 @@ export function RelayPage() {
                   onClick={() => { setAddOpen(false); setNewName(''); setNewUrl(''); setNewKey('') }}
                   className="px-3 py-1.5 text-xs rounded border border-border hover:bg-muted transition-colors"
                 >
-                  取消
+                  {t('relay.cancel')}
                 </button>
                 <button
                   onClick={handleAdd}
@@ -320,7 +326,7 @@ export function RelayPage() {
                   )}
                 >
                   {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                  保存
+                  {t('relay.save')}
                 </button>
               </div>
             </div>
@@ -329,10 +335,10 @@ export function RelayPage() {
           {loading ? (
             <div className="flex items-center gap-2 py-4">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">加载中...</span>
+              <span className="text-xs text-muted-foreground">{t('relay.loading')}</span>
             </div>
           ) : customEndpoints.length === 0 ? (
-            <p className="text-xs text-muted-foreground py-2">暂无自定义中转站</p>
+            <p className="text-xs text-muted-foreground py-2">{t('relay.emptyCustom')}</p>
           ) : (
             <div className="space-y-2">
               {customEndpoints.map((ep) => (
@@ -352,7 +358,7 @@ export function RelayPage() {
                   <button
                     onClick={() => handleDelete(ep.id)}
                     className="shrink-0 p-1.5 rounded hover:bg-red-500/10 text-red-500/60 hover:text-red-500 transition-colors"
-                    title="删除"
+                    title={t('relay.deleteTitle')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -364,7 +370,7 @@ export function RelayPage() {
 
         {/* Zone C: Tool → relay mapping */}
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold">工具路由映射</h3>
+          <h3 className="text-sm font-semibold">{t('relay.toolRouting')}</h3>
           <div className="border border-border rounded-lg divide-y divide-border">
             {TOOL_ORDER.map((toolName) => (
               <div key={toolName} className="flex items-center justify-between px-3 py-2">
@@ -374,7 +380,7 @@ export function RelayPage() {
                   onChange={(e) => handleMappingChange(toolName, e.target.value)}
                   className="text-xs px-2 py-1 rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary max-w-[200px]"
                 >
-                  <option value="">— 不指定 —</option>
+                  <option value="">{t('relay.noRelay')}</option>
                   {allEndpointOptions.map((ep) => (
                     <option key={ep.id} value={ep.id}>{ep.name}</option>
                   ))}
@@ -392,7 +398,7 @@ export function RelayPage() {
                   result === '' ? 'text-green-500 bg-green-500/5' : 'text-red-500 bg-red-500/5'
                 )}>
                   {result === '' ? <CheckCircle2 className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                  {TOOL_LABELS[tool] || tool}: {result === '' ? '已应用' : result}
+                  {TOOL_LABELS[tool] || tool}: {result === '' ? t('relay.applied') : result}
                 </div>
               ))}
             </div>
@@ -407,7 +413,7 @@ export function RelayPage() {
               )}
             >
               <Save className="h-3.5 w-3.5" />
-              保存映射
+              {t('relay.saveMapping')}
             </button>
             <button
               onClick={handleApplyAll}
@@ -419,7 +425,7 @@ export function RelayPage() {
               )}
             >
               {applying ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Zap className="h-3.5 w-3.5" />}
-              一键应用
+              {t('relay.applyAll')}
             </button>
           </div>
         </section>

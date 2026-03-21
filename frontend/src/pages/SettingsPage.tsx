@@ -2,9 +2,12 @@ import { useEffect, useState, useCallback } from 'react'
 import { Save, Loader2, CheckCircle2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from '../components/InlineError'
+import { classifyError } from '../lib/errorClassifier'
 import { GetAppSettings, SaveAppSettings, ClearAllSnapshots, ClearAllUserPrompts } from '../../wailsjs/go/main/App'
 import { appconfig } from '../../wailsjs/go/models'
-import { useConfigStore, type AppMode } from '../stores/configStore'
+import { useConfigStore, type AppMode, type UserLevel } from '../stores/configStore'
 import { PROMOTER_ONLY_PAGES } from '../components/Sidebar'
 
 type Tab = 'appearance' | 'proxy' | 'update' | 'data'
@@ -24,7 +27,7 @@ const DEFAULT: AppSettings = {
   language: 'zh',
   autoUpdate: true,
   editorFontSize: 13,
-  startupPage: 'dashboard',
+  startupPage: 'home',
   onboardingCompleted: true,
   appMode: 'user',
 }
@@ -35,10 +38,10 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  const { classified: error, setError, clearError } = useClassifiedError()
   const [modeConfirm, setModeConfirm] = useState<AppMode | null>(null)
   const { t, i18n } = useTranslation()
-  const { setAppMode, activeTool, setActiveTool } = useConfigStore()
+  const { setAppMode, setUserLevel, activeTool, setActiveTool } = useConfigStore()
 
   // Apply theme to document root
   const applyTheme = useCallback((theme: string) => {
@@ -73,13 +76,13 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     setSaving(true)
-    setError('')
+    clearError()
     try {
       await SaveAppSettings(appconfig.AppSettings.createFrom(settings))
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     } catch (err) {
-      setError(t('settings.saveError', { error: String(err) }))
+      setError(err)
     } finally {
       setSaving(false)
     }
@@ -129,9 +132,12 @@ export function SettingsPage() {
         </div>
 
         {error && (
-          <div className="px-4 py-2 bg-red-500/10 text-red-500 text-xs rounded-md border border-red-500/20">
-            {error}
-          </div>
+          <InlineError
+            category={error.category}
+            message={error.message}
+            details={error.details}
+            onDismiss={clearError}
+          />
         )}
 
         {/* Tabs */}
@@ -202,12 +208,12 @@ export function SettingsPage() {
                 onChange={(e) => setSettings({ ...settings, startupPage: e.target.value })}
                 className="px-3 py-1.5 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
               >
-                <option value="dashboard">{t('nav.dashboard')}</option>
-                <option value="claude">Claude Code</option>
-                <option value="codex">Codex</option>
-                <option value="gemini">Gemini CLI</option>
-                <option value="picoclaw">PicoClaw</option>
-                <option value="nullclaw">NullClaw</option>
+                <option value="home">{t('nav.home')}</option>
+                <option value="tools">{t('nav.tools')}</option>
+                <option value="gateway">{t('nav.gateway')}</option>
+                <option value="workspace">{t('nav.workspace')}</option>
+                <option value="account">{t('nav.account')}</option>
+                <option value="settings">{t('nav.settings')}</option>
               </select>
             </SettingRow>
 
@@ -272,7 +278,7 @@ export function SettingsPage() {
                         setModeConfirm(null)
                         // Navigate away from promoter-only pages when switching to user mode
                         if (newMode === 'user' && PROMOTER_ONLY_PAGES.has(activeTool)) {
-                          setActiveTool('dashboard')
+                          setActiveTool('home')
                         }
                         try {
                           await SaveAppSettings(appconfig.AppSettings.createFrom(updated))
@@ -285,6 +291,34 @@ export function SettingsPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className="border-t border-border pt-4">
+              <SettingRow label={t('settings.userLevel')} description={t('settings.userLevelDesc')}>
+                <div className="flex rounded-md border border-border overflow-hidden">
+                  {(['beginner', 'regular', 'power'] as const).map((level) => (
+                    <button
+                      key={level}
+                      onClick={async () => {
+                        const updated = { ...settings, userLevel: level }
+                        setSettings(updated)
+                        setUserLevel(level)
+                        try {
+                          await SaveAppSettings(appconfig.AppSettings.createFrom(updated))
+                        } catch { /* ignore */ }
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 text-sm font-medium transition-colors',
+                        (settings as any).userLevel === level
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {t(`settings.level.${level}`)}
+                    </button>
+                  ))}
+                </div>
+              </SettingRow>
             </div>
           </div>
         )}
@@ -408,7 +442,7 @@ function DangerButton({ label, description, onConfirm }: {
       setResult(msg)
       setTimeout(() => setResult(''), 3000)
     } catch (err) {
-      setResult(`Error: ${err}`)
+      setResult(classifyError(err).message)
     } finally {
       setExecuting(false)
       setConfirming(false)

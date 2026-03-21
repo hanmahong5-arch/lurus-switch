@@ -17,9 +17,15 @@ import (
 )
 
 const (
-	configFileName   = "gateway.json"
-	shutdownTimeout  = 5 * time.Second
+	configFileName       = "gateway.json"
+	shutdownTimeout      = 5 * time.Second
+	maxRestartAttempts   = 5
+	initialRestartDelay  = 2 * time.Second
 )
+
+// CrashCallback is invoked when the gateway crashes and auto-restarts.
+// attempt is the current restart attempt number, err is the crash error.
+type CrashCallback func(attempt int, err error)
 
 // Server is the local OpenAI-compatible API gateway.
 type Server struct {
@@ -29,10 +35,14 @@ type Server struct {
 	server    *http.Server
 	startTime time.Time
 	running   atomic.Bool
+	stopCh    chan struct{} // signals intentional stop to watchdog
 
 	// External dependencies (injected).
 	registry *appreg.Registry
 	meter    *metering.Store
+
+	// Crash recovery callback (optional, set via SetCrashCallback).
+	onCrash CrashCallback
 
 	// Runtime counters.
 	totalReqs  atomic.Int64
@@ -49,6 +59,13 @@ func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Sto
 	}
 	s.cfg = s.loadConfig()
 	return s
+}
+
+// SetCrashCallback registers a callback invoked when the gateway crashes and auto-restarts.
+func (s *Server) SetCrashCallback(cb CrashCallback) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.onCrash = cb
 }
 
 // Start begins listening on localhost:port. Non-blocking — returns once listening.
@@ -83,15 +100,81 @@ func (s *Server) Start(ctx context.Context) error {
 
 	s.startTime = time.Now()
 	s.running.Store(true)
+	s.stopCh = make(chan struct{})
 
-	go func() {
-		if err := s.server.Serve(ln); err != nil && err != http.ErrServerClosed {
-			fmt.Fprintf(os.Stderr, "gateway server error: %v\n", err)
-			s.running.Store(false)
-		}
-	}()
+	go s.serveWithWatchdog(ctx, ln)
 
 	return nil
+}
+
+// serveWithWatchdog runs the HTTP server and auto-restarts on unexpected crashes.
+func (s *Server) serveWithWatchdog(ctx context.Context, ln net.Listener) {
+	err := s.server.Serve(ln)
+	if err == nil || err == http.ErrServerClosed {
+		return // graceful shutdown, no restart
+	}
+
+	// Unexpected crash — attempt auto-restart with exponential backoff.
+	fmt.Fprintf(os.Stderr, "gateway server crashed: %v\n", err)
+
+	delay := initialRestartDelay
+	for attempt := 1; attempt <= maxRestartAttempts; attempt++ {
+		// Check if intentional stop was requested during the delay.
+		select {
+		case <-s.stopCh:
+			s.running.Store(false)
+			return
+		case <-ctx.Done():
+			s.running.Store(false)
+			return
+		case <-time.After(delay):
+		}
+
+		// Notify via callback.
+		s.mu.Lock()
+		cb := s.onCrash
+		s.mu.Unlock()
+		if cb != nil {
+			cb(attempt, err)
+		}
+
+		// Try to restart.
+		s.mu.Lock()
+		addr := fmt.Sprintf("127.0.0.1:%d", s.cfg.Port)
+		newLn, listenErr := net.Listen("tcp", addr)
+		if listenErr != nil {
+			s.mu.Unlock()
+			fmt.Fprintf(os.Stderr, "gateway restart attempt %d failed: %v\n", attempt, listenErr)
+			delay *= 2 // exponential backoff
+			continue
+		}
+
+		mux := http.NewServeMux()
+		s.registerRoutes(mux)
+		s.server = &http.Server{
+			Addr:         addr,
+			Handler:      mux,
+			ReadTimeout:  5 * time.Minute,
+			WriteTimeout: 10 * time.Minute,
+			IdleTimeout:  120 * time.Second,
+		}
+		s.startTime = time.Now()
+		s.mu.Unlock()
+
+		fmt.Fprintf(os.Stderr, "gateway restarted (attempt %d)\n", attempt)
+
+		// Serve again — if this also crashes, the loop continues.
+		err = s.server.Serve(newLn)
+		if err == nil || err == http.ErrServerClosed {
+			return // graceful stop
+		}
+		fmt.Fprintf(os.Stderr, "gateway crashed again: %v\n", err)
+		delay *= 2
+	}
+
+	// Exhausted all restart attempts.
+	s.running.Store(false)
+	fmt.Fprintf(os.Stderr, "gateway failed to restart after %d attempts\n", maxRestartAttempts)
 }
 
 // Stop gracefully shuts down the gateway.
@@ -103,12 +186,25 @@ func (s *Server) Stop() error {
 		return nil
 	}
 
+	// Signal watchdog to stop (don't auto-restart after intentional stop).
+	if s.stopCh != nil {
+		select {
+		case <-s.stopCh:
+			// already closed
+		default:
+			close(s.stopCh)
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	err := s.server.Shutdown(ctx)
+	var err error
+	if s.server != nil {
+		err = s.server.Shutdown(ctx)
+		s.server = nil
+	}
 	s.running.Store(false)
-	s.server = nil
 
 	// Flush metering buffer.
 	if s.meter != nil {
@@ -186,7 +282,7 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	status := s.Status()
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":  "ok",
 		"running": status.Running,
 		"uptime":  status.Uptime,
@@ -197,11 +293,15 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSwitchStatus(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	status := s.Status()
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	connCount := 0
+	if s.registry != nil {
+		connCount = s.registry.ConnectedCount()
+	}
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"running":       status.Running,
 		"port":          status.Port,
 		"totalRequests": status.TotalRequests,
-		"connectedApps": s.registry.ConnectedCount(),
+		"connectedApps": connCount,
 	})
 }
 
@@ -209,7 +309,7 @@ func (s *Server) handleSwitchStatus(w http.ResponseWriter, r *http.Request) {
 // In Phase 2 this will query Lurus Cloud via the billing client.
 func (s *Server) handleSwitchBalance(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	_ = json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "balance endpoint: integrate with billing client in Phase 2",
 	})
 }

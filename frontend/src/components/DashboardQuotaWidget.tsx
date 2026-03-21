@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Loader2, ExternalLink, WifiOff } from 'lucide-react'
+import { Loader2, ExternalLink } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from './InlineError'
 import { useDashboardStore } from '../stores/dashboardStore'
 import { useConfigStore } from '../stores/configStore'
 import { BillingGetQuotaSummary } from '../../wailsjs/go/main/App'
@@ -20,14 +22,14 @@ export function DashboardQuotaWidget() {
   const { setActiveTool } = useConfigStore()
   const [data, setData] = useState<QuotaData | null>(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { classified: error, setError, clearError } = useClassifiedError()
 
   const hasToken = !!proxySettings.userToken
 
   useEffect(() => {
     if (!hasToken) return
     setLoading(true)
-    setError(null)
+    clearError()
     BillingGetQuotaSummary()
       .then((r) => {
         if (r && typeof r === 'object' && 'quota' in r && 'used_quota' in r) {
@@ -36,7 +38,7 @@ export function DashboardQuotaWidget() {
           setError('Invalid response from billing server')
         }
       })
-      .catch((err) => setError(String(err)))
+      .catch((err) => setError(err))
       .finally(() => setLoading(false))
   }, [hasToken])
 
@@ -46,17 +48,17 @@ export function DashboardQuotaWidget() {
       <div className="border border-border rounded-lg p-4 bg-card flex items-center justify-between">
         <div>
           <h3 className="text-sm font-medium">{t('dashboard.quota.title')}</h3>
-          <p className="text-xs text-muted-foreground mt-0.5">请先配置 API 端点</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('account.configureEndpoint')}</p>
         </div>
         <button
-          onClick={() => setActiveTool('billing')}
+          onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
             'border border-border hover:bg-muted'
           )}
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          前往配置
+          {t('account.goToConfigure')}
         </button>
       </div>
     )
@@ -71,7 +73,7 @@ export function DashboardQuotaWidget() {
           <p className="text-xs text-muted-foreground mt-0.5">{t('dashboard.quota.connectDesc')}</p>
         </div>
         <button
-          onClick={() => setActiveTool('billing')}
+          onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
             'bg-primary text-primary-foreground hover:bg-primary/90'
@@ -94,24 +96,27 @@ export function DashboardQuotaWidget() {
     )
   }
 
-  // Error state: show actual error message
+  // Error state: show classified error
   if (error || !data) {
     return (
       <div className="border border-border rounded-lg p-4 bg-card space-y-1.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <WifiOff className="h-4 w-4 text-red-400" />
-            <span className="text-sm">{t('dashboard.quota.offline')}</span>
-          </div>
+          <h3 className="text-sm font-medium">{t('dashboard.quota.title')}</h3>
           <button
-            onClick={() => setActiveTool('billing')}
+            onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
             className="text-xs text-primary hover:underline"
           >
             {t('dashboard.quota.details')}
           </button>
         </div>
         {error && (
-          <p className="text-xs text-red-400/80 pl-6 truncate" title={error}>{error}</p>
+          <InlineError
+            category={error.category}
+            message={error.message}
+            details={error.details}
+            action={{ label: t('error.action.retry'), onClick: () => { clearError(); setLoading(true); BillingGetQuotaSummary().then((r) => { if (r && typeof r === 'object' && 'quota' in r) setData(r as QuotaData) }).catch((e) => setError(e)).finally(() => setLoading(false)) } }}
+            onDismiss={clearError}
+          />
         )}
       </div>
     )
@@ -132,7 +137,7 @@ export function DashboardQuotaWidget() {
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">{t('dashboard.quota.title')}</h3>
         <button
-          onClick={() => setActiveTool('billing')}
+          onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
           className="text-xs text-primary hover:underline"
         >
           {t('dashboard.quota.details')}

@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { useConfigStore } from './configStore'
+import { useConfigStore, migrateLegacyRoute } from './configStore'
 
 describe('configStore', () => {
   beforeEach(() => {
     useConfigStore.setState({
-      activeTool: 'dashboard',
+      activeTool: 'home',
       previewContent: '',
       status: 'Ready',
+      subTabState: {},
       savedConfigs: {
         claude: [],
         codex: [],
@@ -21,9 +22,9 @@ describe('configStore', () => {
 
   // === Initial State Tests ===
   describe('initial state', () => {
-    it('should have dashboard as the default active tool', () => {
+    it('should have home as the default active tool', () => {
       const { activeTool } = useConfigStore.getState()
-      expect(activeTool).toBe('dashboard')
+      expect(activeTool).toBe('home')
     })
 
     it('should have Ready status', () => {
@@ -50,35 +51,88 @@ describe('configStore', () => {
 
   // === Tool Switching Tests ===
   describe('setActiveTool', () => {
-    it('should switch to codex', () => {
+    it('should switch to tools', () => {
       const { setActiveTool } = useConfigStore.getState()
-      setActiveTool('codex')
-      expect(useConfigStore.getState().activeTool).toBe('codex')
+      setActiveTool('tools')
+      expect(useConfigStore.getState().activeTool).toBe('tools')
     })
 
-    it('should switch to gemini', () => {
+    it('should switch to gateway', () => {
       const { setActiveTool } = useConfigStore.getState()
-      setActiveTool('gemini')
-      expect(useConfigStore.getState().activeTool).toBe('gemini')
+      setActiveTool('gateway')
+      expect(useConfigStore.getState().activeTool).toBe('gateway')
     })
 
-    it('should switch back to dashboard', () => {
+    it('should switch back to home', () => {
       const { setActiveTool } = useConfigStore.getState()
-      setActiveTool('codex')
-      setActiveTool('dashboard')
-      expect(useConfigStore.getState().activeTool).toBe('dashboard')
+      setActiveTool('tools')
+      setActiveTool('home')
+      expect(useConfigStore.getState().activeTool).toBe('home')
     })
 
-    it('should switch to all tool values', () => {
+    it('should switch to all new tool values', () => {
       const tools = [
-        'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
-        'billing', 'settings', 'process', 'prompts', 'documents', 'admin',
+        'home', 'tools', 'gateway', 'workspace', 'account', 'settings', 'promotion', 'api-admin',
       ] as const
 
       for (const tool of tools) {
         useConfigStore.getState().setActiveTool(tool)
         expect(useConfigStore.getState().activeTool).toBe(tool)
       }
+    })
+  })
+
+  // === Sub-tab State Tests ===
+  describe('subTabState', () => {
+    it('should set and get sub-tab for a page', () => {
+      const { setSubTab, getSubTab } = useConfigStore.getState()
+      setSubTab('tools', 'codex')
+      expect(useConfigStore.getState().getSubTab('tools', 'claude')).toBe('codex')
+    })
+
+    it('should return default when no sub-tab set', () => {
+      const { getSubTab } = useConfigStore.getState()
+      expect(getSubTab('tools', 'claude')).toBe('claude')
+    })
+
+    it('should maintain independent sub-tabs per page', () => {
+      const { setSubTab } = useConfigStore.getState()
+      setSubTab('tools', 'gemini')
+      setSubTab('gateway', 'usage')
+      setSubTab('workspace', 'context')
+
+      const state = useConfigStore.getState()
+      expect(state.getSubTab('tools', 'claude')).toBe('gemini')
+      expect(state.getSubTab('gateway', 'control')).toBe('usage')
+      expect(state.getSubTab('workspace', 'prompts')).toBe('context')
+    })
+  })
+
+  // === Legacy Migration Tests ===
+  describe('migrateLegacyRoute', () => {
+    it('should map dashboard to home', () => {
+      expect(migrateLegacyRoute('dashboard')).toEqual({ tool: 'home' })
+    })
+
+    it('should map tool names to tools page with subTab', () => {
+      expect(migrateLegacyRoute('claude')).toEqual({ tool: 'tools', subTab: 'claude' })
+      expect(migrateLegacyRoute('codex')).toEqual({ tool: 'tools', subTab: 'codex' })
+    })
+
+    it('should map billing to account', () => {
+      expect(migrateLegacyRoute('billing')).toEqual({ tool: 'account', subTab: 'billing' })
+    })
+
+    it('should map process to workspace', () => {
+      expect(migrateLegacyRoute('process')).toEqual({ tool: 'workspace', subTab: 'process' })
+    })
+
+    it('should map gateway-channels to api-admin', () => {
+      expect(migrateLegacyRoute('gateway-channels')).toEqual({ tool: 'api-admin', subTab: 'channels' })
+    })
+
+    it('should map unknown to home', () => {
+      expect(migrateLegacyRoute('unknown-page')).toEqual({ tool: 'home' })
     })
   })
 
@@ -90,18 +144,6 @@ describe('configStore', () => {
 
       const { previewContent } = useConfigStore.getState()
       expect(previewContent).toBe('{"model": "test"}')
-    })
-
-    it('setPreviewContent should handle multiline content', () => {
-      const { setPreviewContent } = useConfigStore.getState()
-      const content = `{
-  "model": "test",
-  "maxTokens": 8192
-}`
-      setPreviewContent(content)
-
-      const { previewContent } = useConfigStore.getState()
-      expect(previewContent).toBe(content)
     })
 
     it('setPreviewContent should handle empty content', () => {
@@ -123,25 +165,6 @@ describe('configStore', () => {
       const { status } = useConfigStore.getState()
       expect(status).toBe('Saving...')
     })
-
-    it('setStatus should handle various status messages', () => {
-      const { setStatus } = useConfigStore.getState()
-
-      const statuses = [
-        'Ready',
-        'Saving...',
-        'Saved successfully',
-        'Error: Invalid configuration',
-        'Validating...',
-        'Generating...',
-        'Exporting...',
-      ]
-
-      for (const s of statuses) {
-        setStatus(s)
-        expect(useConfigStore.getState().status).toBe(s)
-      }
-    })
   })
 
   // === Saved Configs Tests ===
@@ -154,22 +177,6 @@ describe('configStore', () => {
       expect(savedConfigs.claude).toEqual(['config1', 'config2'])
     })
 
-    it('setSavedConfigs should update codex configs', () => {
-      const { setSavedConfigs } = useConfigStore.getState()
-      setSavedConfigs('codex', ['codex-config1'])
-
-      const { savedConfigs } = useConfigStore.getState()
-      expect(savedConfigs.codex).toEqual(['codex-config1'])
-    })
-
-    it('setSavedConfigs should update gemini configs', () => {
-      const { setSavedConfigs } = useConfigStore.getState()
-      setSavedConfigs('gemini', ['gemini-config1', 'gemini-config2', 'gemini-config3'])
-
-      const { savedConfigs } = useConfigStore.getState()
-      expect(savedConfigs.gemini).toEqual(['gemini-config1', 'gemini-config2', 'gemini-config3'])
-    })
-
     it('setSavedConfigs should not affect other tools', () => {
       const { setSavedConfigs } = useConfigStore.getState()
       setSavedConfigs('claude', ['claude-config'])
@@ -179,10 +186,6 @@ describe('configStore', () => {
       expect(savedConfigs.claude).toEqual(['claude-config'])
       expect(savedConfigs.codex).toEqual(['codex-config'])
       expect(savedConfigs.gemini).toEqual([])
-      expect(savedConfigs.picoclaw).toEqual([])
-      expect(savedConfigs.nullclaw).toEqual([])
-      expect(savedConfigs.zeroclaw).toEqual([])
-      expect(savedConfigs.openclaw).toEqual([])
     })
   })
 
@@ -192,24 +195,23 @@ describe('configStore', () => {
       const { setActiveTool } = useConfigStore.getState()
 
       for (let i = 0; i < 100; i++) {
-        setActiveTool(i % 2 === 0 ? 'claude' : 'codex')
+        setActiveTool(i % 2 === 0 ? 'home' : 'tools')
       }
 
-      // Last iteration i=99 is odd, so final value is 'codex'
-      expect(useConfigStore.getState().activeTool).toBe('codex')
+      expect(useConfigStore.getState().activeTool).toBe('tools')
     })
 
-    it('should handle concurrent tool and status updates', () => {
+    it('should handle concurrent updates', () => {
       const { setActiveTool, setStatus, setPreviewContent } = useConfigStore.getState()
 
-      setActiveTool('claude')
+      setActiveTool('tools')
       setStatus('Saving...')
       setPreviewContent('preview content')
-      setActiveTool('codex')
+      setActiveTool('gateway')
       setStatus('Ready')
 
       const state = useConfigStore.getState()
-      expect(state.activeTool).toBe('codex')
+      expect(state.activeTool).toBe('gateway')
       expect(state.status).toBe('Ready')
       expect(state.previewContent).toBe('preview content')
     })

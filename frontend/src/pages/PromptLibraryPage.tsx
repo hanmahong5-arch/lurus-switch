@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Trash2, Copy, Search, Loader2, Download, Upload, BookOpen } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from '../components/InlineError'
 import {
   ListPrompts, SavePrompt, DeletePrompt, GetBuiltinPrompts,
   ExportPrompts, ImportPrompts,
@@ -20,22 +23,23 @@ interface Prompt {
 const CATEGORIES = ['all', 'coding', 'writing', 'analysis', 'custom'] as const
 type Category = typeof CATEGORIES[number]
 
-const CATEGORY_LABELS: Record<Category, string> = {
-  all: '全部',
-  coding: '代码',
-  writing: '写作',
-  analysis: '分析',
-  custom: '自定义',
+const CATEGORY_I18N_KEYS: Record<Category, string> = {
+  all: 'promptLib.categories.all',
+  coding: 'promptLib.categories.coding',
+  writing: 'promptLib.categories.writing',
+  analysis: 'promptLib.categories.analysis',
+  custom: 'promptLib.categories.custom',
 }
 
 export function PromptLibraryPage() {
+  const { t } = useTranslation()
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [builtins, setBuiltins] = useState<Prompt[]>([])
   const [category, setCategory] = useState<Category>('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Prompt | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const { classified: error, setError, clearError } = useClassifiedError()
   const [showEditor, setShowEditor] = useState(false)
   const [editPrompt, setEditPrompt] = useState<Partial<Prompt>>({})
   const [saving, setSaving] = useState(false)
@@ -51,7 +55,7 @@ export function PromptLibraryPage() {
       setPrompts(userPrompts || [])
       setBuiltins(builtin || [])
     } catch (err) {
-      setError(`Failed to load prompts: ${err}`)
+      setError(err)
     } finally {
       setLoading(false)
     }
@@ -76,7 +80,7 @@ export function PromptLibraryPage() {
       if (selected?.id === id) setSelected(null)
       await loadPrompts()
     } catch (err) {
-      setError(`Failed to delete: ${err}`)
+      setError(err)
     }
   }
 
@@ -97,7 +101,7 @@ export function PromptLibraryPage() {
       setEditPrompt({})
       await loadPrompts()
     } catch (err) {
-      setError(`Failed to save: ${err}`)
+      setError(err)
     } finally {
       setSaving(false)
     }
@@ -115,7 +119,7 @@ export function PromptLibraryPage() {
     try {
       await ExportPrompts()
     } catch (err) {
-      setError(`Export failed: ${err}`)
+      setError(err)
     }
   }
 
@@ -123,10 +127,10 @@ export function PromptLibraryPage() {
     try {
       const count = await ImportPrompts()
       await loadPrompts()
-      setError('')
+      clearError()
       alert(`Successfully imported ${count} prompts.`)
     } catch (err) {
-      setError(`Import failed: ${err}`)
+      setError(err)
     }
   }
 
@@ -145,7 +149,7 @@ export function PromptLibraryPage() {
         <div className="p-3 border-b border-border">
           <h2 className="text-sm font-semibold flex items-center gap-2">
             <BookOpen className="h-4 w-4 text-purple-400" />
-            提示词库
+            {t('promptLib.title')}
           </h2>
         </div>
         <div className="p-2 space-y-1">
@@ -160,7 +164,7 @@ export function PromptLibraryPage() {
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
-              {CATEGORY_LABELS[cat]}
+              {t(CATEGORY_I18N_KEYS[cat])}
             </button>
           ))}
         </div>
@@ -169,13 +173,13 @@ export function PromptLibraryPage() {
             onClick={handleExport}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
           >
-            <Download className="h-3.5 w-3.5" /> 导出
+            <Download className="h-3.5 w-3.5" /> {t('promptLib.exportBtn')}
           </button>
           <button
             onClick={handleImport}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
           >
-            <Upload className="h-3.5 w-3.5" /> 导入
+            <Upload className="h-3.5 w-3.5" /> {t('promptLib.importBtn')}
           </button>
         </div>
       </div>
@@ -189,7 +193,7 @@ export function PromptLibraryPage() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="搜索提示词..."
+              placeholder={t('promptLib.searchPlaceholder')}
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
@@ -200,14 +204,17 @@ export function PromptLibraryPage() {
             }}
             className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
-            <Plus className="h-3.5 w-3.5" /> 新建提示词
+            <Plus className="h-3.5 w-3.5" /> {t('promptLib.newPrompt')}
           </button>
         </div>
 
         {error && (
-          <div className="px-3 py-2 text-xs text-red-500 bg-red-500/10 border-b border-red-500/20">
-            {error}
-          </div>
+          <InlineError
+            category={error.category}
+            message={error.message}
+            details={error.details}
+            onDismiss={clearError}
+          />
         )}
 
         <div className="flex-1 overflow-y-auto">
@@ -252,13 +259,13 @@ export function PromptLibraryPage() {
       <div className="flex-1 overflow-y-auto">
         {showEditor ? (
           <div className="p-6 space-y-4">
-            <h3 className="font-semibold">{editPrompt.id ? '编辑提示词' : '新建提示词'}</h3>
+            <h3 className="font-semibold">{editPrompt.id ? t('promptLib.editPrompt') : t('promptLib.newPrompt')}</h3>
             <div className="space-y-3">
               <input
                 type="text"
                 value={editPrompt.name || ''}
                 onChange={(e) => setEditPrompt({ ...editPrompt, name: e.target.value })}
-                placeholder="提示词名称"
+                placeholder={t('promptLib.namePlaceholder')}
                 className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
               />
               <select
@@ -267,13 +274,13 @@ export function PromptLibraryPage() {
                 className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
               >
                 {CATEGORIES.filter((c) => c !== 'all').map((c) => (
-                  <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>
+                  <option key={c} value={c}>{t(CATEGORY_I18N_KEYS[c])}</option>
                 ))}
               </select>
               <textarea
                 value={editPrompt.content || ''}
                 onChange={(e) => setEditPrompt({ ...editPrompt, content: e.target.value })}
-                placeholder="提示词内容..."
+                placeholder={t('promptLib.contentPlaceholder')}
                 rows={12}
                 className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-none font-mono"
               />
@@ -282,14 +289,14 @@ export function PromptLibraryPage() {
                   onClick={() => { setShowEditor(false); setEditPrompt({}) }}
                   className="px-4 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors"
                 >
-                  取消
+                  {t('promptLib.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
                   className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : '保存'}
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('promptLib.save')}
                 </button>
               </div>
             </div>
@@ -312,7 +319,7 @@ export function PromptLibraryPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-muted transition-colors"
                 >
                   <Copy className="h-3.5 w-3.5" />
-                  {copied ? '已复制!' : '复制'}
+                  {copied ? t('promptLib.copied') : t('promptLib.copy')}
                 </button>
                 {!selected.id.startsWith('builtin-') && (
                   <button
@@ -322,7 +329,7 @@ export function PromptLibraryPage() {
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-muted transition-colors"
                   >
-                    编辑
+                    {t('promptLib.edit')}
                   </button>
                 )}
               </div>
@@ -333,7 +340,7 @@ export function PromptLibraryPage() {
           </div>
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-            选择一个提示词查看详情
+            {t('promptLib.selectHint')}
           </div>
         )}
       </div>

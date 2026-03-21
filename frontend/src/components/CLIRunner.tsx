@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react'
 import { Play, Square, Trash2, Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { classifyError } from '../lib/errorClassifier'
 import { LaunchTool, GetToolOutput, StopToolSession } from '../../wailsjs/go/main/App'
 
 const TOOLS = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw']
@@ -12,6 +14,7 @@ const QUICK_COMMANDS: { label: string; args: string }[] = [
 ]
 
 export function CLIRunner() {
+  const { t } = useTranslation()
   const [tool, setTool] = useState('claude')
   const [args, setArgs] = useState('')
   const [launching, setLaunching] = useState(false)
@@ -47,7 +50,7 @@ export function CLIRunner() {
       setSessionID(id)
       startPoll(id)
     } catch (err) {
-      setOutput([`Error: ${err}`])
+      setOutput([classifyError(err).message])
     } finally {
       setLaunching(false)
     }
@@ -88,7 +91,7 @@ export function CLIRunner() {
           value={args}
           onChange={(e) => setArgs(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !sessionID && handleLaunch()}
-          placeholder="参数..."
+          placeholder={t('cliRunner.argsPlaceholder')}
           className="flex-1 px-2 py-1.5 text-sm bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary font-mono"
         />
         {sessionID ? (
@@ -98,7 +101,7 @@ export function CLIRunner() {
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-red-500 text-white rounded hover:bg-red-600 transition-colors disabled:opacity-50"
           >
             {stopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Square className="h-3.5 w-3.5" />}
-            Stop
+            {t('process.stop')}
           </button>
         ) : (
           <button
@@ -107,14 +110,14 @@ export function CLIRunner() {
             className="flex items-center gap-1 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
             {launching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-            运行
+            {t('cliRunner.run')}
           </button>
         )}
       </div>
 
       {/* Quick Commands */}
       <div className="flex items-center gap-1 flex-wrap">
-        <span className="text-xs text-muted-foreground mr-1">快速:</span>
+        <span className="text-xs text-muted-foreground mr-1">{t('cliRunner.quick')}</span>
         {QUICK_COMMANDS.map((q) => (
           <button
             key={q.label}
@@ -132,7 +135,7 @@ export function CLIRunner() {
         <div className="space-y-1">
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">
-              输出 {sessionID ? `(${sessionID.slice(-8)})` : ''}
+              {t('cliRunner.output')} {sessionID ? `(${sessionID.slice(-8)})` : ''}
             </span>
             <button
               onClick={() => setOutput([])}

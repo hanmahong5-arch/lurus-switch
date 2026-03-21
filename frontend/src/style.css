@@ -79,7 +79,7 @@
   @apply bg-muted-foreground/50;
 }
 
-/* Toast slide-in animation */
+/* Toast slide-in / slide-out animations */
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -90,8 +90,27 @@
     transform: translateX(0);
   }
 }
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+    max-height: 200px;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(100%);
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+  }
+}
 .toast-enter {
   animation: toast-in 0.2s ease-out;
+}
+.toast-exit {
+  animation: toast-out 0.25s ease-in forwards;
+  pointer-events: none;
 }
 
 /* Wails window drag region */

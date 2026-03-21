@@ -245,6 +245,8 @@ export function GetRegisteredApps():Promise<Array<appreg.App>>;
 
 export function GetRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
 
+export function GetRequestLog(arg1:number,arg2:string,arg3:string):Promise<Array<main.RequestLogEntry>>;
+
 export function GetServerAdminToken():Promise<string>;
 
 export function GetServerConfig():Promise<serverctl.ServerConfig>;
@@ -264,6 +266,8 @@ export function GetToolDownloadManifest():Promise<toolmanifest.Manifest>;
 export function GetToolOutput(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function GetToolRelayMapping():Promise<relay.ToolRelayMapping>;
+
+export function GetUsageInsights(arg1:string):Promise<main.UsageInsight>;
 
 export function GetUsageReport(arg1:number):Promise<analytics.UsageReport>;
 
@@ -336,6 +340,8 @@ export function OpenToolConfigDir(arg1:string):Promise<void>;
 export function PackageClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
 
 export function PingEndpoint(arg1:string):Promise<number>;
+
+export function PingGatewayUpstream():Promise<main.UpstreamHealthResult>;
 
 export function PingLurusAPI():Promise<boolean>;
 

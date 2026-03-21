@@ -4,19 +4,63 @@
     "subtitle": "AI CLI 管理器"
   },
   "nav": {
+    "home": "首页",
+    "tools": "工具",
+    "gateway": "网关",
+    "workspace": "工作台",
+    "account": "账户",
+    "settings": "设置",
+    "promotion": "推广",
+    "apiAdmin": "API 管理",
     "dashboard": "仪表盘",
     "toolConfig": "工具配置",
     "billing": "账单",
     "admin": "管理端",
-    "settings": "设置",
     "process": "进程监控",
     "prompts": "提示词库",
     "documents": "上下文文件",
     "relay": "中转站",
     "cliRunner": "CLI 运行器",
-    "gyProducts": "GY 产品",
+    "gyProducts": "Lurus 生态",
     "promoterHub": "推广管理",
     "switchHub": "Switch 网关"
+  },
+  "home": {
+    "title": "首页",
+    "subtitle": "AI 开发环境一览",
+    "healthScore": "健康评分",
+    "envHealthy": "环境状态良好!",
+    "envNeedsWork": "部分项目需要处理",
+    "envCritical": "发现关键问题",
+    "healthDesc": "基于运行时依赖、工具安装、配置健康度、网关连接和系统环境综合评分",
+    "optimize": "一键优化",
+    "optimizeSuccess": "环境优化成功",
+    "scoreDetails": "评分明细",
+    "cat": {
+      "runtimes": "运行时依赖",
+      "tools": "工具安装",
+      "config": "配置健康度",
+      "gateway": "网关与连接",
+      "system": "系统环境"
+    },
+    "quickActions": "待办事项",
+    "allGood": "环境状态良好!",
+    "allGoodDesc": "所有工具已安装、配置正常，并已连接到网关。",
+    "actionLabel": {
+      "install-tool": "安装",
+      "install-runtime": "安装",
+      "update-tool": "更新",
+      "connect-gateway": "全部连接",
+      "start-gateway": "启动",
+      "fix-config": "修复",
+      "install-git": "安装"
+    },
+    "ecosystem": "Lurus 生态应用",
+    "gwControl": "控制",
+    "gwUsage": "用量",
+    "gwApps": "应用",
+    "connection": "连接与配置",
+    "processTab": "进程"
   },
   "schema": {
     "claude": {
@@ -125,6 +169,13 @@
     "modeSwitchConfirm": "切换到{{mode}}？",
     "modeSwitchUserBody": "网关管理和推广功能将隐藏，您可以随时在设置中切换回来。",
     "modeSwitchPromoterBody": "将显示网关管理和推广功能，用于运行本地网关和管理推荐用户。",
+    "userLevel": "界面复杂度",
+    "userLevelDesc": "控制界面显示的细节程度",
+    "level": {
+      "beginner": "简洁",
+      "regular": "标准",
+      "power": "高级"
+    },
     "appearance": {
       "theme": "主题",
       "themeDesc": "选择界面颜色主题",
@@ -139,15 +190,15 @@
       "startupPageDesc": "应用启动后默认显示的页面"
     },
     "proxy": {
-      "movedNotice": "代理配置已移至仪表盘页面的 Proxy Configuration 面板。",
-      "hint": "提示：点击侧边栏的仪表盘，在页面底部找到 Proxy Configuration 区域进行配置。"
+      "movedNotice": "代理配置已移至「账户 > 连接与配置」页面。",
+      "hint": "提示：前往「账户」页面配置代理设置。"
     },
     "update": {
       "autoCheck": "自动检查更新",
       "autoCheckDesc": "启动时自动检查 Lurus Switch 是否有新版本",
       "enabled": "已启用",
       "disabled": "已禁用",
-      "toolUpdateHint": "工具更新（Claude/Codex/Gemini/PicoClaw/NullClaw）可在仪表盘页面手动触发。"
+      "toolUpdateHint": "工具更新（Claude/Codex/Gemini/PicoClaw/NullClaw）可在首页或工具页面触发。"
     },
     "data": {
       "title": "数据管理",
@@ -166,7 +217,8 @@
   },
   "statusBar": {
     "status": "状态",
-    "tools": "个工具"
+    "tools": "个工具",
+    "gatewayOff": "网关已关闭"
   },
   "dashboard": {
     "title": "仪表盘",
@@ -434,7 +486,7 @@
     "gatewayUrl": "网关地址",
     "gatewayUrlDesc": "推广者可配置公网地址让推荐用户连接您的本地网关。",
     "gatewayUrlHint": "在 Gateway > 服务端控制 页面启动本地网关后，将您的公网 IP 和端口分享给用户。",
-    "connectHint": "请先在仪表盘连接 Lurus 账号"
+    "connectHint": "请先在「账户」页面连接 Lurus 账号"
   },
   "wizard": {
     "title": "欢迎使用 Lurus Switch",
@@ -483,7 +535,7 @@
       "title": "选择模型",
       "desc": "选择您的默认 AI 模型。网关会自动将请求路由到对应供应商。",
       "selected": "已选择: {{model}}",
-      "changeLater": "后续可在仪表盘随时切换模型"
+      "changeLater": "后续可在首页随时切换模型"
     },
     "done": {
       "title": "设置完成",
@@ -495,8 +547,8 @@
       "modelConfigured": "模型已设置为 {{model}}",
       "configuring": "正在配置中...",
       "configuringDesc": "正在安装工具并配置网关和模型，请稍候",
-      "someErrors": "{{count}} 个工具配置出现问题，可在仪表盘重试",
-      "goToDashboard": "进入仪表盘"
+      "someErrors": "{{count}} 个工具配置出现问题，可在首页重试",
+      "goToDashboard": "进入首页"
     }
   },
   "model": {
@@ -508,6 +560,25 @@
     },
     "search": "搜索模型...",
     "noResults": "未找到匹配的模型"
+  },
+  "error": {
+    "offline": "\u4e0e\u540e\u7aef\u8fde\u63a5\u4e2d\u65ad \u2014 \u90e8\u5206\u6570\u636e\u53ef\u80fd\u5df2\u8fc7\u671f",
+    "batchFailed": "{{count}} \u4e2a\u64cd\u4f5c\u5931\u8d25",
+    "action": {
+      "retry": "\u91cd\u8bd5",
+      "goTo": "\u524d\u5f80",
+      "checkProxy": "\u68c0\u67e5\u8bbe\u7f6e",
+      "reconnect": "\u91cd\u65b0\u8fde\u63a5",
+      "openConfig": "\u6253\u5f00\u914d\u7f6e",
+      "installTool": "\u524d\u5f80\u5b89\u88c5",
+      "installRuntime": "\u5b89\u88c5\u8fd0\u884c\u65f6",
+      "checkGateway": "\u68c0\u67e5\u7f51\u5173",
+      "checkPermission": "\u68c0\u67e5\u6743\u9650",
+      "copyError": "\u590d\u5236",
+      "copied": "\u5df2\u590d\u5236",
+      "showDetails": "\u8be6\u60c5",
+      "hideDetails": "\u6536\u8d77"
+    }
   },
   "switch": {
     "title": "Switch 网关",
@@ -585,6 +656,9 @@
     "notInstalled": "未安装",
     "configOk": "配置正常",
     "runtimes": "运行时",
+    "installRuntime": "安装",
+    "runtimeInstallSuccess": "{{id}} 安装成功",
+    "runtimeRequired": "被以下工具依赖: {{tools}}",
     "lastConfigResult": "上次配置结果",
     "install": "安装",
     "installSuccess": "已安装",
@@ -614,6 +688,33 @@
     "diagnosticsCopied": "诊断报告已复制到剪贴板",
     "autoFix": "自动修复配置问题",
     "autoFixSuccess": "配置已修复",
+    "openConfig": "打开配置目录",
+    "upstreamOk": "上游",
+    "upstreamDown": "上游不可达",
+    "upstreamWarning": "上游 API 不可达 — 请求将无法转发，请检查连接。",
+    "upstreamWarningHint": "请检查代理设置或网络连接。",
+    "upstreamLatency": "延迟",
+    "cacheHitRate": "缓存命中",
+    "costEstimate": "预估费用",
+    "costExplanation": "基于 {{model}} 定价: ${{inputPrice}}/M 输入, ${{outputPrice}}/M 输出 tokens",
+    "noCostData": "暂无用量数据，无法估算费用",
+    "rateLimitTitle": "速率限制",
+    "rateLimitNone": "未检测到速率限制事件",
+    "requestsPerMin": "次/分",
+    "throttled": "限流中",
+    "topModelCost": "费用最高模型",
+    "requestLog": "请求日志",
+    "requestLogEmpty": "暂无请求记录",
+    "filterApp": "按应用筛选",
+    "filterModel": "按模型筛选",
+    "allApps": "全部应用",
+    "allModels": "全部模型",
+    "statusOk": "正常",
+    "statusErr": "错误",
+    "cached": "缓存",
+    "gatewayCrashRestart": "网关崩溃 — 正在自动重启（第 {{attempt}} 次尝试）",
+    "backendStale": "与后端连接中断 — 显示的数据可能已过期",
+    "backendRetry": "重试",
     "guide": {
       "claude": "添加到 ~/.claude/settings.json:\n\"apiBaseUrl\": \"{{url}}\"",
       "codex": "添加到 ~/.codex/config.toml:\n[provider]\napi_base_url = \"{{url}}\"",
@@ -624,5 +725,310 @@
       "cline": "打开 VS Code → Cline 设置 → 设置 API Base URL 和 API Key",
       "generic": "在你的应用中设置:\n  Base URL: {{url}}\n  API Key: {{token}}"
     }
+  },
+  "account": {
+    "balance": "鹿贝余额",
+    "subscriptionStatus": "订阅状态",
+    "topUp": "充值鹿贝",
+    "subStatus": {
+      "active": "订阅中",
+      "grace": "宽限期",
+      "expired": "已到期",
+      "free": "免费"
+    },
+    "notConnected": "未连接账号",
+    "connected": "已连接账号",
+    "subExpired": "订阅已过期",
+    "quotaExhausted": "配额耗尽 !",
+    "quotaWarning": "配额 ⚠ {{pct}}%",
+    "balanceDisplay": "余额 {{amount}}",
+    "configureEndpoint": "请先配置 API 端点",
+    "goToConfigure": "前往配置"
+  },
+  "proxyPanel": {
+    "connectFailed": "连接失败: 无法到达",
+    "testConnection": "测试连接",
+    "connecting": "连接中...",
+    "connectedMs": "已连接 ({{ms}}ms)"
+  },
+  "hooks": {
+    "events": {
+      "preToolUse": "工具调用前",
+      "postToolUse": "工具调用后",
+      "preCompact": "压缩前"
+    },
+    "templates": {
+      "logToolCalls": "记录工具调用日志",
+      "gitAutoCommit": "Git 自动提交",
+      "securityCheck": "安全检查（阻断敏感操作）"
+    },
+    "quickTemplates": "快速模板",
+    "emptyHint": "暂无 hooks，点击下方按钮添加",
+    "matcherLabel": "Matcher (正则)",
+    "commandLabel": "命令",
+    "commandPlaceholder": "shell 命令...",
+    "addCommand": "添加命令",
+    "addHookRule": "添加 Hook 规则",
+    "saved": "已保存",
+    "saveConfig": "保存 Hooks 配置"
+  },
+  "toolCard": {
+    "viewIssues": "查看问题",
+    "viewIssuesTitle": "查看配置问题"
+  },
+  "gatewayGuard": {
+    "title": "网关服务未运行",
+    "desc": "访问此功能需要先启动网关服务",
+    "goStart": "前往启动"
+  },
+  "cliRunner": {
+    "argsPlaceholder": "参数...",
+    "run": "运行",
+    "quick": "快速:",
+    "output": "输出"
+  },
+  "mcp": {
+    "applyToTools": "应用到工具:",
+    "builtinPresets": "内置 MCP 预设 ({{count}})",
+    "apply": "应用",
+    "customPresets": "自定义预设",
+    "newPreset": "新建",
+    "emptyCustom": "暂无自定义预设",
+    "newPresetTitle": "新建 MCP 预设",
+    "namePlaceholder": "预设名称",
+    "descPlaceholder": "描述（可选）",
+    "transportType": "传输类型",
+    "commandPlaceholder": "命令（如 npx、python）",
+    "argsLabel": "参数",
+    "addArgPlaceholder": "添加参数...",
+    "add": "添加",
+    "urlPlaceholder": "URL（如 http://localhost:3000/sse）",
+    "envVarsLabel": "环境变量",
+    "cancel": "取消",
+    "save": "保存"
+  },
+  "ui": {
+    "showAdvanced": "展开高级选项",
+    "learnMore": "了解更多"
+  },
+  "help": {
+    "gateway": {
+      "title": "什么是网关？",
+      "body": "网关是一个本地 API 代理，将所有 AI 工具的请求汇聚到一个入口。它负责身份验证、模型路由、用量统计，让你无需逐个配置每个工具就能切换服务商。"
+    },
+    "healthScore": {
+      "title": "健康评分",
+      "body": "综合评分（0-100），衡量你的 AI 开发环境配置是否完善。检查运行时依赖、工具安装状态、配置健康度、网关连接和系统环境。"
+    },
+    "proxy": {
+      "title": "API 代理设置",
+      "body": "代理将你的 AI 工具请求通过中转服务器转发。在此设置 API 端点和令牌。如果你有 Lurus 账号，令牌会自动提供。"
+    },
+    "tools": {
+      "title": "AI CLI 工具",
+      "body": "这些是命令行 AI 编程助手，每个工具有自己的配置文件。Lurus Switch 统一管理它们 — 安装、配置、连接网关、保持更新。"
+    },
+    "mcp": {
+      "title": "MCP 服务器",
+      "body": "Model Context Protocol (MCP) 服务器为 AI 工具扩展额外能力，如文件访问、网页浏览或数据库查询。在此添加预设，它们会自动注入到工具配置中。"
+    },
+    "workspace": {
+      "title": "工作台",
+      "body": "集中管理提示词模板、上下文文档（如 CLAUDE.md）和正在运行的 AI 工具进程。"
+    },
+    "autostart": {
+      "title": "开机自启",
+      "body": "启用后，Lurus Switch 会在电脑启动时最小化运行。如果网关也配置了自启动，你的 AI 工具将始终就绪。"
+    },
+    "envVar": {
+      "title": "环境变量",
+      "body": "部分 AI 工具会从环境变量读取 API 密钥。Lurus Switch 可以帮你设置系统级环境变量，让工具在本应用之外也能正常工作。"
+    },
+    "pathConfig": {
+      "title": "PATH 配置",
+      "body": "系统 PATH 告诉终端到哪里寻找程序。如果工具已安装却提示「找不到命令」，说明需要将其安装目录添加到 PATH 中。"
+    }
+  },
+  "toolConfig": {
+    "notInstalledHint": "配置保存后不会生效，请先安装工具",
+    "goInstall": "前往安装 →"
+  },
+  "relay": {
+    "title": "中转站管理",
+    "subtitle": "管理 API 中转站端点及工具路由映射",
+    "healthCheck": "健康检查",
+    "recommended": "推荐中转站",
+    "fetchFromCloud": "从云端获取",
+    "fetchHint": "点击「从云端获取」加载推荐中转站列表",
+    "useRelay": "使用此中转站",
+    "custom": "自定义中转站",
+    "addRelay": "添加中转站",
+    "nameLabel": "名称 *",
+    "namePlaceholder": "我的中转站",
+    "apiKeyLabel": "API Key（可选）",
+    "cancel": "取消",
+    "save": "保存",
+    "loading": "加载中...",
+    "emptyCustom": "暂无自定义中转站",
+    "deleteTitle": "删除",
+    "toolRouting": "工具路由映射",
+    "noRelay": "— 不指定 —",
+    "applied": "已应用",
+    "saveMapping": "保存映射",
+    "applyAll": "一键应用",
+    "kindLabels": {
+      "lurus": "Lurus 官方",
+      "third_party": "第三方",
+      "custom": "自定义"
+    }
+  },
+  "gyProducts": {
+    "title": "Lurus 生态应用",
+    "subtitle": "Lurus 旗下产品集成入口",
+    "refreshStatus": "刷新状态",
+    "loading": "加载中...",
+    "open": "打开{{name}}",
+    "launch": "启动 {{name}}",
+    "downloading": "下载中 {{progress}}",
+    "redownload": "重新下载",
+    "openConsole": "打开控制台",
+    "noProducts": "暂无产品",
+    "checking": "检测中...",
+    "online": "在线",
+    "unreachable": "不可达",
+    "installedVersion": "已安装 v{{version}}",
+    "notInstalled": "未安装",
+    "categories": {
+      "web": "Web 应用",
+      "desktop": "桌面应用",
+      "service": "后台服务"
+    }
+  },
+  "promptLib": {
+    "title": "提示词库",
+    "exportBtn": "导出",
+    "importBtn": "导入",
+    "searchPlaceholder": "搜索提示词...",
+    "newPrompt": "新建提示词",
+    "editPrompt": "编辑提示词",
+    "namePlaceholder": "提示词名称",
+    "contentPlaceholder": "提示词内容...",
+    "cancel": "取消",
+    "save": "保存",
+    "copied": "已复制!",
+    "copy": "复制",
+    "edit": "编辑",
+    "selectHint": "选择一个提示词查看详情",
+    "categories": {
+      "all": "全部",
+      "coding": "代码",
+      "writing": "写作",
+      "analysis": "分析",
+      "custom": "自定义"
+    }
+  },
+  "contextDoc": {
+    "title": "上下文文件",
+    "scopeGlobal": "全局",
+    "scopeProject": "项目",
+    "fileNotExist": "(文件不存在，保存后创建)",
+    "refresh": "刷新",
+    "scanDir": "扫描目录",
+    "saved": "已保存",
+    "save": "保存",
+    "quickInsert": "快速插入",
+    "filePath": "文件路径",
+    "scannedFiles": "扫描到的上下文文件",
+    "noFilesFound": "未找到上下文文件",
+    "close": "关闭",
+    "editorPlaceholder": "# {{file}}.md\n\n在这里输入上下文指令...\n\n这个文件会被 {{tool}} 自动读取，作为全局系统提示词。",
+    "templates": {
+      "codeStandards": "代码规范",
+      "projectStructure": "项目结构",
+      "forbidden": "禁止事项"
+    }
+  },
+  "admin": {
+    "title": "管理端",
+    "subtitle": "系统状态、服务健康、快速链接",
+    "serviceStatus": "服务状态",
+    "checking": "检测中...",
+    "online": "在线",
+    "offline": "离线",
+    "systemInfo": "系统信息",
+    "appVersion": "应用版本",
+    "os": "操作系统",
+    "arch": "架构",
+    "appUpdate": "应用更新",
+    "newVersionFound": "发现新版本 v{{version}}",
+    "upToDate": "已是最新版本",
+    "checkUpdateHint": "点击「检查更新」查看是否有新版本",
+    "toolSummary": "工具摘要",
+    "installed": "已安装",
+    "notInstalled": "未安装",
+    "quickLinks": "快速链接",
+    "links": {
+      "anthropicDocs": "Anthropic 文档",
+      "codexDocs": "OpenAI Codex 文档",
+      "geminiDocs": "Google Gemini CLI",
+      "githubIssues": "GitHub Issues"
+    }
+  },
+  "process": {
+    "title": "进程监控",
+    "subtitle": "查看和管理正在运行的 CLI 工具进程",
+    "pauseRefresh": "暂停刷新",
+    "autoRefresh": "自动刷新",
+    "col": {
+      "tool": "工具",
+      "pid": "PID",
+      "status": "状态",
+      "memory": "内存",
+      "actions": "操作"
+    },
+    "detecting": "检测中...",
+    "empty": "没有检测到正在运行的 CLI 进程",
+    "launchTool": "启动工具",
+    "argsPlaceholder": "参数，如 --version --help",
+    "launch": "启动",
+    "output": "输出",
+    "waitingOutput": "等待输出...",
+    "kill": "终止",
+    "stop": "停止"
+  },
+  "optimizer": {
+    "title": "优化建议",
+    "installRuntime": {
+      "title": "安装 {{target}}",
+      "desc": "此运行时被一个或多个 AI 工具依赖，安装后即可启用工具功能。"
+    },
+    "installTool": {
+      "title": "安装 {{target}}",
+      "desc": "此 AI 工具可用但尚未安装到你的系统。"
+    },
+    "updateTool": {
+      "title": "更新 {{target}}",
+      "desc": "有新版本可用。更新可获得最新功能和问题修复。"
+    },
+    "startGateway": {
+      "title": "启动网关",
+      "desc": "本地 API 网关未运行。启动后即可为所有 AI 工具提供统一路由。"
+    },
+    "connectGateway": {
+      "title": "连接工具到网关",
+      "desc": "部分已安装工具尚未配置使用本地网关。连接后可实现统一 API 路由。"
+    },
+    "fixConfig": {
+      "title": "修复 {{target}} 配置",
+      "desc": "检测到配置问题。自动修复将处理缺失字段或无效值等常见问题。"
+    },
+    "installGit": {
+      "title": "安装 Git",
+      "desc": "推荐安装 Git 用于版本控制，多个 AI 工具也依赖它来获取项目上下文。"
+    },
+    "applyAll": "全部修复",
+    "applying": "修复中...",
+    "allFixed": "所有问题已解决！",
+    "fixableCount": "{{count}} 项可自动修复"
   }
 }

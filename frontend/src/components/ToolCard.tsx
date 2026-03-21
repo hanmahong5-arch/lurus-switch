@@ -161,10 +161,10 @@ export function ToolCard({
                   'flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
                   'border border-amber-500/30 text-amber-500 hover:bg-amber-500/10'
                 )}
-                title="查看配置问题"
+                title={t('toolCard.viewIssuesTitle')}
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
-                查看问题
+                {t('toolCard.viewIssues')}
               </button>
             )}
             {onUninstall && (

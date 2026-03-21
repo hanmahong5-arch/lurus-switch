@@ -115,6 +115,48 @@ export interface ToolSnapshotInfo {
   size: number
 }
 
+export interface UpstreamHealthResult {
+  reachable: boolean
+  latencyMs: number
+  statusCode: number
+  endpoint: string
+  error?: string
+}
+
+export interface ModelCostBreakdown {
+  model: string
+  tokensIn: number
+  tokensOut: number
+  inputRatio: number
+  outputRatio: number
+  costUSD: number
+}
+
+export interface RequestLogEntry {
+  id: string
+  timestamp: string
+  appId: string
+  model: string
+  tokensIn: number
+  tokensOut: number
+  latencyMs: number
+  statusCode: number
+  cached: boolean
+  error?: string
+}
+
+export interface UsageInsight {
+  totalCalls: number
+  totalTokensIn: number
+  totalTokensOut: number
+  cacheHitRate: number
+  rateLimitEvents: number
+  errorEvents: number
+  avgLatencyMs: number
+  totalCostUSD: number
+  modelCosts: ModelCostBreakdown[]
+}
+
 interface SwitchState {
   // Gateway status
   status: GatewayLocalStatus | null

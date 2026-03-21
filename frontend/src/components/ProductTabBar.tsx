@@ -1,9 +1,9 @@
 import { Bot, Zap, Sparkles, Terminal } from 'lucide-react'
 import { cn } from '../lib/utils'
-import type { ActiveTool } from '../stores/configStore'
+import type { ToolsSubTab } from '../stores/configStore'
 
 interface TabItem {
-  id: ActiveTool
+  id: ToolsSubTab
   label: string
   icon: React.ComponentType<{ className?: string }>
   color: string
@@ -21,7 +21,7 @@ const ALL_TOOLS: TabItem[] = [
 
 interface ProductTabBarProps {
   activeTool: string
-  onSelect: (tool: ActiveTool) => void
+  onSelect: (tool: ToolsSubTab) => void
 }
 
 export function ProductTabBar({ activeTool, onSelect }: ProductTabBarProps) {

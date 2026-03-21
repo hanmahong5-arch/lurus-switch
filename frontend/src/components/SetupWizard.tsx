@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
-import { Loader2, CheckCircle2, XCircle, ArrowRight, ArrowLeft, SkipForward, Zap, User } from 'lucide-react'
+import { Loader2, CheckCircle2, ArrowRight, ArrowLeft, SkipForward, Zap, User } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { useClassifiedError } from '../lib/useClassifiedError'
+import { InlineError } from './InlineError'
 import { ModelPicker, type Model } from './ModelPicker'
 import {
   DetectAllTools,
@@ -52,7 +54,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const [lurusToken, setLurusToken] = useState('')
   const [validatingToken, setValidatingToken] = useState(false)
   const [accountInfo, setAccountInfo] = useState<AccountInfo | null>(null)
-  const [accountError, setAccountError] = useState('')
+  const { classified: accountError, setError: setAccountError, clearError: clearAccountError } = useClassifiedError()
   const [promoCode, setPromoCode] = useState('')
   const [proxySaved, setProxySaved] = useState(false)
 
@@ -123,7 +125,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
   const handleValidateToken = async () => {
     if (!lurusToken.trim()) return
     setValidatingToken(true)
-    setAccountError('')
+    clearAccountError()
     setAccountInfo(null)
     try {
       const overview = await BillingValidateToken(LURUS_RELAY_ENDPOINT, lurusToken.trim())
@@ -142,7 +144,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
         setProxySaved(true)
       }
     } catch (err) {
-      setAccountError(`${err}`)
+      setAccountError(err)
     } finally {
       setValidatingToken(false)
     }
@@ -263,7 +265,7 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                       <input
                         type="password"
                         value={lurusToken}
-                        onChange={(e) => { setLurusToken(e.target.value); setAccountError('') }}
+                        onChange={(e) => { setLurusToken(e.target.value); clearAccountError() }}
                         placeholder="sk-..."
                         className="flex-1 px-3 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                         onKeyDown={(e) => e.key === 'Enter' && handleValidateToken()}
@@ -283,10 +285,12 @@ export function SetupWizard({ onComplete }: SetupWizardProps) {
                     </div>
                   </div>
                   {accountError && (
-                    <p className="text-xs text-red-500 flex items-center gap-1">
-                      <XCircle className="h-3.5 w-3.5" />
-                      {t('wizard.account.verifyFailed')}
-                    </p>
+                    <InlineError
+                      category={accountError.category}
+                      message={accountError.message}
+                      details={accountError.details}
+                      onDismiss={clearAccountError}
+                    />
                   )}
                   <div className="border-t border-border pt-2 mt-1">
                     <label className="block text-xs text-muted-foreground mb-0.5">{t('wizard.promoCode')}</label>

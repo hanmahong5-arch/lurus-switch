@@ -1,44 +1,12 @@
 import {
-  Settings, LayoutDashboard, Wrench,
-  CreditCard, Activity, BookOpen, FileText, Shield,
-  Server, Layers, Key, Users, BarChart3, Box, Gift, Settings2,
-  Terminal, Network, Package, Megaphone, Cpu,
+  Settings, Home, Wrench, Wallet, Briefcase,
+  Megaphone, ShieldCheck, Radio,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useConfigStore, type ActiveTool } from '../stores/configStore'
 import { useGatewayStore } from '../stores/gatewayStore'
-
-const TOOL_PAGES: ActiveTool[] = [
-  'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
-]
-
-function isToolPage(t: ActiveTool): boolean {
-  return TOOL_PAGES.includes(t)
-}
-
-// Utility nav items shown below the tools
-const utilNav: { id: ActiveTool; i18nKey: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
-  { id: 'relay', i18nKey: 'nav.relay', icon: Network, color: 'text-sky-500' },
-  { id: 'cli-runner', i18nKey: 'nav.cliRunner', icon: Terminal, color: 'text-gray-400' },
-  { id: 'process', i18nKey: 'nav.process', icon: Activity, color: 'text-yellow-500' },
-  { id: 'prompts', i18nKey: 'nav.prompts', icon: BookOpen, color: 'text-purple-400' },
-  { id: 'documents', i18nKey: 'nav.documents', icon: FileText, color: 'text-teal-500' },
-]
-
-// Gateway section items — data-driven
-const gatewayNav: { id: ActiveTool; i18nKey: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
-  { id: 'gateway', i18nKey: 'gateway.server', icon: Server, color: 'text-indigo-400' },
-  { id: 'gateway-dashboard', i18nKey: 'gateway.dashboard', icon: BarChart3, color: 'text-emerald-400' },
-  { id: 'gateway-channels', i18nKey: 'gateway.channels', icon: Layers, color: 'text-blue-400' },
-  { id: 'gateway-tokens', i18nKey: 'gateway.tokens', icon: Key, color: 'text-yellow-400' },
-  { id: 'gateway-models', i18nKey: 'gateway.models', icon: Box, color: 'text-orange-400' },
-  { id: 'gateway-users', i18nKey: 'gateway.users', icon: Users, color: 'text-purple-400' },
-  { id: 'gateway-redemptions', i18nKey: 'gateway.redemptions', icon: Gift, color: 'text-pink-400' },
-  { id: 'gateway-logs', i18nKey: 'gateway.logs', icon: FileText, color: 'text-teal-400' },
-  { id: 'gateway-subscriptions', i18nKey: 'gateway.subscriptions', icon: CreditCard, color: 'text-cyan-400' },
-  { id: 'gateway-settings', i18nKey: 'gateway.gatewaySettings', icon: Settings2, color: 'text-gray-400' },
-]
+import { HelpTip } from './HelpTip'
 
 type NavButtonProps = {
   id: ActiveTool
@@ -47,9 +15,10 @@ type NavButtonProps = {
   iconColor: string
   active: boolean
   onClick: () => void
+  badge?: React.ReactNode
 }
 
-function NavButton({ id, name, icon: Icon, iconColor, active, onClick }: NavButtonProps) {
+function NavButton({ id, name, icon: Icon, iconColor, active, onClick, badge }: NavButtonProps) {
   return (
     <button
       key={id}
@@ -62,20 +31,19 @@ function NavButton({ id, name, icon: Icon, iconColor, active, onClick }: NavButt
       )}
     >
       <Icon className={cn('h-5 w-5', !active && iconColor)} />
-      {name}
+      <span className="flex-1 text-left">{name}</span>
+      {badge}
     </button>
   )
 }
 
 // Pages that are only visible in promoter mode
 export const PROMOTER_ONLY_PAGES: Set<string> = new Set([
-  'gateway', 'gateway-dashboard', 'gateway-channels', 'gateway-tokens',
-  'gateway-models', 'gateway-users', 'gateway-redemptions', 'gateway-logs',
-  'gateway-subscriptions', 'gateway-settings', 'admin', 'promoter-hub',
+  'promotion', 'api-admin',
 ])
 
 export function Sidebar() {
-  const { activeTool, setActiveTool, lastActiveTool, appMode } = useConfigStore()
+  const { activeTool, setActiveTool, appMode } = useConfigStore()
   const { t } = useTranslation()
   const gatewayRunning = useGatewayStore((s) => s.status?.running ?? false)
   const isPromoter = appMode === 'promoter'
@@ -91,124 +59,112 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 p-2 overflow-y-auto">
         <div className="space-y-1">
-          {/* GY Products */}
+          {/* 1. Home */}
           <NavButton
-            id="gy-products"
-            name={t('nav.gyProducts')}
-            icon={Package}
-            iconColor="text-violet-500"
-            active={activeTool === 'gy-products'}
-            onClick={() => setActiveTool('gy-products')}
-          />
-
-          {/* Dashboard */}
-          <NavButton
-            id="dashboard"
-            name={t('nav.dashboard')}
-            icon={LayoutDashboard}
+            id="home"
+            name={t('nav.home')}
+            icon={Home}
             iconColor="text-purple-500"
-            active={activeTool === 'dashboard'}
-            onClick={() => setActiveTool('dashboard')}
+            active={activeTool === 'home'}
+            onClick={() => setActiveTool('home')}
           />
 
-          {/* Switch Gateway Hub */}
+          {/* 2. Tools */}
           <NavButton
-            id="switch-hub"
-            name={t('nav.switchHub')}
-            icon={Cpu}
-            iconColor="text-cyan-500"
-            active={activeTool === 'switch-hub'}
-            onClick={() => setActiveTool('switch-hub')}
-          />
-
-          {/* Separator */}
-          <div className="border-t border-border my-2" />
-
-          {/* Single tool config entry */}
-          <NavButton
-            id={lastActiveTool as ActiveTool}
-            name={t('nav.toolConfig')}
+            id="tools"
+            name={t('nav.tools')}
             icon={Wrench}
             iconColor="text-amber-500"
-            active={isToolPage(activeTool)}
-            onClick={() => setActiveTool(lastActiveTool as ActiveTool)}
+            active={activeTool === 'tools'}
+            onClick={() => setActiveTool('tools')}
           />
 
-          {/* Separator */}
-          <div className="border-t border-border my-2" />
-
-          {/* Utility pages */}
-          {utilNav.map((item) => (
-            <NavButton
-              key={item.id}
-              id={item.id}
-              name={t(item.i18nKey)}
-              icon={item.icon}
-              iconColor={item.color}
-              active={activeTool === item.id}
-              onClick={() => setActiveTool(item.id)}
+          {/* 3. Gateway */}
+          <div className="flex items-center">
+            <div className="flex-1">
+              <NavButton
+                id="gateway"
+                name={t('nav.gateway')}
+                icon={Radio}
+                iconColor="text-cyan-500"
+                active={activeTool === 'gateway'}
+                onClick={() => setActiveTool('gateway')}
+                badge={gatewayRunning ? (
+                  <span className="h-2 w-2 rounded-full bg-green-500 flex-shrink-0" />
+                ) : undefined}
+              />
+            </div>
+            <HelpTip
+              titleKey="help.gateway.title"
+              bodyKey="help.gateway.body"
+              showFor={['beginner']}
+              placement="right"
+              size="sm"
             />
-          ))}
+          </div>
+
+          {/* 4. Workspace */}
+          <div className="flex items-center">
+            <div className="flex-1">
+              <NavButton
+                id="workspace"
+                name={t('nav.workspace')}
+                icon={Briefcase}
+                iconColor="text-blue-500"
+                active={activeTool === 'workspace'}
+                onClick={() => setActiveTool('workspace')}
+              />
+            </div>
+            <HelpTip
+              titleKey="help.workspace.title"
+              bodyKey="help.workspace.body"
+              showFor={['beginner']}
+              placement="right"
+              size="sm"
+            />
+          </div>
+
+          {/* 5. Account */}
+          <NavButton
+            id="account"
+            name={t('nav.account')}
+            icon={Wallet}
+            iconColor="text-emerald-500"
+            active={activeTool === 'account'}
+            onClick={() => setActiveTool('account')}
+          />
 
           {/* Promoter-only sections */}
           {isPromoter && (
             <>
-              {/* Separator */}
               <div className="border-t border-border my-2" />
 
-              {/* Promoter Hub */}
+              {/* 7. Promotion */}
               <NavButton
-                id="promoter-hub"
-                name={t('nav.promoterHub')}
+                id="promotion"
+                name={t('nav.promotion')}
                 icon={Megaphone}
                 iconColor="text-orange-500"
-                active={activeTool === 'promoter-hub'}
-                onClick={() => setActiveTool('promoter-hub')}
+                active={activeTool === 'promotion'}
+                onClick={() => setActiveTool('promotion')}
               />
 
-              {/* Gateway section header */}
-              <div className="px-3 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                {t('gateway.title')}
-                {gatewayRunning && <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />}
-              </div>
-
-              {/* Gateway nav items — data-driven */}
-              {gatewayNav.map((item) => (
-                <NavButton
-                  key={item.id}
-                  id={item.id}
-                  name={t(item.i18nKey)}
-                  icon={item.icon}
-                  iconColor={item.color}
-                  active={activeTool === item.id}
-                  onClick={() => setActiveTool(item.id)}
-                />
-              ))}
+              {/* 8. API Admin */}
+              <NavButton
+                id="api-admin"
+                name={t('nav.apiAdmin')}
+                icon={ShieldCheck}
+                iconColor="text-red-500"
+                active={activeTool === 'api-admin'}
+                onClick={() => setActiveTool('api-admin')}
+              />
             </>
           )}
         </div>
       </nav>
 
-      {/* Billing, Admin & Settings */}
-      <div className="p-2 border-t border-border space-y-1">
-        <NavButton
-          id="billing"
-          name={t('nav.billing')}
-          icon={CreditCard}
-          iconColor="text-emerald-500"
-          active={activeTool === 'billing'}
-          onClick={() => setActiveTool('billing')}
-        />
-        {isPromoter && (
-          <NavButton
-            id="admin"
-            name={t('nav.admin')}
-            icon={Shield}
-            iconColor="text-red-500"
-            active={activeTool === 'admin'}
-            onClick={() => setActiveTool('admin')}
-          />
-        )}
+      {/* Settings (bottom) */}
+      <div className="p-2 border-t border-border">
         <NavButton
           id="settings"
           name={t('nav.settings')}

@@ -42,6 +42,20 @@ type ModelSummary struct {
 	TokensOut  int64  `json:"tokensOut"`
 }
 
+// InsightsRaw holds raw aggregated data for cost/rate-limit/latency insights.
+type InsightsRaw struct {
+	TotalCalls      int64            `json:"totalCalls"`
+	TotalTokensIn   int64            `json:"totalTokensIn"`
+	TotalTokensOut  int64            `json:"totalTokensOut"`
+	CacheHits       int64            `json:"cacheHits"`
+	RateLimitEvents int64            `json:"rateLimitEvents"` // HTTP 429 count
+	ErrorEvents     int64            `json:"errorEvents"`     // HTTP 5xx count
+	TotalLatencyMs  int64            `json:"-"`               // internal sum for avg calc
+	AvgLatencyMs    int64            `json:"avgLatencyMs"`
+	ModelTokensIn   map[string]int64 `json:"modelTokensIn"`
+	ModelTokensOut  map[string]int64 `json:"modelTokensOut"`
+}
+
 // ActivityEntry is a recent API call for the real-time activity feed.
 type ActivityEntry struct {
 	Timestamp string `json:"timestamp"` // HH:MM

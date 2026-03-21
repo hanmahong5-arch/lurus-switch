@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Save, FolderOpen, FileText, Loader2, RefreshCw, Plus } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { errorToast } from '../lib/errorToast'
 import { useToastStore } from '../stores/toastStore'
 import { GetContextFile, SaveContextFile, OpenFolderAndScanContext } from '../../wailsjs/go/main/App'
 
@@ -30,6 +32,7 @@ const TOOL_FILE_NAMES: Record<Tool, Record<Scope, string>> = {
 }
 
 export function DocumentPage() {
+  const { t } = useTranslation()
   const [activeTool, setActiveTool] = useState<Tool>('claude')
   const [activeScope, setActiveScope] = useState<Scope>('global')
   const [contextFile, setContextFile] = useState<ContextFile | null>(null)
@@ -49,7 +52,7 @@ export function DocumentPage() {
       setContextFile(f)
       setContent(f?.content || '')
     } catch (err) {
-      toast('error', `Failed to load context file: ${err}`)
+      errorToast(toast, err, { currentPage: 'workspace' })
     } finally {
       setLoading(false)
     }
@@ -72,7 +75,7 @@ export function DocumentPage() {
       await loadFile(activeTool, activeScope)
       toast('success', 'Context file saved')
     } catch (err) {
-      toast('error', `Failed to save: ${err}`, { label: 'Retry', onClick: () => handleSave() })
+      errorToast(toast, err, { currentPage: 'workspace', retry: () => handleSave() })
     } finally {
       setSaving(false)
     }
@@ -84,7 +87,7 @@ export function DocumentPage() {
       setScannedFiles(files || [])
       setShowScanned(true)
     } catch (err) {
-      toast('error', `Failed to scan folder: ${err}`)
+      errorToast(toast, err, { currentPage: 'workspace' })
     }
   }
 
@@ -110,15 +113,15 @@ export function DocumentPage() {
 
   const TEMPLATES: { label: string; content: string }[] = [
     {
-      label: '代码规范',
+      label: 'contextDoc.templates.codeStandards',
       content: '\n## 代码规范\n\n- 使用 TypeScript strict 模式\n- 函数命名采用 camelCase\n- 组件命名采用 PascalCase\n',
     },
     {
-      label: '项目结构',
+      label: 'contextDoc.templates.projectStructure',
       content: '\n## 项目结构\n\n```\nsrc/\n  components/  # 可复用组件\n  pages/       # 页面组件\n  stores/      # 状态管理\n```\n',
     },
     {
-      label: '禁止事项',
+      label: 'contextDoc.templates.forbidden',
       content: '\n## 禁止事项\n\n- 禁止硬编码配置值\n- 禁止忽略错误处理\n- 禁止提交测试文件\n',
     },
   ]
@@ -129,7 +132,7 @@ export function DocumentPage() {
       <div className="border-b border-border bg-muted/20 px-4 pt-3 shrink-0">
         <div className="flex items-center gap-1 mb-3">
           <FileText className="h-4 w-4 text-teal-400 mr-1" />
-          <span className="text-sm font-semibold">上下文文件</span>
+          <span className="text-sm font-semibold">{t('contextDoc.title')}</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-1">
@@ -161,7 +164,7 @@ export function DocumentPage() {
                       : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
-                  {s === 'global' ? '全局' : '项目'}
+                  {s === 'global' ? t('contextDoc.scopeGlobal') : t('contextDoc.scopeProject')}
                 </button>
               ))}
             </div>
@@ -174,7 +177,7 @@ export function DocumentPage() {
         <span className="text-xs text-muted-foreground font-mono truncate flex-1">
           {contextFile ? contextFile.path : '...'}
           {contextFile && !contextFile.exists && (
-            <span className="ml-2 text-amber-500">(文件不存在，保存后创建)</span>
+            <span className="ml-2 text-amber-500">{t('contextDoc.fileNotExist')}</span>
           )}
         </span>
         <div className="flex items-center gap-1">
@@ -184,14 +187,14 @@ export function DocumentPage() {
             className="flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted transition-colors disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-            刷新
+            {t('contextDoc.refresh')}
           </button>
           <button
             onClick={handleScanFolder}
             className="flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted transition-colors"
           >
             <FolderOpen className="h-3 w-3" />
-            扫描目录
+            {t('contextDoc.scanDir')}
           </button>
           <button
             onClick={handleSave}
@@ -204,7 +207,7 @@ export function DocumentPage() {
             )}
           >
             {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-            {saved ? '已保存' : '保存'}
+            {saved ? t('contextDoc.saved') : t('contextDoc.save')}
           </button>
         </div>
       </div>
@@ -222,7 +225,7 @@ export function DocumentPage() {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               className="flex-1 p-4 font-mono text-sm bg-background text-foreground resize-none focus:outline-none"
-              placeholder={`# ${activeTool === 'claude' ? 'CLAUDE' : activeTool === 'gemini' ? 'GEMINI' : 'SYSTEM'}.md\n\n在这里输入上下文指令...\n\n这个文件会被 ${activeTool} 自动读取，作为全局系统提示词。`}
+              placeholder={t('contextDoc.editorPlaceholder', { tool: activeTool, file: activeTool === 'claude' ? 'CLAUDE' : activeTool === 'gemini' ? 'GEMINI' : 'SYSTEM' })}
               spellCheck={false}
             />
           )}
@@ -231,23 +234,23 @@ export function DocumentPage() {
         {/* Right Panel */}
         <div className="w-48 border-l border-border flex flex-col shrink-0 bg-muted/10">
           <div className="p-3 border-b border-border">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">快速插入</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('contextDoc.quickInsert')}</p>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
-            {TEMPLATES.map((t) => (
+            {TEMPLATES.map((tpl) => (
               <button
-                key={t.label}
-                onClick={() => insertTemplate(t.content)}
+                key={tpl.label}
+                onClick={() => insertTemplate(tpl.content)}
                 className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left rounded hover:bg-muted transition-colors"
               >
                 <Plus className="h-3 w-3 text-muted-foreground shrink-0" />
-                {t.label}
+                {t(tpl.label)}
               </button>
             ))}
           </div>
           <div className="p-3 border-t border-border">
             <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium">文件路径</p>
+              <p className="font-medium">{t('contextDoc.filePath')}</p>
               <p className="font-mono text-xs break-all opacity-70">
                 {TOOL_FILE_NAMES[activeTool][activeScope]}
               </p>
@@ -260,9 +263,9 @@ export function DocumentPage() {
       {showScanned && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="font-semibold mb-4">扫描到的上下文文件</h3>
+            <h3 className="font-semibold mb-4">{t('contextDoc.scannedFiles')}</h3>
             {scannedFiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground">未找到上下文文件</p>
+              <p className="text-sm text-muted-foreground">{t('contextDoc.noFilesFound')}</p>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {scannedFiles.map((f, i) => (
@@ -281,7 +284,7 @@ export function DocumentPage() {
               onClick={() => setShowScanned(false)}
               className="mt-4 w-full px-4 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
             >
-              关闭
+              {t('contextDoc.close')}
             </button>
           </div>
         </div>

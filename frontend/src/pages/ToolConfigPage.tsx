@@ -5,8 +5,10 @@ import {
   AlertTriangle, FileText, Camera, Clock, RotateCw, X,
   FormInput, Code2, Cloud, ChevronDown, ChevronUp, Tag,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
-import { useConfigStore, type ConfigPreset, type ActiveTool } from '../stores/configStore'
+import { errorToast } from '../lib/errorToast'
+import { useConfigStore, type ConfigPreset, type ToolsSubTab } from '../stores/configStore'
 import { useToastStore } from '../stores/toastStore'
 import { useDashboardStore } from '../stores/dashboardStore'
 import {
@@ -127,18 +129,15 @@ interface SnapshotMeta {
   size: number
 }
 
-const TOOL_TOOLS: ActiveTool[] = [
+const TOOL_NAMES: ToolsSubTab[] = [
   'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
 ]
 
-function isToolPage(t: ActiveTool): boolean {
-  return TOOL_TOOLS.includes(t)
-}
-
 export function ToolConfigPage() {
+  const { t } = useTranslation()
   const {
-    activeTool, setActiveTool,
     lastActiveTool, setLastActiveTool,
+    getSubTab, setSubTab,
     activeSection, setActiveSection,
     cloudPresets, setCloudPresets,
     highlightField, setHighlightField,
@@ -148,7 +147,9 @@ export function ToolConfigPage() {
   const toast = useToastStore((s) => s.addToast)
   const [dismissedBanner, setDismissedBanner] = useState(false)
 
-  const tool = activeTool as string
+  // Determine active tool from sub-tab state (new navigation model)
+  const activeToolSubTab = getSubTab('tools', lastActiveTool || 'claude') as ToolsSubTab
+  const tool = TOOL_NAMES.includes(activeToolSubTab) ? activeToolSubTab : lastActiveTool || 'claude'
   const toolKnownNotInstalled = Object.keys(tools).length > 0 && tools[tool]?.installed === false
 
   // Schemas from bundled JSON (type-cast; remote updates applied via schemaCache in App.tsx if needed)
@@ -189,7 +190,7 @@ export function ToolConfigPage() {
       setConfigExists(info.exists)
       setLanguage(info.language)
     } catch (err) {
-      toast('error', `Failed to load config: ${err}`, { label: 'Retry', onClick: () => loadConfig() })
+      errorToast(toast, err, { retry: () => loadConfig() })
     } finally {
       setLoading(false)
     }
@@ -218,7 +219,7 @@ export function ToolConfigPage() {
   }, [tool, cloudPresets, setCloudPresets])
 
   useEffect(() => {
-    if (tool && tool !== 'dashboard') {
+    if (tool) {
       loadConfig()
     }
   }, [tool, loadConfig])
@@ -229,12 +230,12 @@ export function ToolConfigPage() {
     }
   }, [snapshotPanelOpen, loadSnapshots])
 
-  // Track last active tool for Sidebar single-entry button
+  // Track last active tool sub-tab
   useEffect(() => {
-    if (isToolPage(activeTool)) {
-      setLastActiveTool(activeTool)
+    if (TOOL_NAMES.includes(tool as ToolsSubTab)) {
+      setLastActiveTool(tool as ToolsSubTab)
     }
-  }, [activeTool, setLastActiveTool])
+  }, [tool, setLastActiveTool])
 
   // Reset active section when switching tools
   useEffect(() => {
@@ -270,7 +271,7 @@ export function ToolConfigPage() {
       toast('success', 'Configuration saved')
     } catch (err) {
       setSaveStatus('error')
-      toast('error', `Failed to save: ${err}`, { label: 'Retry', onClick: () => handleSave() })
+      errorToast(toast, err, { retry: () => handleSave() })
     }
   }
 
@@ -295,7 +296,7 @@ export function ToolConfigPage() {
       await loadSnapshots()
       toast('success', 'Snapshot saved')
     } catch (err) {
-      toast('error', `Failed to take snapshot: ${err}`)
+      errorToast(toast, err)
     } finally {
       setSnapshotBusy(false)
     }
@@ -309,7 +310,7 @@ export function ToolConfigPage() {
       setSnapshotPanelOpen(false)
       toast('success', 'Snapshot restored')
     } catch (err) {
-      toast('error', `Failed to restore snapshot: ${err}`)
+      errorToast(toast, err)
     } finally {
       setSnapshotBusy(false)
     }
@@ -320,7 +321,7 @@ export function ToolConfigPage() {
       await DeleteConfigSnapshot(tool, id)
       await loadSnapshots()
     } catch (err) {
-      toast('error', `Failed to delete snapshot: ${err}`)
+      errorToast(toast, err)
     }
   }
 
@@ -468,19 +469,19 @@ export function ToolConfigPage() {
         <div className="flex items-center gap-3 px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-xs shrink-0">
           <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
           <div className="flex-1 min-w-0">
-            <span className="font-medium text-amber-600">{TOOL_LABELS[tool] || tool} 未安装</span>
-            <span className="text-muted-foreground ml-1.5">配置保存后不会生效，请先安装工具</span>
+            <span className="font-medium text-amber-600">{TOOL_LABELS[tool] || tool} {t('dashboard.notInstalled')}</span>
+            <span className="text-muted-foreground ml-1.5">{t('toolConfig.notInstalledHint')}</span>
           </div>
           <button
-            onClick={() => setActiveTool('dashboard')}
+            onClick={() => useConfigStore.getState().setActiveTool('home')}
             className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-amber-500/20 hover:bg-amber-500/30 text-amber-600 transition-colors whitespace-nowrap"
           >
-            前往安装 →
+            {t('toolConfig.goInstall')}
           </button>
           <button
             onClick={() => setDismissedBanner(true)}
             className="p-1 hover:bg-amber-500/20 rounded text-amber-500/70 hover:text-amber-500 transition-colors"
-            title="忽略"
+            title={t('dashboard.dismiss')}
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -488,7 +489,7 @@ export function ToolConfigPage() {
       )}
 
       {/* ProductTabBar — tool switcher */}
-      <ProductTabBar activeTool={tool} onSelect={(t) => setActiveTool(t)} />
+      <ProductTabBar activeTool={tool} onSelect={(t) => { setSubTab('tools', t); setLastActiveTool(t) }} />
 
       {/* Main content: ContextSidebar + Editor + Sidebars */}
       <div className="flex-1 flex overflow-hidden">

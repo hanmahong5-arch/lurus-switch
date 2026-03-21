@@ -1,17 +1,19 @@
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useBillingStore } from '../stores/billingStore'
 import { useDashboardStore } from '../stores/dashboardStore'
 import { useConfigStore } from '../stores/configStore'
 
 export function AccountStatusBadge() {
+  const { t } = useTranslation()
   const { userInfo, identityOverview } = useBillingStore()
   const { proxySettings } = useDashboardStore()
   const { setActiveTool } = useConfigStore()
 
-  // No endpoint configured → gray "未连接账号"
+  // No endpoint configured
   if (!proxySettings.apiEndpoint || !proxySettings.userToken) {
     return (
-      <span className="text-xs text-muted-foreground/60">未连接账号</span>
+      <span className="text-xs text-muted-foreground/60">{t('account.notConnected')}</span>
     )
   }
 
@@ -26,10 +28,10 @@ export function AccountStatusBadge() {
   if (subStatus === 'expired') {
     return (
       <button
-        onClick={() => setActiveTool('billing')}
+        onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
         className="text-xs text-red-500 hover:underline"
       >
-        订阅已过期
+        {t('account.subExpired')}
       </button>
     )
   }
@@ -38,27 +40,27 @@ export function AccountStatusBadge() {
   if (quota != null && usedQuota != null && quota > 0 && usedQuota >= quota) {
     return (
       <button
-        onClick={() => setActiveTool('billing')}
+        onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
         className={cn(
           'text-xs text-red-500 hover:underline',
           'animate-pulse'
         )}
       >
-        配额耗尽 !
+        {t('account.quotaExhausted')}
       </button>
     )
   }
 
-  // Warn when quota ≥ 80%
+  // Warn when quota >= 80%
   if (quota != null && usedQuota != null && quota > 0) {
     const pct = (usedQuota / quota) * 100
     if (pct >= 80) {
       return (
         <button
-          onClick={() => setActiveTool('billing')}
+          onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
           className="text-xs text-amber-500 hover:underline"
         >
-          配额 ⚠ {Math.round(pct)}%
+          {t('account.quotaWarning', { pct: Math.round(pct) })}
         </button>
       )
     }
@@ -71,16 +73,16 @@ export function AccountStatusBadge() {
       : String(balance)
     return (
       <button
-        onClick={() => setActiveTool('billing')}
+        onClick={() => { setActiveTool('account'); useConfigStore.getState().setSubTab('account', 'billing') }}
         className="text-xs text-primary hover:underline"
       >
-        余额 {formatted}
+        {t('account.balanceDisplay', { amount: formatted })}
       </button>
     )
   }
 
   // Fallback: connected but no data yet
   return (
-    <span className="text-xs text-muted-foreground/60">已连接账号</span>
+    <span className="text-xs text-muted-foreground/60">{t('account.connected')}</span>
   )
 }

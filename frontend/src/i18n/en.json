@@ -4,19 +4,63 @@
     "subtitle": "AI CLI Manager"
   },
   "nav": {
+    "home": "Home",
+    "tools": "Tools",
+    "gateway": "Gateway",
+    "workspace": "Workspace",
+    "account": "Account",
+    "settings": "Settings",
+    "promotion": "Promotion",
+    "apiAdmin": "API Admin",
     "dashboard": "Dashboard",
     "toolConfig": "Tool Configuration",
     "billing": "Billing",
     "admin": "Admin",
-    "settings": "Settings",
     "process": "Processes",
     "prompts": "Prompts",
     "documents": "Documents",
     "relay": "Relay Stations",
     "cliRunner": "CLI Runner",
-    "gyProducts": "GY Products",
+    "gyProducts": "Lurus Apps",
     "promoterHub": "Promoter Hub",
     "switchHub": "Switch Gateway"
+  },
+  "home": {
+    "title": "Home",
+    "subtitle": "AI development environment at a glance",
+    "healthScore": "Health Score",
+    "envHealthy": "Environment is healthy!",
+    "envNeedsWork": "Some items need attention",
+    "envCritical": "Critical issues found",
+    "healthDesc": "Score based on runtimes, tools, config health, gateway, and system environment",
+    "optimize": "One-Click Optimize",
+    "optimizeSuccess": "Environment optimized successfully",
+    "scoreDetails": "Score breakdown",
+    "cat": {
+      "runtimes": "Runtime Dependencies",
+      "tools": "Tool Installation",
+      "config": "Configuration Health",
+      "gateway": "Gateway & Connection",
+      "system": "System Environment"
+    },
+    "quickActions": "Quick Actions",
+    "allGood": "Environment is healthy!",
+    "allGoodDesc": "All tools are installed, configured, and connected to the gateway.",
+    "actionLabel": {
+      "install-tool": "Install",
+      "install-runtime": "Install",
+      "update-tool": "Update",
+      "connect-gateway": "Connect All",
+      "start-gateway": "Start",
+      "fix-config": "Fix",
+      "install-git": "Install"
+    },
+    "ecosystem": "Lurus Apps",
+    "gwControl": "Control",
+    "gwUsage": "Usage",
+    "gwApps": "Apps",
+    "connection": "Connection",
+    "processTab": "Processes"
   },
   "schema": {
     "claude": {
@@ -125,6 +169,13 @@
     "modeSwitchConfirm": "Switch to {{mode}}?",
     "modeSwitchUserBody": "Gateway management and promoter features will be hidden. You can switch back anytime in Settings.",
     "modeSwitchPromoterBody": "Gateway management and promoter features will appear, for running a local gateway and managing referrals.",
+    "userLevel": "Interface Complexity",
+    "userLevelDesc": "Controls how much detail is shown in the interface",
+    "level": {
+      "beginner": "Simple",
+      "regular": "Standard",
+      "power": "Advanced"
+    },
     "appearance": {
       "theme": "Theme",
       "themeDesc": "Choose UI color theme",
@@ -139,15 +190,15 @@
       "startupPageDesc": "Default page shown when app launches"
     },
     "proxy": {
-      "movedNotice": "Proxy configuration has been moved to the Dashboard page's Proxy Configuration panel.",
-      "hint": "Tip: Click Dashboard in the sidebar, then find the Proxy Configuration section at the bottom."
+      "movedNotice": "Proxy configuration has been moved to Account > Connection.",
+      "hint": "Tip: Go to Account page to configure proxy settings."
     },
     "update": {
       "autoCheck": "Auto-check Updates",
       "autoCheckDesc": "Automatically check for new Lurus Switch versions at startup",
       "enabled": "Enabled",
       "disabled": "Disabled",
-      "toolUpdateHint": "Tool updates (Claude/Codex/Gemini/PicoClaw/NullClaw) can be triggered manually from the Dashboard."
+      "toolUpdateHint": "Tool updates (Claude/Codex/Gemini/PicoClaw/NullClaw) can be triggered from Home or Tools page."
     },
     "data": {
       "title": "Data Management",
@@ -166,7 +217,8 @@
   },
   "statusBar": {
     "status": "Status",
-    "tools": "tools"
+    "tools": "tools",
+    "gatewayOff": "Gateway off"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -434,7 +486,7 @@
     "gatewayUrl": "Gateway URL",
     "gatewayUrlDesc": "Promoters can configure a public URL for referred users to connect to your local gateway.",
     "gatewayUrlHint": "Start the local gateway in Gateway > Server Control, then share your public IP and port with users.",
-    "connectHint": "Connect your Lurus account in the Dashboard first"
+    "connectHint": "Connect your Lurus account in Account first"
   },
   "wizard": {
     "title": "Welcome to Lurus Switch",
@@ -483,7 +535,7 @@
       "title": "Choose Model",
       "desc": "Select your default AI model. The gateway routes requests to the right provider automatically.",
       "selected": "Selected: {{model}}",
-      "changeLater": "You can switch models anytime from the Dashboard"
+      "changeLater": "You can switch models anytime from the Home page"
     },
     "done": {
       "title": "Setup Complete",
@@ -495,8 +547,8 @@
       "modelConfigured": "Model set to {{model}}",
       "configuring": "Configuring...",
       "configuringDesc": "Installing tools and configuring gateway and model, please wait",
-      "someErrors": "{{count}} tools had configuration issues, retry from Dashboard",
-      "goToDashboard": "Go to Dashboard"
+      "someErrors": "{{count}} tools had configuration issues, retry from Home page",
+      "goToDashboard": "Go to Home"
     }
   },
   "model": {
@@ -508,6 +560,25 @@
     },
     "search": "Search models...",
     "noResults": "No models found"
+  },
+  "error": {
+    "offline": "Connection to backend lost — some data may be stale",
+    "batchFailed": "{{count}} operation(s) failed",
+    "action": {
+      "retry": "Retry",
+      "goTo": "Go",
+      "checkProxy": "Check Settings",
+      "reconnect": "Reconnect",
+      "openConfig": "Open Config",
+      "installTool": "Go to Install",
+      "installRuntime": "Install Runtime",
+      "checkGateway": "Check Gateway",
+      "checkPermission": "Check Permissions",
+      "copyError": "Copy",
+      "copied": "Copied!",
+      "showDetails": "Details",
+      "hideDetails": "Hide"
+    }
   },
   "switch": {
     "title": "Switch Gateway",
@@ -585,6 +656,9 @@
     "notInstalled": "Not installed",
     "configOk": "Config OK",
     "runtimes": "Runtimes",
+    "installRuntime": "Install",
+    "runtimeInstallSuccess": "{{id}} installed successfully",
+    "runtimeRequired": "Required by: {{tools}}",
     "lastConfigResult": "Last Configuration Result",
     "install": "Install",
     "installSuccess": "installed",
@@ -614,6 +688,33 @@
     "diagnosticsCopied": "Diagnostics report copied to clipboard",
     "autoFix": "Auto-fix config issues",
     "autoFixSuccess": "Config fixed",
+    "openConfig": "Open config directory",
+    "upstreamOk": "Upstream",
+    "upstreamDown": "Upstream unreachable",
+    "upstreamWarning": "Upstream API is unreachable — requests will fail until connectivity is restored.",
+    "upstreamWarningHint": "Check your proxy settings or network connection.",
+    "upstreamLatency": "Latency",
+    "cacheHitRate": "Cache Hit",
+    "costEstimate": "Est. Cost",
+    "costExplanation": "Based on {{model}} pricing: ${{inputPrice}}/M input, ${{outputPrice}}/M output tokens",
+    "noCostData": "No usage data for cost estimation",
+    "rateLimitTitle": "Rate Limits",
+    "rateLimitNone": "No rate limit events detected",
+    "requestsPerMin": "req/min",
+    "throttled": "Throttled",
+    "topModelCost": "Top Model by Cost",
+    "requestLog": "Request Log",
+    "requestLogEmpty": "No requests logged yet",
+    "filterApp": "Filter by app",
+    "filterModel": "Filter by model",
+    "allApps": "All Apps",
+    "allModels": "All Models",
+    "statusOk": "OK",
+    "statusErr": "Error",
+    "cached": "Cached",
+    "gatewayCrashRestart": "Gateway crashed — auto-restarting (attempt {{attempt}})",
+    "backendStale": "Connection to backend lost — showing stale data",
+    "backendRetry": "Retry",
     "guide": {
       "claude": "Add to ~/.claude/settings.json:\n\"apiBaseUrl\": \"{{url}}\"",
       "codex": "Add to ~/.codex/config.toml:\n[provider]\napi_base_url = \"{{url}}\"",
@@ -624,5 +725,310 @@
       "cline": "Open VS Code → Cline settings → set API Base URL and API Key",
       "generic": "Set these in your app:\n  Base URL: {{url}}\n  API Key: {{token}}"
     }
+  },
+  "account": {
+    "balance": "Balance",
+    "subscriptionStatus": "Subscription",
+    "topUp": "Top Up",
+    "subStatus": {
+      "active": "Active",
+      "grace": "Grace Period",
+      "expired": "Expired",
+      "free": "Free"
+    },
+    "notConnected": "Not connected",
+    "connected": "Connected",
+    "subExpired": "Subscription expired",
+    "quotaExhausted": "Quota exhausted!",
+    "quotaWarning": "Quota ⚠ {{pct}}%",
+    "balanceDisplay": "Balance {{amount}}",
+    "configureEndpoint": "Configure API endpoint first",
+    "goToConfigure": "Configure"
+  },
+  "proxyPanel": {
+    "connectFailed": "Connection failed: unreachable",
+    "testConnection": "Test Connection",
+    "connecting": "Connecting...",
+    "connectedMs": "Connected ({{ms}}ms)"
+  },
+  "hooks": {
+    "events": {
+      "preToolUse": "Pre Tool Use",
+      "postToolUse": "Post Tool Use",
+      "preCompact": "Pre Compact"
+    },
+    "templates": {
+      "logToolCalls": "Log Tool Calls",
+      "gitAutoCommit": "Git Auto-commit",
+      "securityCheck": "Security Check (block sensitive ops)"
+    },
+    "quickTemplates": "Quick Templates",
+    "emptyHint": "No hooks yet, click below to add",
+    "matcherLabel": "Matcher (regex)",
+    "commandLabel": "Command",
+    "commandPlaceholder": "shell command...",
+    "addCommand": "Add Command",
+    "addHookRule": "Add Hook Rule",
+    "saved": "Saved",
+    "saveConfig": "Save Hooks Config"
+  },
+  "toolCard": {
+    "viewIssues": "View Issues",
+    "viewIssuesTitle": "View config issues"
+  },
+  "gatewayGuard": {
+    "title": "Gateway Not Running",
+    "desc": "This feature requires the gateway to be running",
+    "goStart": "Go to Start"
+  },
+  "cliRunner": {
+    "argsPlaceholder": "Arguments...",
+    "run": "Run",
+    "quick": "Quick:",
+    "output": "Output"
+  },
+  "mcp": {
+    "applyToTools": "Apply to tools:",
+    "builtinPresets": "Built-in MCP Presets ({{count}})",
+    "apply": "Apply",
+    "customPresets": "Custom Presets",
+    "newPreset": "New",
+    "emptyCustom": "No custom presets yet",
+    "newPresetTitle": "New MCP Preset",
+    "namePlaceholder": "Preset name",
+    "descPlaceholder": "Description (optional)",
+    "transportType": "Transport Type",
+    "commandPlaceholder": "Command (e.g. npx, python)",
+    "argsLabel": "Arguments",
+    "addArgPlaceholder": "Add argument...",
+    "add": "Add",
+    "urlPlaceholder": "URL (e.g. http://localhost:3000/sse)",
+    "envVarsLabel": "Environment Variables",
+    "cancel": "Cancel",
+    "save": "Save"
+  },
+  "ui": {
+    "showAdvanced": "Show advanced options",
+    "learnMore": "Learn more"
+  },
+  "help": {
+    "gateway": {
+      "title": "What is the Gateway?",
+      "body": "The gateway is a local API proxy that routes all your AI tool requests through a single endpoint. It handles authentication, model routing, usage tracking, and lets you switch between providers without reconfiguring each tool."
+    },
+    "healthScore": {
+      "title": "Health Score",
+      "body": "A composite score (0-100) measuring how well your AI development environment is configured. It checks runtime dependencies, tool installations, configuration health, gateway connectivity, and system environment."
+    },
+    "proxy": {
+      "title": "API Proxy Settings",
+      "body": "The proxy routes your AI tool requests through a relay server. Set your API endpoint and token here. If you have a Lurus account, your token is provided automatically."
+    },
+    "tools": {
+      "title": "AI CLI Tools",
+      "body": "These are command-line AI coding assistants. Each tool has its own config file. Lurus Switch manages them all from one place — install, configure, connect to the gateway, and keep them updated."
+    },
+    "mcp": {
+      "title": "MCP Servers",
+      "body": "Model Context Protocol (MCP) servers extend AI tools with additional capabilities like file access, web browsing, or database queries. Add presets here and they'll be injected into your tool configs."
+    },
+    "workspace": {
+      "title": "Workspace",
+      "body": "Manage prompt templates, context documents (like CLAUDE.md), and monitor running AI tool processes — all in one place."
+    },
+    "autostart": {
+      "title": "Auto-start",
+      "body": "When enabled, Lurus Switch launches minimized when your computer starts. The gateway will auto-start too if configured, so your AI tools are always ready."
+    },
+    "envVar": {
+      "title": "Environment Variables",
+      "body": "Some AI tools read API keys from environment variables. Lurus Switch can set these for you system-wide so tools work even outside this app."
+    },
+    "pathConfig": {
+      "title": "PATH Configuration",
+      "body": "Your system PATH tells the terminal where to find programs. If a tool is installed but 'command not found', its directory needs to be added to PATH."
+    }
+  },
+  "toolConfig": {
+    "notInstalledHint": "Config changes won't take effect until the tool is installed",
+    "goInstall": "Go to Install →"
+  },
+  "relay": {
+    "title": "Relay Management",
+    "subtitle": "Manage API relay endpoints and tool routing",
+    "healthCheck": "Health Check",
+    "recommended": "Recommended Relays",
+    "fetchFromCloud": "Fetch from Cloud",
+    "fetchHint": "Click \"Fetch from Cloud\" to load recommended relay list",
+    "useRelay": "Use this relay",
+    "custom": "Custom Relays",
+    "addRelay": "Add Relay",
+    "nameLabel": "Name *",
+    "namePlaceholder": "My Relay",
+    "apiKeyLabel": "API Key (optional)",
+    "cancel": "Cancel",
+    "save": "Save",
+    "loading": "Loading...",
+    "emptyCustom": "No custom relays yet",
+    "deleteTitle": "Delete",
+    "toolRouting": "Tool Routing",
+    "noRelay": "— None —",
+    "applied": "Applied",
+    "saveMapping": "Save Mapping",
+    "applyAll": "Apply All",
+    "kindLabels": {
+      "lurus": "Lurus Official",
+      "third_party": "Third Party",
+      "custom": "Custom"
+    }
+  },
+  "gyProducts": {
+    "title": "Lurus Apps",
+    "subtitle": "Lurus product integrations",
+    "refreshStatus": "Refresh Status",
+    "loading": "Loading...",
+    "open": "Open {{name}}",
+    "launch": "Launch {{name}}",
+    "downloading": "Downloading {{progress}}",
+    "redownload": "Re-download",
+    "openConsole": "Open Console",
+    "noProducts": "No products available",
+    "checking": "Checking...",
+    "online": "Online",
+    "unreachable": "Unreachable",
+    "installedVersion": "Installed v{{version}}",
+    "notInstalled": "Not installed",
+    "categories": {
+      "web": "Web App",
+      "desktop": "Desktop App",
+      "service": "Service"
+    }
+  },
+  "promptLib": {
+    "title": "Prompt Library",
+    "exportBtn": "Export",
+    "importBtn": "Import",
+    "searchPlaceholder": "Search prompts...",
+    "newPrompt": "New Prompt",
+    "editPrompt": "Edit Prompt",
+    "namePlaceholder": "Prompt name",
+    "contentPlaceholder": "Prompt content...",
+    "cancel": "Cancel",
+    "save": "Save",
+    "copied": "Copied!",
+    "copy": "Copy",
+    "edit": "Edit",
+    "selectHint": "Select a prompt to see details",
+    "categories": {
+      "all": "All",
+      "coding": "Code",
+      "writing": "Writing",
+      "analysis": "Analysis",
+      "custom": "Custom"
+    }
+  },
+  "contextDoc": {
+    "title": "Context Documents",
+    "scopeGlobal": "Global",
+    "scopeProject": "Project",
+    "fileNotExist": "(file doesn't exist, will be created on save)",
+    "refresh": "Refresh",
+    "scanDir": "Scan Directory",
+    "saved": "Saved",
+    "save": "Save",
+    "quickInsert": "Quick Insert",
+    "filePath": "File Path",
+    "scannedFiles": "Scanned Context Files",
+    "noFilesFound": "No context files found",
+    "close": "Close",
+    "editorPlaceholder": "# {{file}}.md\n\nEnter context instructions here...\n\nThis file will be automatically read by {{tool}} as a global system prompt.",
+    "templates": {
+      "codeStandards": "Code Standards",
+      "projectStructure": "Project Structure",
+      "forbidden": "Forbidden"
+    }
+  },
+  "admin": {
+    "title": "Admin",
+    "subtitle": "System status, service health, and quick links",
+    "serviceStatus": "Service Status",
+    "checking": "Checking...",
+    "online": "Online",
+    "offline": "Offline",
+    "systemInfo": "System Info",
+    "appVersion": "App Version",
+    "os": "OS",
+    "arch": "Architecture",
+    "appUpdate": "App Update",
+    "newVersionFound": "New version v{{version}} available",
+    "upToDate": "Already up to date",
+    "checkUpdateHint": "Click \"Check for updates\" to see if a new version is available",
+    "toolSummary": "Tool Summary",
+    "installed": "Installed",
+    "notInstalled": "Not installed",
+    "quickLinks": "Quick Links",
+    "links": {
+      "anthropicDocs": "Anthropic Docs",
+      "codexDocs": "OpenAI Codex Docs",
+      "geminiDocs": "Google Gemini CLI",
+      "githubIssues": "GitHub Issues"
+    }
+  },
+  "process": {
+    "title": "Process Monitor",
+    "subtitle": "View and manage running CLI tool processes",
+    "pauseRefresh": "Pause Refresh",
+    "autoRefresh": "Auto Refresh",
+    "col": {
+      "tool": "Tool",
+      "pid": "PID",
+      "status": "Status",
+      "memory": "Memory",
+      "actions": "Actions"
+    },
+    "detecting": "Detecting...",
+    "empty": "No running CLI processes detected",
+    "launchTool": "Launch Tool",
+    "argsPlaceholder": "Arguments, e.g. --version --help",
+    "launch": "Launch",
+    "output": "Output",
+    "waitingOutput": "Waiting for output...",
+    "kill": "Kill",
+    "stop": "Stop"
+  },
+  "optimizer": {
+    "title": "Optimization Suggestions",
+    "installRuntime": {
+      "title": "Install {{target}}",
+      "desc": "This runtime is required by one or more AI tools. Install it to enable tool functionality."
+    },
+    "installTool": {
+      "title": "Install {{target}}",
+      "desc": "This AI tool is available but not yet installed on your system."
+    },
+    "updateTool": {
+      "title": "Update {{target}}",
+      "desc": "A newer version is available. Updating ensures you have the latest features and bug fixes."
+    },
+    "startGateway": {
+      "title": "Start Gateway",
+      "desc": "The local API gateway is not running. Start it to enable unified routing for all your AI tools."
+    },
+    "connectGateway": {
+      "title": "Connect tools to gateway",
+      "desc": "Some installed tools are not yet configured to use the local gateway. Connect them for unified API routing."
+    },
+    "fixConfig": {
+      "title": "Fix {{target}} configuration",
+      "desc": "Configuration issues detected. Auto-fix will resolve common problems like missing fields or invalid values."
+    },
+    "installGit": {
+      "title": "Install Git",
+      "desc": "Git is recommended for version control and is used by several AI tools for context gathering."
+    },
+    "applyAll": "Fix All",
+    "applying": "Fixing...",
+    "allFixed": "All issues resolved!",
+    "fixableCount": "{{count}} auto-fixable"
   }
 }

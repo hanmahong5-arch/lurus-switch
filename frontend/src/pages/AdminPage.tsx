@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Shield, Activity, RefreshCw, Loader2, ExternalLink, Server, Monitor } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { errorToast } from '../lib/errorToast'
 import { useToastStore } from '../stores/toastStore'
 import { PingLurusAPI, GetSystemInfo, GetAppVersion, CheckSelfUpdate, ApplySelfUpdate, DetectAllTools } from '../../wailsjs/go/main/App'
 
@@ -18,6 +20,7 @@ interface ToolStatus {
 }
 
 export function AdminPage() {
+  const { t } = useTranslation()
   const [apiOnline, setApiOnline] = useState<boolean | null>(null)
   const [pingLoading, setPingLoading] = useState(false)
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null)
@@ -42,7 +45,7 @@ export function AdminPage() {
       setSysInfo(info as unknown as SystemInfo)
       setAppVersion(ver)
     } catch (err) {
-      toast('error', `Failed to load system info: ${err}`)
+      errorToast(toast, err, { currentPage: 'api-admin' })
     }
     loadTools()
   }
@@ -65,7 +68,7 @@ export function AdminPage() {
       const statuses = await DetectAllTools()
       setTools(statuses || {})
     } catch (err) {
-      toast('error', `Failed to detect tools: ${err}`)
+      errorToast(toast, err, { currentPage: 'api-admin' })
     } finally {
       setToolsLoading(false)
     }
@@ -76,7 +79,7 @@ export function AdminPage() {
       const info = await CheckSelfUpdate()
       setUpdateInfo(info as { updateAvailable: boolean; latestVersion: string })
     } catch (err) {
-      toast('error', `Failed to check update: ${err}`)
+      errorToast(toast, err, { currentPage: 'api-admin' })
     }
   }
 
@@ -85,13 +88,20 @@ export function AdminPage() {
     try {
       await ApplySelfUpdate()
     } catch (err) {
-      toast('error', `Failed to apply update: ${err}`)
+      errorToast(toast, err, { currentPage: 'api-admin' })
     } finally {
       setUpdating(false)
     }
   }
 
   const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw']
+
+  const QUICK_LINKS = [
+    { labelKey: 'admin.links.anthropicDocs', url: 'https://docs.anthropic.com' },
+    { labelKey: 'admin.links.codexDocs', url: 'https://platform.openai.com/docs' },
+    { labelKey: 'admin.links.geminiDocs', url: 'https://github.com/google-gemini/gemini-cli' },
+    { labelKey: 'admin.links.githubIssues', url: 'https://github.com' },
+  ]
 
   return (
     <div className="h-full overflow-y-auto">
@@ -100,9 +110,9 @@ export function AdminPage() {
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <Shield className="h-5 w-5 text-red-400" />
-            管理端
+            {t('admin.title')}
           </h2>
-          <p className="text-sm text-muted-foreground">系统状态、服务健康、快速链接</p>
+          <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
         </div>
 
         {/* API Health */}
@@ -110,7 +120,7 @@ export function AdminPage() {
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" />
-              服务状态
+              {t('admin.serviceStatus')}
             </h3>
             <button
               onClick={pingAPI}
@@ -118,7 +128,7 @@ export function AdminPage() {
               className="flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted transition-colors disabled:opacity-50"
             >
               {pingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-              刷新
+              {t('dashboard.refresh')}
             </button>
           </div>
           <div className="flex items-center gap-3">
@@ -129,10 +139,10 @@ export function AdminPage() {
             <span className="text-sm">
               Lurus API —{' '}
               {apiOnline === null
-                ? '检测中...'
+                ? t('admin.checking')
                 : apiOnline
-                ? <span className="text-green-500">在线</span>
-                : <span className="text-red-500">离线</span>
+                ? <span className="text-green-500">{t('admin.online')}</span>
+                : <span className="text-red-500">{t('admin.offline')}</span>
               }
             </span>
           </div>
@@ -142,14 +152,14 @@ export function AdminPage() {
         <div className="border border-border rounded-lg p-4 space-y-3">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <Monitor className="h-4 w-4 text-muted-foreground" />
-            系统信息
+            {t('admin.systemInfo')}
           </h3>
           {sysInfo ? (
             <div className="grid grid-cols-2 gap-2 text-sm">
               {[
-                { label: '应用版本', value: `v${appVersion || sysInfo.appVersion || '...'}` },
-                { label: '操作系统', value: sysInfo.goos },
-                { label: '架构', value: sysInfo.goarch },
+                { label: t('admin.appVersion'), value: `v${appVersion || sysInfo.appVersion || '...'}` },
+                { label: t('admin.os'), value: sysInfo.goos },
+                { label: t('admin.arch'), value: sysInfo.goarch },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-xs text-muted-foreground">{label}</p>
@@ -160,7 +170,7 @@ export function AdminPage() {
           ) : (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              加载中...
+              {t('status.loading')}
             </div>
           )}
         </div>
@@ -168,7 +178,7 @@ export function AdminPage() {
         {/* Self Update */}
         <div className="border border-border rounded-lg p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">应用更新</h3>
+            <h3 className="text-sm font-semibold">{t('admin.appUpdate')}</h3>
             {updateInfo?.updateAvailable ? (
               <button
                 onClick={applyUpdate}
@@ -176,23 +186,23 @@ export function AdminPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
                 {updating ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
-                更新到 v{updateInfo.latestVersion}
+                {t('dashboard.updateTo', { version: updateInfo.latestVersion })}
               </button>
             ) : (
               <button
                 onClick={checkUpdate}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded hover:bg-muted transition-colors"
               >
-                检查更新
+                {t('dashboard.checkUpdates')}
               </button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
             {updateInfo
               ? updateInfo.updateAvailable
-                ? `发现新版本 v${updateInfo.latestVersion}`
-                : '已是最新版本'
-              : '点击"检查更新"查看是否有新版本'}
+                ? t('admin.newVersionFound', { version: updateInfo.latestVersion })
+                : t('admin.upToDate')
+              : t('admin.checkUpdateHint')}
           </p>
         </div>
 
@@ -201,7 +211,7 @@ export function AdminPage() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
             <h3 className="text-sm font-semibold flex items-center gap-2">
               <Server className="h-4 w-4 text-muted-foreground" />
-              工具摘要
+              {t('admin.toolSummary')}
             </h3>
             <button
               onClick={loadTools}
@@ -220,10 +230,10 @@ export function AdminPage() {
                   {tool?.installed ? (
                     <>
                       <span className="text-xs text-muted-foreground font-mono">{tool.version || 'n/a'}</span>
-                      <span className="text-xs bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">已安装</span>
+                      <span className="text-xs bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">{t('admin.installed')}</span>
                     </>
                   ) : (
-                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">未安装</span>
+                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{t('admin.notInstalled')}</span>
                   )}
                 </div>
               </div>
@@ -233,22 +243,17 @@ export function AdminPage() {
 
         {/* Quick Links */}
         <div className="border border-border rounded-lg p-4 space-y-3">
-          <h3 className="text-sm font-semibold">快速链接</h3>
+          <h3 className="text-sm font-semibold">{t('admin.quickLinks')}</h3>
           <div className="space-y-2">
-            {[
-              { label: 'Anthropic 文档', url: 'https://docs.anthropic.com' },
-              { label: 'OpenAI Codex 文档', url: 'https://platform.openai.com/docs' },
-              { label: 'Google Gemini CLI', url: 'https://github.com/google-gemini/gemini-cli' },
-              { label: 'GitHub Issues', url: 'https://github.com' },
-            ].map(({ label, url }) => (
+            {QUICK_LINKS.map(({ labelKey, url }) => (
               <a
-                key={label}
+                key={labelKey}
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between px-3 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
               >
-                <span>{label}</span>
+                <span>{t(labelKey)}</span>
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
               </a>
             ))}

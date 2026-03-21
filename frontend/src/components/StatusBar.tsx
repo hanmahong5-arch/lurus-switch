@@ -27,7 +27,7 @@ export function StatusBar() {
               Gateway :{gwStatus?.port || ''}
             </span>
           ) : (
-            <span>Gateway off</span>
+            <span>{t('statusBar.gatewayOff', 'Gateway off')}</span>
           )}
         </span>
 

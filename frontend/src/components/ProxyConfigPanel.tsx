@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Save, Settings2, Loader2, ExternalLink, CheckCircle2, WifiOff, Wifi } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { classifyError } from '../lib/errorClassifier'
 import type { ProxySettings } from '../stores/dashboardStore'
 import { PingEndpoint } from '../../wailsjs/go/main/App'
 
@@ -15,6 +17,7 @@ interface ProxyConfigPanelProps {
 type PingState = 'idle' | 'pinging' | 'ok' | 'error'
 
 export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConfigureAll }: ProxyConfigPanelProps) {
+  const { t } = useTranslation()
   const [endpoint, setEndpoint] = useState(settings.apiEndpoint)
   const [apiKey, setApiKey] = useState(settings.apiKey)
   const [registrationUrl] = useState(settings.registrationUrl || '')
@@ -34,14 +37,14 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
       const ms = await PingEndpoint(url.trim())
       if (ms < 0) {
         setPingState('error')
-        setPingError('连接失败: 无法到达')
+        setPingError(t('proxyPanel.connectFailed'))
       } else {
         setPingMs(ms)
         setPingState('ok')
       }
     } catch (err) {
       setPingState('error')
-      setPingError(`连接失败: ${err}`)
+      setPingError(classifyError(err).message)
     }
   }
 
@@ -137,7 +140,7 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
             ) : (
               <Wifi className="h-3.5 w-3.5" />
             )}
-            测试连接
+            {t('proxyPanel.testConnection')}
           </button>
 
           <button
@@ -169,8 +172,8 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
             {pingState === 'pinging' && <Loader2 className="h-3 w-3 animate-spin" />}
             {pingState === 'ok' && <CheckCircle2 className="h-3 w-3" />}
             {pingState === 'error' && <WifiOff className="h-3 w-3" />}
-            {pingState === 'pinging' && '连接中...'}
-            {pingState === 'ok' && `已连接 (${pingMs}ms)`}
+            {pingState === 'pinging' && t('proxyPanel.connecting')}
+            {pingState === 'ok' && t('proxyPanel.connectedMs', { ms: pingMs })}
             {pingState === 'error' && pingError}
           </div>
         )}

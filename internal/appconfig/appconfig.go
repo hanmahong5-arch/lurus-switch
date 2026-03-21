@@ -14,9 +14,10 @@ type AppSettings struct {
 	Language            string `json:"language"`             // "zh" | "en"
 	AutoUpdate          bool   `json:"autoUpdate"`
 	EditorFontSize      int    `json:"editorFontSize"`      // 10-24
-	StartupPage         string `json:"startupPage"`         // "dashboard" | tool name
+	StartupPage         string `json:"startupPage"`         // "home" | "tools" | "gateway" etc.
 	OnboardingCompleted bool   `json:"onboardingCompleted"` // true after setup wizard completes
 	AppMode             string `json:"appMode"`             // "user" | "promoter"
+	UserLevel           string `json:"userLevel"`           // "beginner" | "regular" | "power"
 }
 
 // settingsPath returns the path to app-settings.json
@@ -50,8 +51,9 @@ func DefaultAppSettings() *AppSettings {
 		Language:       "zh",
 		AutoUpdate:     true,
 		EditorFontSize: 13,
-		StartupPage:    "dashboard",
+		StartupPage:    "home",
 		AppMode:        "user",
+		UserLevel:      "beginner",
 	}
 }
 
@@ -86,6 +88,11 @@ func LoadAppSettings() (*AppSettings, error) {
 	// Validate app mode
 	if s.AppMode != "user" && s.AppMode != "promoter" {
 		s.AppMode = "user"
+	}
+
+	// Validate user level
+	if s.UserLevel != "beginner" && s.UserLevel != "regular" && s.UserLevel != "power" {
+		s.UserLevel = "beginner"
 	}
 
 	return s, nil

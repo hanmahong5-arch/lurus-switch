@@ -21,8 +21,8 @@ func TestDefaultAppSettings(t *testing.T) {
 	if d.EditorFontSize != 13 {
 		t.Errorf("EditorFontSize = %d, want 13", d.EditorFontSize)
 	}
-	if d.StartupPage != "dashboard" {
-		t.Errorf("StartupPage = %q, want dashboard", d.StartupPage)
+	if d.StartupPage != "home" {
+		t.Errorf("StartupPage = %q, want home", d.StartupPage)
 	}
 	if d.OnboardingCompleted {
 		t.Error("OnboardingCompleted should be false by default")
