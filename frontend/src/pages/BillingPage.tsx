@@ -226,10 +226,18 @@ export function BillingPage() {
               </div>
             )}
 
-            {/* Loading state */}
+            {/* Loading state — skeleton blocks */}
             {loading && !userInfo ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-24 rounded-lg border border-border bg-muted/30 animate-pulse" />
+                  <div className="h-24 rounded-lg border border-border bg-muted/30 animate-pulse" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-28 rounded-lg border border-border bg-muted/30 animate-pulse" />
+                  <div className="h-28 rounded-lg border border-border bg-muted/30 animate-pulse" />
+                </div>
+                <div className="h-32 rounded-lg border border-border bg-muted/30 animate-pulse" />
               </div>
             ) : userInfo ? (
               <>

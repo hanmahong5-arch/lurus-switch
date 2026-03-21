@@ -447,9 +447,14 @@ export function DashboardPage() {
 
         {/* Tool Cards or Empty State */}
         {!detecting && !anyInstalled && Object.keys(tools).length > 0 ? (
-          <div className="border border-dashed border-border rounded-lg p-8 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
-            <p className="text-xs text-muted-foreground">{t('dashboard.noToolsDesc')}</p>
+          <div className="border border-dashed border-border rounded-lg p-10 flex flex-col items-center gap-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+              <Wand2 className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.noToolsDesc')}</p>
+            </div>
             <button
               onClick={handleRunWizard}
               className={cn(

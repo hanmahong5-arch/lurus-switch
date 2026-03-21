@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/SettingsPage'
 import { PromoterHubPage } from './pages/PromoterHubPage'
 import { ApiAdminPage } from './pages/ApiAdminPage'
 import { useConfigStore, migrateLegacyRoute, type ActiveTool, type UserLevel } from './stores/configStore'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { useNavPersist } from './lib/useNavPersist'
 import { useGatewayStore } from './stores/gatewayStore'
 import { useBillingStore } from './stores/billingStore'
@@ -34,6 +35,7 @@ const VALID_STARTUP_PAGES: ReadonlySet<string> = new Set([
 function App() {
   const { activeTool, setActiveTool, setAppMode, setUserLevel, setSubTab } = useConfigStore()
   useNavPersist()
+  useKeyboardShortcuts()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   const { startPolling, stopPolling } = useGatewayStore()
   const { setUserInfo } = useBillingStore()

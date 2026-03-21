@@ -164,7 +164,7 @@ export function Sidebar() {
       </nav>
 
       {/* Settings (bottom) */}
-      <div className="p-2 border-t border-border">
+      <div className="p-2 border-t border-border space-y-2">
         <NavButton
           id="settings"
           name={t('nav.settings')}
@@ -173,6 +173,10 @@ export function Sidebar() {
           active={activeTool === 'settings'}
           onClick={() => setActiveTool('settings')}
         />
+        {/* Keyboard shortcut hints */}
+        <p className="text-[10px] text-muted-foreground/50 text-center leading-relaxed px-1">
+          Ctrl+1~5 {t('nav.switchPage', 'switch page')} &middot; Ctrl+S {t('nav.save', 'save')}
+        </p>
       </div>
     </aside>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useState } from 'react'
-import { RefreshCw, Loader2, Download, ArrowUpCircle, Wand2, Zap, Repeat } from 'lucide-react'
+import { RefreshCw, Loader2, Download, ArrowUpCircle, Wand2, Zap, Repeat, Wrench } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { errorToast } from '../lib/errorToast'
@@ -471,10 +471,33 @@ export function HomePage() {
         <DepTreePanel />
 
         {/* Section C: Tool Cards Grid */}
-        {!detecting && !anyInstalled && Object.keys(tools).length > 0 ? (
-          <div className="border border-dashed border-border rounded-lg p-8 flex flex-col items-center gap-3 text-center">
-            <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
-            <p className="text-xs text-muted-foreground">{t('dashboard.noToolsDesc')}</p>
+        {detecting && Object.keys(tools).length === 0 ? (
+          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {TOOL_ORDER.map((name) => (
+              <div key={name} className="h-28 rounded-lg border border-border bg-muted/30 animate-pulse" />
+            ))}
+          </div>
+        ) : !detecting && !anyInstalled && Object.keys(tools).length > 0 ? (
+          <div className="border border-dashed border-border rounded-lg p-10 flex flex-col items-center gap-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
+              <Wrench className="h-7 w-7 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.noToolsDesc')}</p>
+            </div>
+            <button
+              onClick={handleInstallAll}
+              disabled={anyInstalling}
+              className={cn(
+                'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
+                'bg-primary text-primary-foreground hover:bg-primary/90',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+            >
+              <Download className="h-4 w-4" />
+              {t('dashboard.installAll')}
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
