@@ -6,6 +6,7 @@ import (
 
 	"lurus-switch/internal/analytics"
 	"lurus-switch/internal/appreg"
+	"lurus-switch/internal/auth"
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/config"
 	"lurus-switch/internal/docmgr"
@@ -35,6 +36,9 @@ type services struct {
 	validator *validator.Validator
 	instMgr   *installer.Manager
 	proxyMgr  *proxy.ProxyManager
+
+	// OIDC authentication session (Zitadel PKCE).
+	authSession *auth.Session
 
 	selfUpdater *updater.SelfUpdater
 	npmChecker  *updater.NpmChecker
@@ -91,6 +95,11 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("mcp store: %v", err))
 	}
 
+	authSess, err := auth.NewSession()
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("auth session: %v", err))
+	}
+
 	tracker, err := analytics.NewTracker()
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("analytics tracker: %v", err))
@@ -116,6 +125,7 @@ func newServices(appDataDir, version string) (*services, []string) {
 		validator:   validator.NewValidator(),
 		instMgr:     installer.NewManager(),
 		proxyMgr:    proxyMgr,
+		authSession: authSess,
 		selfUpdater: updater.NewSelfUpdater(version),
 		npmChecker:  updater.NewNpmChecker(),
 		processMon:  process.NewMonitor(),
@@ -139,7 +149,8 @@ func newServices(appDataDir, version string) (*services, []string) {
 	return svc, warnings
 }
 
-// ensureBillingClient lazily initializes the billing client from proxy settings.
+// ensureBillingClient lazily initializes the billing client.
+// Priority: OIDC session gateway token > proxy settings UserToken.
 func (s *services) ensureBillingClient() (*billing.Client, error) {
 	s.billingMu.Lock()
 	defer s.billingMu.Unlock()
@@ -147,12 +158,28 @@ func (s *services) ensureBillingClient() (*billing.Client, error) {
 	if s.billingClient != nil {
 		return s.billingClient, nil
 	}
+
+	// Prefer the gateway token from the OIDC session when available.
+	if s.authSession != nil && s.authSession.HasGatewayToken() {
+		endpoint := ""
+		if s.proxyMgr != nil {
+			endpoint = s.proxyMgr.GetSettings().APIEndpoint
+		}
+		if endpoint == "" {
+			endpoint = "https://api.lurus.cn"
+		}
+		token := s.authSession.GetGatewayToken()
+		s.billingClient = billing.NewClient(endpoint, "", token)
+		return s.billingClient, nil
+	}
+
+	// Fall back to manual proxy UserToken.
 	if s.proxyMgr == nil {
 		return nil, fmt.Errorf("proxy manager not initialized")
 	}
 	settings := s.proxyMgr.GetSettings()
 	if settings.UserToken == "" {
-		return nil, fmt.Errorf("user token not configured: paste your token in Proxy Settings")
+		return nil, fmt.Errorf("user token not configured: login with your Lurus account or paste a token in Proxy Settings")
 	}
 	if settings.APIEndpoint == "" {
 		return nil, fmt.Errorf("API endpoint not configured")

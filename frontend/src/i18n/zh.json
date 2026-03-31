@@ -60,7 +60,39 @@
     "gwUsage": "用量",
     "gwApps": "应用",
     "connection": "连接与配置",
-    "processTab": "进程"
+    "processTab": "进程",
+    "quickActionCards": {
+      "installAll": "一键全装",
+      "installAllDesc": "已安装 {{installed}}/{{total}}",
+      "installAllDone": "全部已装",
+      "startGateway": "启动网关",
+      "gatewayRunning": "运行中",
+      "gatewayStopped": "已停止",
+      "connectAll": "全部接入",
+      "connectAllDesc": "已连接 {{connected}}/{{total}}",
+      "fixAll": "一键修复",
+      "fixAllDesc": "{{count}} 个问题",
+      "fixAllClean": "状态良好",
+      "diagnostics": "环境诊断",
+      "diagnosticsScore": "评分: {{score}}"
+    },
+    "quickStart": "一键开始",
+    "quickStarting": "配置中...",
+    "quickStartSuccess": "{{tool}} 已就绪!",
+    "fixAllSuccess": "所有问题已修复",
+    "fixPartial": "已修复 {{fixed}}/{{total}}",
+    "statusOverview": {
+      "title": "状态总览",
+      "tool": "工具",
+      "status": "状态",
+      "version": "版本",
+      "health": "健康",
+      "gateway": "网关",
+      "installed": "已安装",
+      "notInstalled": "未安装",
+      "connected": "已连接",
+      "notConnected": "未连接"
+    }
   },
   "schema": {
     "claude": {
@@ -1032,5 +1064,41 @@
     "applying": "修复中...",
     "allFixed": "所有问题已解决！",
     "fixableCount": "{{count}} 项可自动修复"
+  },
+  "commandPalette": {
+    "placeholder": "搜索命令...",
+    "noResults": "未找到结果",
+    "navigate": "导航",
+    "execute": "执行",
+    "categories": {
+      "install": "安装",
+      "action": "操作",
+      "navigate": "导航",
+      "launch": "启动"
+    },
+    "commands": {
+      "installClaudeCode": "安装 Claude Code",
+      "installCodex": "安装 Codex",
+      "installGeminiCLI": "安装 Gemini CLI",
+      "installPicoClaw": "安装 PicoClaw",
+      "installNullClaw": "安装 NullClaw",
+      "installZeroClaw": "安装 ZeroClaw",
+      "installOpenClaw": "安装 OpenClaw",
+      "installAll": "安装所有工具",
+      "startGateway": "启动网关",
+      "stopGateway": "停止网关",
+      "connectAll": "全部接入网关",
+      "fixAll": "一键修复所有问题",
+      "diagnostics": "环境诊断",
+      "goHome": "前往首页",
+      "goTools": "前往工具",
+      "goGateway": "前往网关",
+      "goWorkspace": "前往工作台",
+      "goAccount": "前往账户",
+      "goSettings": "前往设置",
+      "launchClaudeCode": "启动 Claude Code",
+      "launchCodex": "启动 Codex",
+      "launchGeminiCLI": "启动 Gemini CLI"
+    }
   }
 }

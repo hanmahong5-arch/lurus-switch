@@ -1,22 +1,10 @@
 import {
-  Bot, Zap, Sparkles, Terminal, Cpu, Globe,
-  Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle, Trash2, AlertTriangle,
+  Download, RefreshCw, Settings, Loader2, CheckCircle2, XCircle, Trash2, AlertTriangle, Rocket,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { toolMeta, DEFAULT_TOOL_META } from '../lib/toolMeta'
 import type { ToolStatus, ToolHealthResult } from '../stores/dashboardStore'
-
-type DepType = 'bun' | 'standalone'
-
-const toolMeta: Record<string, { label: string; icon: typeof Bot; color: string; bgColor: string; dep: DepType }> = {
-  claude:   { label: 'Claude Code', icon: Bot,      color: 'text-orange-500', bgColor: 'bg-orange-500/10', dep: 'bun' },
-  codex:    { label: 'Codex',       icon: Zap,      color: 'text-green-500',  bgColor: 'bg-green-500/10',  dep: 'bun' },
-  gemini:   { label: 'Gemini CLI',  icon: Sparkles, color: 'text-blue-500',   bgColor: 'bg-blue-500/10',   dep: 'bun' },
-  picoclaw: { label: 'PicoClaw',    icon: Terminal, color: 'text-pink-500',   bgColor: 'bg-pink-500/10',   dep: 'standalone' },
-  nullclaw: { label: 'NullClaw',    icon: Terminal, color: 'text-cyan-500',   bgColor: 'bg-cyan-500/10',   dep: 'standalone' },
-  zeroclaw: { label: 'ZeroClaw',    icon: Cpu,      color: 'text-violet-500', bgColor: 'bg-violet-500/10', dep: 'standalone' },
-  openclaw: { label: 'OpenClaw',    icon: Globe,    color: 'text-teal-500',   bgColor: 'bg-teal-500/10',   dep: 'bun' },
-}
 
 const healthDotColor: Record<string, string> = {
   green: 'bg-green-500',
@@ -35,18 +23,19 @@ interface ToolCardProps {
   onConfigure: () => void
   onUninstall?: () => void
   onViewIssues?: () => void
+  onQuickStart?: () => void
+  quickStarting?: boolean
 }
 
 export function ToolCard({
   tool, installing, updating, uninstalling = false, health,
   onInstall, onUpdate, onConfigure, onUninstall, onViewIssues,
+  onQuickStart, quickStarting = false,
 }: ToolCardProps) {
   const { t } = useTranslation()
-  const meta = toolMeta[tool.name] || {
-    label: tool.name, icon: Bot, color: 'text-gray-500', bgColor: 'bg-gray-500/10', dep: 'standalone' as DepType,
-  }
+  const meta = toolMeta[tool.name] || DEFAULT_TOOL_META
   const Icon = meta.icon
-  const busy = installing || updating || uninstalling
+  const busy = installing || updating || uninstalling || quickStarting
 
   const healthTooltip = health?.issues?.length
     ? health.issues.join('; ')
@@ -107,6 +96,24 @@ export function ToolCard({
       {/* Actions */}
       <div className="flex gap-2 mt-auto flex-wrap">
         {!tool.installed ? (
+          onQuickStart ? (
+            <button
+              onClick={onQuickStart}
+              disabled={busy}
+              className={cn(
+                'flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+                'bg-gradient-to-r from-primary to-blue-500 text-white hover:opacity-90',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
+            >
+              {quickStarting ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Rocket className="h-3.5 w-3.5" />
+              )}
+              {quickStarting ? t('home.quickStarting') : t('home.quickStart')}
+            </button>
+          ) : (
           <button
             onClick={onInstall}
             disabled={busy}
@@ -123,6 +130,7 @@ export function ToolCard({
             )}
             {installing ? t('dashboard.installing') : t('dashboard.install')}
           </button>
+          )
         ) : (
           <>
             {tool.updateAvailable && (

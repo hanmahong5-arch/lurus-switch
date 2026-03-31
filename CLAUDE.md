@@ -97,3 +97,20 @@ cd frontend && bun run test:coverage  # Coverage report
 | Sprint Status | `./_bmad-output/sprint-status.yaml` |
 
 Current: Sprint 0 (Planning). Sprint 1 starts 2026-03-13 — key items: decompose app.go God Object (S1.2), implement i18n (S1.3), fix Settings page (S1.4).
+
+## Zitadel OIDC Login (2026-03-21)
+
+Auth flow: Zitadel PKCE (port 31416) → encrypted token storage (AES-GCM) → auto gateway provisioning.
+Fallback: Manual token entry in Proxy Settings (preserved for advanced users).
+
+| File | Purpose |
+|------|---------|
+| `internal/auth/session.go` | Encrypted token storage (`%APPDATA%/lurus-switch/auth.enc`) |
+| `internal/auth/pkce.go` | OIDC authorization code + PKCE flow |
+| `internal/auth/provisioner.go` | Gateway token auto-provisioning |
+| `bindings_auth.go` | Wails bindings: Login/Logout/RefreshAuth/GetAuthState |
+| `frontend/src/stores/authStore.ts` | Zustand auth state |
+| `frontend/src/components/AuthLoginPanel.tsx` | Login UI (3 states: logged-out/logging-in/logged-in) |
+
+Token priority: OIDC session gateway token > manual proxy UserToken
+Env: `LURUS_SWITCH_INTERNAL_KEY` (for gateway provisioning)

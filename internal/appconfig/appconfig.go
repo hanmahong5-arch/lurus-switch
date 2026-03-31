@@ -18,6 +18,10 @@ type AppSettings struct {
 	OnboardingCompleted bool   `json:"onboardingCompleted"` // true after setup wizard completes
 	AppMode             string `json:"appMode"`             // "user" | "promoter"
 	UserLevel           string `json:"userLevel"`           // "beginner" | "regular" | "power"
+
+	// OIDC authentication settings (Zitadel).
+	AuthClientID string `json:"authClientId,omitempty"`
+	AuthIssuer   string `json:"authIssuer,omitempty"` // default: "https://auth.lurus.cn"
 }
 
 // settingsPath returns the path to app-settings.json

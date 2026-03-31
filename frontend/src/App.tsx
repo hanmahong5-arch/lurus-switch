@@ -7,6 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastContainer } from './components/Toast'
 import { ConnectionBanner } from './components/ConnectionBanner'
 import { SetupWizard } from './components/SetupWizard'
+import { CommandPalette } from './components/CommandPalette'
 import { HomePage } from './pages/HomePage'
 import { NewToolsPage } from './pages/NewToolsPage'
 import { NewGatewayPage } from './pages/NewGatewayPage'
@@ -167,6 +168,7 @@ function App() {
     <div className="flex flex-col h-screen bg-background text-foreground">
       <ConnectionBanner />
       <ToastContainer />
+      <CommandPalette />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-hidden">

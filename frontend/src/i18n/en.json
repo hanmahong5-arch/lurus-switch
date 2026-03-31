@@ -60,7 +60,39 @@
     "gwUsage": "Usage",
     "gwApps": "Apps",
     "connection": "Connection",
-    "processTab": "Processes"
+    "processTab": "Processes",
+    "quickActionCards": {
+      "installAll": "Install All",
+      "installAllDesc": "{{installed}}/{{total}} installed",
+      "installAllDone": "All installed",
+      "startGateway": "Start Gateway",
+      "gatewayRunning": "Running",
+      "gatewayStopped": "Stopped",
+      "connectAll": "Connect All",
+      "connectAllDesc": "{{connected}}/{{total}} connected",
+      "fixAll": "Fix All",
+      "fixAllDesc": "{{count}} issues",
+      "fixAllClean": "All good",
+      "diagnostics": "Diagnostics",
+      "diagnosticsScore": "Score: {{score}}"
+    },
+    "quickStart": "Get Started",
+    "quickStarting": "Setting up...",
+    "quickStartSuccess": "{{tool}} is ready!",
+    "fixAllSuccess": "All issues resolved",
+    "fixPartial": "{{fixed}}/{{total}} fixed",
+    "statusOverview": {
+      "title": "Status Overview",
+      "tool": "Tool",
+      "status": "Status",
+      "version": "Version",
+      "health": "Health",
+      "gateway": "Gateway",
+      "installed": "Installed",
+      "notInstalled": "Not installed",
+      "connected": "Connected",
+      "notConnected": "Not connected"
+    }
   },
   "schema": {
     "claude": {
@@ -1032,5 +1064,41 @@
     "applying": "Fixing...",
     "allFixed": "All issues resolved!",
     "fixableCount": "{{count}} auto-fixable"
+  },
+  "commandPalette": {
+    "placeholder": "Search commands...",
+    "noResults": "No results found",
+    "navigate": "Navigate",
+    "execute": "Execute",
+    "categories": {
+      "install": "Install",
+      "action": "Actions",
+      "navigate": "Navigate",
+      "launch": "Launch"
+    },
+    "commands": {
+      "installClaudeCode": "Install Claude Code",
+      "installCodex": "Install Codex",
+      "installGeminiCLI": "Install Gemini CLI",
+      "installPicoClaw": "Install PicoClaw",
+      "installNullClaw": "Install NullClaw",
+      "installZeroClaw": "Install ZeroClaw",
+      "installOpenClaw": "Install OpenClaw",
+      "installAll": "Install All Tools",
+      "startGateway": "Start Gateway",
+      "stopGateway": "Stop Gateway",
+      "connectAll": "Connect All Tools to Gateway",
+      "fixAll": "Fix All Issues",
+      "diagnostics": "Run Diagnostics",
+      "goHome": "Go to Home",
+      "goTools": "Go to Tools",
+      "goGateway": "Go to Gateway",
+      "goWorkspace": "Go to Workspace",
+      "goAccount": "Go to Account",
+      "goSettings": "Go to Settings",
+      "launchClaudeCode": "Launch Claude Code",
+      "launchCodex": "Launch Codex",
+      "launchGeminiCLI": "Launch Gemini CLI"
+    }
   }
 }

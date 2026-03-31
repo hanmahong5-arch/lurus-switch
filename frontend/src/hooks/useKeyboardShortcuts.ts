@@ -1,9 +1,11 @@
 import { useEffect } from 'react'
 import { useConfigStore, type ActiveTool } from '../stores/configStore'
+import { useCommandPaletteStore } from '../stores/commandPaletteStore'
 
 /**
  * Global keyboard shortcuts for the Switch application.
  *
+ * Ctrl+K — Command Palette
  * Ctrl+1 — Home
  * Ctrl+2 — Tools
  * Ctrl+3 — Gateway
@@ -21,6 +23,13 @@ export function useKeyboardShortcuts() {
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT'
 
       if (!ctrl) return
+
+      // Ctrl+K — command palette
+      if (e.key === 'k') {
+        e.preventDefault()
+        useCommandPaletteStore.getState().toggle()
+        return
+      }
 
       // Ctrl+S — trigger save button
       if (e.key === 's') {

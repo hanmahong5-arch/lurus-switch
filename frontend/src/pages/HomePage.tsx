@@ -2,6 +2,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { RefreshCw, Loader2, Download, ArrowUpCircle, Wand2, Zap, Repeat, Wrench } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { TOOL_ORDER, TOOL_DISPLAY } from '../lib/toolMeta'
 import { errorToast } from '../lib/errorToast'
 import { withRetry } from '../lib/withRetry'
 import { useHomeStore, type Suggestion } from '../stores/homeStore'
@@ -9,6 +10,8 @@ import { useConfigStore } from '../stores/configStore'
 import { useToastStore } from '../stores/toastStore'
 import { useGYStore } from '../stores/gyStore'
 import { ToolCard } from '../components/ToolCard'
+import { QuickActionCards } from '../components/QuickActionCards'
+import { StatusOverview } from '../components/StatusOverview'
 import { DashboardQuotaWidget } from '../components/DashboardQuotaWidget'
 import { DepTreePanel } from '../components/DepTreePanel'
 import { HealthScoreGauge } from '../components/HealthScoreGauge'
@@ -41,6 +44,8 @@ import {
   LaunchGYProduct,
   InstallDependency,
   AutoFixToolConfig,
+  AutoConfigureToolForGateway,
+  ApplyAllOptimizations,
 } from '../../wailsjs/go/main/App'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 
@@ -59,12 +64,6 @@ async function getComputeHealthScore(): Promise<(() => Promise<any>) | null> {
   return _resolvedHealthScore
 }
 
-const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw'] as const
-
-const TOOL_DISPLAY: Record<string, string> = {
-  claude: 'Claude Code', codex: 'Codex', gemini: 'Gemini CLI',
-  picoclaw: 'PicoClaw', nullclaw: 'NullClaw', zeroclaw: 'ZeroClaw', openclaw: 'OpenClaw',
-}
 
 export function HomePage() {
   const { t } = useTranslation()
@@ -91,6 +90,8 @@ export function HomePage() {
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [catalogModels, setCatalogModels] = useState<Model[]>([])
   const [switchingModel, setSwitchingModel] = useState(false)
+  const [quickStarting, setQuickStarting] = useState<Record<string, boolean>>({})
+  const [fixingAll, setFixingAll] = useState(false)
 
   // Subscribe to install progress events
   useEffect(() => {
@@ -334,6 +335,66 @@ export function HomePage() {
     }
   }
 
+  const handleQuickStart = async (toolName: string) => {
+    setQuickStarting((prev) => ({ ...prev, [toolName]: true }))
+    try {
+      await InstallTool(toolName)
+      try {
+        const gwStatus = await GetGatewayStatus()
+        if (gwStatus?.running) await AutoConfigureToolForGateway(toolName)
+      } catch { /* gateway may not be running */ }
+      try { await AutoFixToolConfig(toolName) } catch { /* best effort */ }
+      await detectTools()
+      await loadHealthScore()
+      toast('success', t('home.quickStartSuccess', { tool: TOOL_DISPLAY[toolName] || toolName }))
+    } catch (err) {
+      errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', t })
+    } finally {
+      setQuickStarting((prev) => ({ ...prev, [toolName]: false }))
+    }
+  }
+
+  const handleFixAll = async () => {
+    setFixingAll(true)
+    try {
+      const results = await ApplyAllOptimizations()
+      await FullSetupForGateway()
+      await detectTools()
+      await loadHealthScore()
+      const fixed = Array.isArray(results) ? results.filter((r: any) => r.success).length : 0
+      const total = Array.isArray(results) ? results.length : 0
+      if (total === 0 || fixed === total) {
+        toast('success', t('home.fixAllSuccess'))
+      } else {
+        toast('warning', t('home.fixPartial', { fixed, total }))
+      }
+    } catch (err) {
+      errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', t })
+    } finally {
+      setFixingAll(false)
+    }
+  }
+
+  const handleStartGateway = async () => {
+    try {
+      await StartGateway()
+      toast('success', t('switch.startSuccess'))
+    } catch (err) {
+      errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', t })
+    }
+  }
+
+  const handleConnectAll = async () => {
+    try {
+      await AutoConfigureToolsForGateway()
+      await detectTools()
+      await loadHealthScore()
+      toast('success', t('home.optimizeSuccess'))
+    } catch (err) {
+      errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', t })
+    }
+  }
+
   const checkUpdates = async () => {
     setCheckingUpdates(true)
     try {
@@ -399,6 +460,17 @@ export function HomePage() {
           loading={scoreLoading}
           onOptimize={handleOptimize}
           optimizing={configuring}
+        />
+
+        {/* Quick Action Cards */}
+        <QuickActionCards
+          onInstallAll={handleInstallAll}
+          onStartGateway={handleStartGateway}
+          onConnectAll={handleConnectAll}
+          onFixAll={handleFixAll}
+          onDiagnostics={() => { detectTools(); loadHealthScore() }}
+          installingAll={anyInstalling}
+          fixing={fixingAll}
         />
 
         {/* Section B: Quick Actions / Suggestions */}
@@ -476,6 +548,9 @@ export function HomePage() {
         {/* Runtime Dependencies */}
         <DepTreePanel />
 
+        {/* Status Overview */}
+        <StatusOverview onRefresh={() => { detectTools(); loadHealthScore() }} refreshing={detecting} />
+
         {/* Section C: Tool Cards Grid */}
         {detecting && Object.keys(tools).length === 0 ? (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -528,6 +603,8 @@ export function HomePage() {
                       if (issues?.length) useConfigStore.getState().setHighlightField(issues[0])
                       handleConfigure(name)
                     } : undefined}
+                    onQuickStart={!tool.installed ? () => handleQuickStart(name) : undefined}
+                    quickStarting={quickStarting[name] || false}
                   />
                   {isActiveInstall && (
                     <div className="px-4 pb-1">
