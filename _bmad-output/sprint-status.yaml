@@ -1,15 +1,25 @@
-# Sprint Status - Lurus Switch
-# Updated: 2026-02-27
+# Sprint Status - Lurus Switch (龙虾管理员)
+# Updated: 2026-04-10
+# Aligned: product-brief v3, epics v2
 
 current_sprint:
-  number: 2
-  name: "Onboarding & Dashboard"
-  start: "2026-02-27"
-  end: "2026-02-27"
-  goal: "New user experience, dashboard redesign"
+  number: 3
+  name: "Visual Config Editor V2"
+  start: "2026-02-28"
+  end: "2026-02-28"
+  goal: "Form-based editors with presets and validation"
   status: completed
 
+next_sprint:
+  number: 4
+  name: "Agent Foundation"
+  epic: E4
+  start: "2026-04-14"
+  end: "2026-04-27"
+  goal: "Agent data model, SQLite, multi-instance config, process binding"
+
 sprints:
+  # ── M1: Core Config Manager (COMPLETED) ──────────────────
   - number: 1
     name: "Foundation Cleanup & Quality"
     epic: E1
@@ -47,24 +57,24 @@ sprints:
     goal: "New user experience, dashboard redesign"
     status: completed
     stories:
-      - id: S2.5
-        title: "Proxy auto-detection for Chinese developers"
-        status: done
-        points: 5
-      - id: S2.4
-        title: "Tool health indicators"
-        status: done
-        points: 3
-      - id: S2.3
-        title: "Quota widget integration"
-        status: done
-        points: 3
       - id: S2.1
         title: "First-time setup wizard"
         status: done
         points: 5
       - id: S2.2
         title: "Dashboard redesign with ToolCard components"
+        status: done
+        points: 5
+      - id: S2.3
+        title: "Quota widget integration"
+        status: done
+        points: 3
+      - id: S2.4
+        title: "Tool health indicators"
+        status: done
+        points: 3
+      - id: S2.5
+        title: "Proxy auto-detection for Chinese developers"
         status: done
         points: 5
 
@@ -101,57 +111,233 @@ sprints:
         status: done
         points: 2
 
+  # ── M2: Agent MVP (P0-P2) ────────────────────────────────
   - number: 4
-    name: "Smart CLAUDE.md Generator"
+    name: "Agent Foundation"
     epic: E4
-    start: "2026-04-24"
-    end: "2026-05-07"
-    goal: "Automated CLAUDE.md generation and optimization"
+    start: "2026-04-14"
+    end: "2026-04-27"
+    goal: "Agent data model, SQLite, multi-instance config, process binding, basic UI"
     status: planned
+    stories:
+      - id: S4.1
+        title: "Agent Profile data model + SQLite store (WAL mode)"
+        status: planned
+        points: 8
+      - id: S4.2
+        title: "Multi-instance config support (per-agent config variants)"
+        status: planned
+        points: 5
+      - id: S4.3
+        title: "Process-Agent binding (launch/stop/status tracking)"
+        status: planned
+        points: 5
+      - id: S4.4
+        title: "Agent Wails bindings + AgentsPage (basic list view)"
+        status: planned
+        points: 8
 
   - number: 5
-    name: "MCP Server Manager"
+    name: "Agent Lifecycle (Part 1)"
     epic: E5
-    start: "2026-05-08"
-    end: "2026-05-21"
-    goal: "Visual MCP configuration and catalog"
+    start: "2026-04-28"
+    end: "2026-05-11"
+    goal: "Creation wizard, dashboard redesign, health check"
     status: planned
+    stories:
+      - id: S5.1
+        title: "Agent creation wizard (7-step flow)"
+        status: planned
+        points: 8
+      - id: S5.2
+        title: "Agent Dashboard (Home Page redesign with fleet overview)"
+        status: planned
+        points: 8
+      - id: S5.3
+        title: "Health check + auto-restart with exponential backoff"
+        status: planned
+        points: 5
 
   - number: 6
-    name: "Cost Dashboard"
-    epic: E6
-    start: "2026-05-22"
-    end: "2026-06-04"
-    goal: "Usage tracking and cost optimization"
+    name: "Agent Lifecycle (Part 2)"
+    epic: E5
+    start: "2026-05-12"
+    end: "2026-05-25"
+    goal: "Log stream, clone, batch operations"
     status: planned
+    stories:
+      - id: S5.4
+        title: "Agent log stream (real-time stdout/stderr viewer)"
+        status: planned
+        points: 5
+      - id: S5.5
+        title: "Agent clone"
+        status: planned
+        points: 3
+      - id: S5.6
+        title: "Batch operations (multi-select, bulk start/stop/delete)"
+        status: planned
+        points: 5
 
   - number: 7
-    name: "Distribution"
+    name: "Resource Management"
     epic: E7
-    start: "2026-06-05"
-    end: "2026-06-18"
-    goal: "Package manager manifests and auto-update"
+    start: "2026-05-26"
+    end: "2026-06-08"
+    goal: "Per-agent budget, burn rate, global cap, cost reports"
     status: planned
+    stories:
+      - id: S7.1
+        title: "Per-agent budget (daily/monthly limit, enforcement in gateway)"
+        status: planned
+        points: 8
+      - id: S7.2
+        title: "Burn rate dashboard (real-time consumption + projection)"
+        status: planned
+        points: 5
+      - id: S7.3
+        title: "Global budget + smart degradation (auto-degrade/pause)"
+        status: planned
+        points: 5
+      - id: S7.4
+        title: "Cost report & CSV export (multi-dimension analysis)"
+        status: planned
+        points: 5
 
+  # ── M3: Agent Pro (P3-P5) ────────────────────────────────
   - number: 8
-    name: "Team & Ecosystem"
+    name: "Context & Knowledge"
     epic: E8
-    start: "2026-06-19"
-    end: "2026-07-02"
-    goal: "Config sharing and community features"
+    start: "2026-06-09"
+    end: "2026-06-22"
+    goal: "Project workspace, context templates, snapshots, shared knowledge"
     status: planned
+    stories:
+      - id: S8.1
+        title: "Project workspace (group agents, shared context injection)"
+        status: planned
+        points: 8
+      - id: S8.2
+        title: "Context template library (builtin + custom)"
+        status: planned
+        points: 5
+      - id: S8.3
+        title: "Agent snapshot & resume"
+        status: planned
+        points: 5
+      - id: S8.4
+        title: "Shared knowledge base (per-project document injection)"
+        status: planned
+        points: 5
+
+  - number: 9
+    name: "Monitoring & Observability"
+    epic: E9
+    start: "2026-06-23"
+    end: "2026-07-06"
+    goal: "Unified logs, performance comparison, alerts, audit"
+    status: planned
+    stories:
+      - id: S9.1
+        title: "Unified log center (all-agent combined view)"
+        status: planned
+        points: 5
+      - id: S9.2
+        title: "Performance comparison panel (agent/model efficiency)"
+        status: planned
+        points: 5
+      - id: S9.3
+        title: "Alert rules + desktop notifications"
+        status: planned
+        points: 5
+      - id: S9.4
+        title: "Audit log (all operations tracked + exportable)"
+        status: planned
+        points: 3
+
+  - number: 10
+    name: "Template Ecosystem"
+    epic: E10
+    start: "2026-07-07"
+    end: "2026-07-20"
+    goal: "Built-in templates, custom save/import/export, one-click deploy"
+    status: planned
+    stories:
+      - id: S10.1
+        title: "15+ built-in agent templates (5 categories)"
+        status: planned
+        points: 5
+      - id: S10.2
+        title: "Custom templates + import/export as JSON"
+        status: planned
+        points: 5
+      - id: S10.3
+        title: "One-click deploy from template"
+        status: planned
+        points: 3
+
+  # ── M4: Ecosystem (远期, 不分解) ─────────────────────────
+  - number: 11
+    name: "Advanced Orchestration"
+    epic: E11
+    start: "2026-07-21"
+    end: "TBD"
+    goal: "Task queues, agent communication, workflows, multi-machine"
+    status: future
+    stories: []
 
 velocity:
-  target_points_per_sprint: 15
+  target_points_per_sprint: 18
   completed_points: 65
-  total_planned_points: 117
+  m2_planned_points: 83
+  m3_planned_points: 54
+  total_planned_points: 202
+
+milestones:
+  - name: "M1: Core Config Manager"
+    status: completed
+    sprints: [1, 2, 3]
+    points_completed: 65
+
+  - name: "M2: Agent MVP"
+    status: planned
+    sprints: [4, 5, 6, 7]
+    target_date: "2026-06-08"
+    description: "Minimum viable agent fleet manager: create, manage, budget control"
+
+  - name: "M3: Agent Pro"
+    status: planned
+    sprints: [8, 9, 10]
+    target_date: "2026-07-20"
+    description: "Full agent management with context sharing, monitoring, templates"
+
+  - name: "M4: Ecosystem"
+    status: future
+    sprints: [11]
+    description: "Advanced orchestration, multi-machine, community"
 
 risks:
   - id: R1
     description: "Wails v2 WebView inconsistencies across OS"
     mitigation: "Test on Windows/macOS/Linux each sprint"
     status: monitoring
-  - id: R2
-    description: "i18n retrofit may touch all frontend files"
-    mitigation: "Dedicated Sprint 1 story, systematic approach"
+
+  - id: R3
+    description: "SQLite WAL mode concurrent write conflicts under 20+ agents"
+    mitigation: "Single writer goroutine pattern; read/write separation; benchmark at 50 agents"
+    status: planned
+
+  - id: R4
+    description: "Process management differs across Windows/macOS/Linux"
+    mitigation: "Existing exec_windows.go/exec_other.go pattern; test matrix each Phase"
+    status: planned
+
+  - id: R5
+    description: "Agent auto-restart loops (crash→restart→crash)"
+    mitigation: "Exponential backoff + max retry limit + circuit breaker"
+    status: planned
+
+  - id: R6
+    description: "Phase 0 scope creep — foundational work expanding"
+    mitigation: "Strict story acceptance criteria; defer nice-to-haves to later sprints"
     status: planned

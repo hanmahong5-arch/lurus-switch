@@ -1,23 +1,29 @@
 ---
-date: 2026-03-20
+date: 2026-04-10
 author: Anita
-status: draft-v2
-supersedes: product-brief-v1 (tool config manager positioning)
+status: draft-v3
+supersedes: product-brief-v2 (local AI gateway platform positioning)
 ---
 
-# Product Brief: Lurus Switch
+# Product Brief: Lurus Switch — 龙虾管理员
 
-# 产品简报：Lurus Switch — 本地 AI 接入平台
+# 产品简报：Lurus Switch — AI 助理舰队管理中心
 
 ---
 
 ## 0. 一句话定位
 
-**Switch 是安装在用户电脑上的"AI 接入层"：任何需要调用大模型的桌面应用、CLI 工具或脚本，接入 Switch 就能用，费用走 Lurus 统一计费。**
+**Switch 是安装在用户电脑上的"AI 助理管理中心"：创建、调度、监控、预算控制数十个 AI 助理实例，统一计费，一个面板掌控全局。**
 
-类比：
-- Switch 之于 LLM API = **Wi-Fi 路由器之于互联网** — 你不管每个设备怎么联网，接上路由器就行
-- Switch 之于 AI 应用 = **Steam 之于游戏** — 开发者不用自己做支付/DRM，接入平台就有用户和收入
+类比演进：
+- v1: **设置面板** — 管理 AI 工具的配置文件
+- v2: **Wi-Fi 路由器** — 所有 AI 应用走统一网关和计费
+- **v3: 舰队指挥中心** — 管理 N 个运行中的 AI 助理实例的生命周期、资源、协作
+
+核心隐喻：
+- Switch 之于 AI 助理 = **Docker Desktop 之于容器** — 创建、启动、停止、监控、资源限制
+- Switch 之于 LLM API = **路由器之于互联网** — 统一入口、流量计量、访问控制（v2 能力保留）
+- Switch 之于 AI 工具生态 = **Homebrew 之于命令行工具** — 安装、更新、依赖管理
 
 ---
 
@@ -25,369 +31,313 @@ supersedes: product-brief-v1 (tool config manager positioning)
 
 ### Problem Statement / 问题陈述
 
-**对应用开发者（供给侧）：**
+**v2 已识别的问题（保留）：**
 
-1. **接入成本高** — 每个想用 LLM 的桌面应用都要自己处理：API Key 管理、多 Provider 适配、计费、用量追踪。重复造轮子。
-2. **用户流失** — 用户嫌配 API Key 麻烦，或者不想在又一个 App 里绑信用卡。注册→配置→充值的漏斗每一步都在流失。
-3. **没有分发渠道** — 做了个 AI 应用，怎么让用户发现？App Store 不收桌面应用，独立开发者缺乏曝光。
+1. **多应用多账号** — 每个 AI 工具单独 Key、单独充值、单独管理
+2. **费用不透明** — 不知道哪个工具花了多少钱
+3. **配置重复** — 每个工具独立配置 Provider/模型/代理
 
-**对终端用户（需求侧）：**
+**v3 新增识别的问题：**
 
-1. **多应用多账号** — 用 Claude Code 要一个 Key，用 Cursor 要一个 Key，用某个 AI 工具又要一个 Key。每个应用单独充值、单独管理。
-2. **费用不透明** — 不知道哪个应用花了多少钱，月底各平台账单加起来才知道总花费。
-3. **配置重复** — 每个应用都要配一遍 Provider/模型/代理，换个模型要改 N 个地方。
+4. **多实例管理困难** — 用户可能同时运行 5-20 个 AI 助理实例（不同项目的 Claude Code、多个 ZeroClaw bot、多个 OpenClaw agent），没有统一视图
+5. **实例无身份** — 20 个进程在跑，分不清哪个在做什么。PID 和进程名没有业务含义
+6. **成本失控** — 多个助理并行运行，token 消耗速率不可预测，月底账单远超预期
+7. **上下文碎片化** — 每个助理各自维护上下文，项目知识无法共享，助理崩溃后上下文丢失
+8. **运维空白** — 助理崩了不知道、卡住不知道、重复消耗不知道。没有健康检查、自动重启、告警
+9. **从零配置门槛高** — 每次创建新助理都要从头配置工具+模型+提示词+MCP+权限，新用户望而却步
 
 ### Vision Statement / 愿景声明
 
-**Lurus Switch 是本地 AI 接入平台：用户充一次钱，所有应用都能用；开发者接一个 SDK，用户和计费都有了。Switch 让 AI 能力像电一样，插上就用。**
+**Lurus Switch 是 AI 助理舰队管理中心：用户在一个面板里创建、调度、监控数十个 AI 助理，每个助理有独立身份、预算和权限。Switch 让管理 AI 助理像管理 Docker 容器一样简单 — 从模板一键创建，实时监控资源消耗，崩溃自动重启，成本全程可控。**
+
+底层继承 v2 的 Gateway + 统一计费能力，作为不可见的基础设施层。
 
 ### Unique Value Proposition / 独特价值主张
 
-| 角色 | 价值 |
-|------|------|
-| **对用户** | 一份余额 → 所有 AI 应用通用；一个面板 → 看清每个应用花了多少 |
-| **对 AI 应用开发者** | 零成本接入 LLM 能力 — 不用管 Key/计费/Provider，指向 `localhost` 就行 |
-| **对 Lurus** | 每一次 AI 调用都走平台计费 — Switch 是 token 销售的本地分发渠道 |
+| 角色 | v2 价值（保留） | v3 新增价值 |
+|------|----------------|------------|
+| **对用户** | 一份余额 → 所有 AI 应用通用 | 一个面板 → 管理所有助理的生命周期、预算、健康 |
+| **对重度用户** | 费用透明 | 20 个助理一目了然，成本自动控制，崩溃自动恢复 |
+| **对开发者** | 零成本接入 LLM | 助理模板生态 — 发布模板 → 用户一键创建 |
+| **对 Lurus** | Token 销售渠道 | 多实例 = 更多 token 消耗 = 更高 GMV |
 
 ---
 
 ## 2. 核心商业逻辑
 
+### 2.1 基础层（v2 保留）
+
 ```
-                    ┌──────────────────────────────────┐
-                    │         Lurus Cloud (NewAPI)       │
-                    │   多 Provider 聚合 / 计费 / 路由    │
-                    └──────────────┬───────────────────┘
-                                   │ API (OpenAI-compatible)
-                    ┌──────────────▼───────────────────┐
-                    │       Lurus Switch (本地)          │
-                    │  ┌─────────────────────────────┐  │
-                    │  │   Local Gateway (localhost)  │  │
-                    │  │   • 鉴权 (per-app token)     │  │
-                    │  │   • 用量计量                  │  │
-                    │  │   • 智能路由                  │  │
-                    │  │   • 缓存 / 重试              │  │
-                    │  └──────────┬──────────────────┘  │
-                    │             │                      │
-                    │  ┌──────── │ ────────────────┐    │
-                    │  │         │                  │    │
-                    └──┼─────────┼──────────────────┼────┘
-                       │         │                  │
-                ┌──────▼──┐ ┌───▼────┐ ┌───────────▼──────┐
-                │Claude   │ │Cursor  │ │ 第三方 AI App     │
-                │Code     │ │/Codex  │ │ (任何需要 LLM 的   │
-                │         │ │        │ │  桌面应用/脚本)    │
-                └─────────┘ └────────┘ └──────────────────┘
+用户充值 → Lurus 账户余额
+任何助理调用 → Switch 本地 Gateway → Lurus Cloud → 扣余额
+Lurus 赚批量采购差价
 ```
 
-**钱怎么流：**
-1. 用户在 Switch 里充值（支付宝/微信 → Lurus Identity 账户余额）
-2. 任何应用调用 `localhost:PORT` → Switch 转发到 Lurus Cloud → 扣余额
-3. Lurus Cloud 用批量采购价调用上游 Provider（OpenAI/Anthropic/DeepSeek...）
-4. **利润 = 用户支付 - 上游成本** （聚合差价 + 增值服务费）
+### 2.2 管理层（v3 新增）
 
-**为什么用户愿意走 Switch 而不是自己配 Key：**
-- 比自己买便宜（聚合批量折扣）
-- 一次充值全部应用通用（不用每个 App 单独绑卡）
-- 有统一的费用视图和预算控制
-- 新应用零配置，安装即用
+```
+用户创建 Agent Profile → 选工具+模型+模板 → 分配预算
+    → Switch 管理实例生命周期 (start/stop/restart/health-check)
+    → 实时监控 token 消耗和运行状态
+    → 预算耗尽 → 自动暂停/降级
+    → 崩溃检测 → 自动重启
+```
+
+**更多助理 = 更多 token 消耗 = 更高收入。管理层直接驱动计费层增长。**
+
+### 2.3 模板层（v3 新增）
+
+```
+内置模板 ("代码审查员", "文档写手", "数据分析师"...)
+    → 用户一键创建 → 零配置启动
+社区模板 → 用户分享/导入 → 生态扩展
+```
 
 ---
 
 ## 3. Target Users / 目标用户
 
-### Persona 1: AI Power User / AI 重度用户（核心付费用户）
+### Persona 1: AI Power Developer / AI 重度开发者（核心用户）
+
+- **画像**: 同时推进 3-5 个项目，每个项目配 1-3 个 AI 助理（coding、review、doc），月消费 ¥500-3000
+- **核心需求**: 一个面板管理所有项目的所有助理；切换项目不用手动改配置；每个项目独立预算
+- **当前方案**: 手动开关不同的 CLI 实例，终端标签页混乱，记不清哪个在哪
+- **Switch 价值**: Dashboard 一眼看清所有助理状态，按项目分组，一键启停
+
+### Persona 2: Agent Farmer / Agent 农场主（高价值用户）
+
+- **画像**: 运行 10-30 个 ZeroClaw/OpenClaw 实例，各自服务不同 Telegram 群/Discord 频道/业务流程
+- **核心需求**: 批量管理、健康监控、自动重启、成本控制
+- **当前方案**: 手写 systemd service + 自己写监控脚本，运维负担重
+- **Switch 价值**: 图形化的"容器管理器"，批量操作，自动健康检查，预算自动断
+
+### Persona 3: AI Power User / AI 重度用户（付费用户，v2 保留）
 
 - **画像**: 每天使用 3+ AI 工具，月 API 消费 ¥200-2000
-- **核心需求**: 统一管理费用，一份余额多工具通用，费用透明
-- **当前方案**: 各平台分别充值，手动追踪费用
-- **Switch 价值**: 充一次钱 → 所有工具通用，Dashboard 看清每分钱花在哪
-- **付费意愿**: 高 — 愿意为便利性和折扣付费
+- **核心需求**: 统一计费，费用透明
+- **Switch 价值**: 充一次钱 → 所有工具通用
 
-### Persona 2: AI App Developer / AI 应用开发者（供给侧）
+### Persona 4: AI 探索者 / AI Explorer（增长层）
 
-- **画像**: 独立开发者/小团队，正在做需要 LLM 的桌面应用
-- **核心需求**: 不想自己处理 Key 管理和计费，希望有现成用户群
-- **当前方案**: 要么让用户自带 Key（体验差），要么自己搭计费系统（成本高）
-- **Switch 价值**: 应用只需 `baseURL = "http://localhost:19090"` → 用户已有余额，直接能用
-- **付费意愿**: 免费接入，Lurus 从 API 调用中抽成
-
-### Persona 3: Casual AI User / AI 普通用户（增长层）
-
-- **画像**: 偶尔用 AI 工具，月消费 ¥20-100
-- **核心需求**: 简单方便，不想折腾配置
-- **当前方案**: 直接用 ChatGPT/Claude Web
-- **Switch 价值**: 安装 Switch → 从"应用商店"装个 AI 工具 → 充点钱就能用
-- **付费意愿**: 低但稳定 — 小额高频
+- **画像**: 想试各种 AI 助理但不知道从何开始
+- **核心需求**: 低门槛上手，预设配置，不用学每个工具的配置格式
+- **Switch 价值**: 从模板库选一个 → 一键创建 → 立刻可用
 
 ---
 
 ## 4. Core Features / 核心功能
 
-### 4.1 Local Gateway（本地网关）— **核心中的核心**
-
-Switch 启动后，在本地运行一个 OpenAI-compatible API Server：
-
-```
-http://localhost:19090/v1/chat/completions
-http://localhost:19090/v1/embeddings
-http://localhost:19090/v1/models
-...
-```
+### 4.0 Agent Fleet Management（助理舰队管理）— **v3 核心新增**
 
 | 能力 | 说明 |
 |------|------|
-| **OpenAI 兼容** | 任何支持 OpenAI SDK 的应用，改一行 `base_url` 就能接入 |
-| **Per-App Token** | 每个注册的应用分配独立 token，用量独立计量 |
-| **透明代理** | 请求 → Switch 本地 → Lurus Cloud NewAPI → 上游 Provider |
-| **智能缓存** | 相同请求短时间内命中本地缓存，省钱省延迟 |
-| **自动重试 + Fallback** | 上游 503 自动切备用 Provider，用户无感 |
-| **离线队列** | 网络断开时请求入队，恢复后自动重发（非流式） |
+| **Agent Profile** | 每个助理有独立身份：名称、图标、标签、绑定工具、绑定模型、权限等级 |
+| **多实例** | 同一工具可创建多个助理实例，各有独立配置和上下文 |
+| **生命周期管理** | 创建 → 启动 → 运行 → 暂停 → 恢复 → 终止。完整状态机 |
+| **Agent 仪表盘** | 卡片式总览：状态灯、当前任务、token 消耗、运行时长、预算进度 |
+| **批量操作** | 全选/按标签/按项目，批量启停/重启/删除 |
+| **创建向导** | 选工具 → 选模型 → 填名称 → 设预算 → 选模板（可选）→ 完成 |
+| **Agent 克隆** | 从已有助理快速创建副本 |
+| **自动重启** | 健康检查 → 崩溃检测 → 自动重启（带重启次数上限 + 退避）|
+| **日志流** | 实时查看每个助理的 stdout/stderr |
 
-**现有基础**: `serverctl` 已能管理嵌入式 NewAPI binary 的生命周期（start/stop/config/auto-start）。需要增强为 always-on 模式 + per-app metering。
+### 4.1 Resource Management（资源管控）
 
-### 4.2 App Connector（应用连接器）— 让接入极简
-
-**对已知工具（Claude Code、Codex、Gemini CLI 等）：**
-- 自动检测已安装工具 → 一键注入 Switch 网关地址 + App Token
-- 现有 `installer` + `envmgr` + `toolconfig` 能力完全复用
-
-**对任意第三方应用：**
-
-```
-接入只需 3 步：
-1. 开发者在 Switch "App Registry" 注册（填名称 + 图标）
-2. 获得 per-app token（或让用户在 Switch 里手动添加）
-3. 应用代码里: base_url = "http://localhost:19090", api_key = "{app_token}"
-```
-
-| 接入方式 | 复杂度 | 适用场景 |
-|---------|--------|---------|
-| **Zero-config** | 零 | 已知工具（Claude/Codex/Gemini），Switch 自动检测+注入 |
-| **Standard** | 改一行代码 | 任何用 OpenAI SDK 的应用，改 `base_url` |
-| **Deep Integration** | 集成 SDK | 想在应用内显示余额/用量/模型选择器的应用 |
-
-**Deep Integration SDK（未来）：**
-```typescript
-// 应用内嵌入 Switch SDK
-import { LurusSwitch } from '@lurus/switch-sdk'
-
-const sw = new LurusSwitch({ appId: 'my-app' })
-const balance = await sw.getBalance()       // 查余额
-const models = await sw.listModels()        // 可用模型
-sw.openTopup()                              // 打开 Switch 充值界面
-```
-
-### 4.3 Billing Hub（计费中心）
-
-| 功能 | 说明 |
+| 能力 | 说明 |
 |------|------|
-| **统一余额** | 一个 Lurus 账户余额，所有应用共享 |
-| **Per-App 账单** | 按应用维度的消费明细（今日/本周/本月） |
-| **Per-Model 账单** | 按模型维度（claude-sonnet 花了多少，gpt-4o 花了多少） |
-| **预算控制** | 给每个应用设月度预算上限，超了自动断 |
-| **充值** | 支付宝/微信扫码充值，兑换码充值 |
-| **订阅计划** | 月付包（含基础额度 + 折扣倍率） |
-| **费用预警** | 余额不足 / 某应用异常消费 → 桌面通知 |
+| **每 Agent 预算** | 独立 token 预算，到期策略：暂停/降级/通知 |
+| **全局预算** | 日/月硬上限，触及后暂停所有非关键助理 |
+| **Burn Rate 仪表盘** | 实时消耗速率 + 趋势预测 + 月末预估 |
+| **智能降级** | 接近预算时自动切换到更便宜的模型 |
+| **成本报表** | 按 agent / 模型 / 项目 / 时间 的多维成本分析，可导出 |
 
-**现有基础**: `billing` 包已有 GetUserInfo/GetQuotaSummary/TopUp/Subscribe/RedeemCode 等完整接口。需要增加 per-app 维度。
+### 4.2 Context & Knowledge（上下文与知识管理）
 
-### 4.4 App Store / 应用发现（Phase 3）
+| 能力 | 说明 |
+|------|------|
+| **项目空间** | 项目下绑定多个 agent，共享项目级上下文 |
+| **上下文模板** | 系统提示词 + CLAUDE.md + MCP 配置的组合模板 |
+| **Agent 快照** | 导出 agent 上下文（配置+提示词+工作进度摘要）|
+| **快照恢复** | 从快照创建新 agent，继承前一个 agent 的工作上下文 |
+| **共享知识库** | 跨 agent 共享文档/FAQ/代码规范，启动时自动注入 |
 
-- 展示"可搭配 Switch 使用的 AI 应用"列表
-- 一键安装 + 自动配置网关连接
-- 应用评分、用量排名、推荐
-- 开发者入驻 → 应用上架 → 从用户消费中分成
+### 4.3 Monitoring & Observability（监控与可观测性）
 
-### 4.5 保留并重新定位的现有功能
+| 能力 | 说明 |
+|------|------|
+| **统一日志** | 所有 agent 日志汇聚，按 agent/级别/时间筛选 |
+| **性能对比** | 横向对比 agent 效率：任务完成率、平均 token、出错率 |
+| **告警规则** | agent 挂了、预算超标、连续失败 N 次 → 桌面通知 |
+| **审计日志** | 完整操作记录 |
 
-| 现有功能 | 新定位 | 变化 |
-|---------|--------|------|
-| Tool Config Management | "已知应用连接器" — App Connector 的子集 | 从"核心功能"降为"便利功能"，服务于一键配置流 |
-| MCP Presets | "跨应用 MCP 共享" | 不变，MCP 配好后多个工具共用 |
-| Relay Management | 合并到 Gateway 路由配置 | Relay 概念升级为 Gateway 的 upstream provider 配置 |
-| Config Snapshot + Diff | 保留 | 配置安全网，不变 |
-| Prompt Library | 保留 | 共享 Prompt 资产 |
-| Self Updater | 保留 | 不变 |
-| GY Products | 升级为 App Store 的种子内容 | 从硬编码 3 个产品 → 动态 App Registry |
-| Promoter | 保留并强化 | 推广返利，核心增长引擎 |
-| Process Monitor | 保留 | 监控本地 AI 工具进程 |
-| Analytics | 强化 | 增加 per-app 用量追踪 |
-| DocMgr (CLAUDE.md) | 保留 | 开发者工具的增值功能 |
+### 4.4 Template Ecosystem（模板生态）
+
+| 能力 | 说明 |
+|------|------|
+| **内置模板** | 15+ 预制 agent 模板：代码审查员、文档写手、测试工程师、数据分析师… |
+| **自定义模板** | 将现有 agent 保存为模板 |
+| **导入/导出** | JSON 格式，支持社区分享 |
+| **一键部署** | 从模板创建 + 自动配置 + 启动 |
+
+### 4.5 Local Gateway（本地网关）— v2 保留
+
+（内容同 v2 product-brief，此处不重复。核心：OpenAI-compatible API Server on localhost:19090，per-app token，透传 Lurus Cloud，本地计量。）
+
+### 4.6 Billing Hub（计费中心）— v2 保留
+
+（内容同 v2。核心：统一余额、per-app 账单、充值/订阅、费用预警。）
+
+### 4.7 保留的 v2 功能
+
+Tool Config Management, MCP Presets, Config Snapshots, Prompt Library, Self Updater, Promoter, Process Monitor, DocMgr (CLAUDE.md)。
 
 ---
 
 ## 5. Architecture / 架构
 
-### 5.1 组件图
+### 5.1 分层架构
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Lurus Switch                       │
-│                                                      │
-│  ┌─────────────┐  ┌───────────────┐  ┌───────────┐  │
-│  │  Wails GUI   │  │ Local Gateway │  │  Tray Icon │  │
-│  │  (React)     │  │ (HTTP Server) │  │  (systray) │  │
-│  │              │  │               │  │            │  │
-│  │ • Dashboard  │  │ • /v1/chat/*  │  │ • 状态显示 │  │
-│  │ • Billing    │  │ • /v1/models  │  │ • 快捷操作 │  │
-│  │ • App Mgmt   │  │ • /v1/embed   │  │ • 余额预览 │  │
-│  │ • Settings   │  │ • /health     │  │            │  │
-│  │ • App Store  │  │ • /metrics    │  │            │  │
-│  └──────┬───────┘  └──────┬────────┘  └─────┬─────┘  │
-│         │                 │                  │        │
-│  ┌──────▼─────────────────▼──────────────────▼─────┐  │
-│  │              Core Services Layer                 │  │
-│  │                                                  │  │
-│  │  appRegistry   gateway     billing   analytics   │  │
-│  │  appConnector  routing     metering  promoter    │  │
-│  │  installer     cache       quota     updater     │  │
-│  │  config        upstream    budget    snapshot    │  │
-│  └──────────────────────┬──────────────────────────┘  │
-│                         │                             │
-└─────────────────────────┼─────────────────────────────┘
-                          │ HTTPS
-               ┌──────────▼──────────┐
-               │   Lurus Cloud       │
-               │                     │
-               │  NewAPI (路由/计费)   │
-               │  Identity (账户)     │
-               │  多上游 Provider     │
-               └─────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  Layer 3: Orchestration (远期)                             │
+│  工作流定义 · 多 Agent 协作 · 任务路由 · Agent 间通信        │
+├──────────────────────────────────────────────────────────┤
+│  Layer 2: Fleet Management (v3 核心)                      │
+│  Agent Profile · 生命周期 · 预算控制 · 监控告警              │
+│  项目空间 · 上下文管理 · 模板 · 日志                        │
+├──────────────────────────────────────────────────────────┤
+│  Layer 1: Infrastructure (v2 已建)                        │
+│  Local Gateway · 计费 · 安装检测 · 配置生成                  │
+│  MCP · Prompt · Snapshot · Relay · Auth                   │
+├──────────────────────────────────────────────────────────┤
+│  Layer 0: Platform (Wails + React)                        │
+│  Go backend · React frontend · SQLite · IPC               │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 新增 internal 包规划
+### 5.2 新增 Go 包
 
-| 包名 | 职责 | 依赖关系 |
-|------|------|---------|
-| `gateway/` | 本地 HTTP 网关核心，OpenAI-compatible API 路由 | 替代 `serverctl`（不再嵌入外部 binary，自建） |
-| `gateway/middleware/` | 鉴权（per-app token）、计量、限流、缓存 | |
-| `gateway/upstream/` | 上游 Provider 管理（Lurus Cloud / 直连 / 自定义） | 整合 `relay/` |
-| `appreg/` | App Registry — 应用注册、token 分发、元数据 | |
-| `appconn/` | App Connector — 自动检测+注入配置到已知工具 | 复用 `installer/` + `toolconfig/` |
-| `metering/` | Per-app / per-model 本地用量统计 | SQLite (嵌入式) |
-| `budget/` | 预算控制 — per-app 配额管理 | 依赖 `metering/` |
-| `tray/` | 系统托盘图标 + 快捷菜单 | |
+| 包名 | 职责 |
+|------|------|
+| `internal/agent/` | Agent Profile CRUD + 实例生命周期管理 (start/stop/restart/health) |
+| `internal/agent/budget.go` | Per-agent 预算控制 + 降级策略 |
+| `internal/project/` | 项目空间 — 多 agent 绑定 + 共享上下文 |
+| `internal/template/` | Agent 模板管理 (builtin + custom + import/export) |
+| `internal/monitor/` | 指标采集 + 告警引擎 + 报表生成 |
+| `internal/logstream/` | Agent 日志聚合 + 实时流 + 搜索 |
 
-### 5.3 保留不变的包
+### 5.3 数据存储
 
-`config/`, `appconfig/`, `billing/`, `snapshot/`, `promptlib/`, `mcp/`,
-`docmgr/`, `envmgr/`, `updater/`, `validator/`, `process/`, `analytics/`,
-`promoter/`, `modelcatalog/`, `downloader/`, `proxydetect/`
-
-### 5.4 重构/合并的包
-
-| 现有包 | → 变化 |
-|--------|--------|
-| `serverctl/` | → 废弃，Gateway 不再嵌入外部 binary，而是 Switch 内建 HTTP Server |
-| `relay/` | → 合并到 `gateway/upstream/`，Relay 概念升级为 upstream provider |
-| `proxy/` | → 简化为存储用户 Lurus 账户凭证（endpoint + token），网关配置移到 `gateway/` |
-| `installer/` | → 拆分：工具安装保留，配置注入移到 `appconn/` |
-| `gy/` | → 升级为 `appreg/` 的种子数据，不再硬编码 |
-| `toolconfig/` | → 合并到 `appconn/` |
-| `generator/` | → 合并到 `appconn/` |
-
-### 5.5 本地网关 vs 嵌入 NewAPI Binary
-
-**关键架构决策：自建网关，不再嵌入 NewAPI binary。**
-
-| 方案 | 优点 | 缺点 |
+| 数据 | 存储 | 位置 |
 |------|------|------|
-| 嵌入 NewAPI binary（现状） | 功能完整，有 admin UI | 体积大 (~50MB)，更新慢，配置复杂，难以定制 per-app metering |
-| **自建轻量网关（新方案）** | 体积小，完全可控，per-app metering 原生支持，启动快 | 需要开发，仅做透明代理+计量（不需要完整的 NewAPI 功能） |
+| Agent Profiles | SQLite | `%APPDATA%/lurus-switch/switch.db` |
+| Agent 运行日志 | SQLite + 文件轮转 | `%APPDATA%/lurus-switch/logs/` |
+| 用量计量 | SQLite (已有 metering) | `%APPDATA%/lurus-switch/metering/` |
+| 模板 | JSON 文件 | `%APPDATA%/lurus-switch/templates/` |
+| 项目空间 | SQLite | `switch.db` |
+| 快照 | JSON 文件 (已有) | `%APPDATA%/lurus-switch/snapshots/` |
 
-自建网关只需要：
-1. OpenAI-compatible API 路由（透传到 Lurus Cloud）
-2. Per-app token 鉴权
-3. 本地用量计量（SQLite）
-4. 缓存 + 重试 + fallback
-5. `/health` + `/metrics` 端点
+### 5.4 UI 导航重构
 
-**不需要**：用户管理、渠道管理、日志管理（这些都在 Lurus Cloud 的 NewAPI 里）。
+```
+当前 (v2):
+  Home → Tools → Gateway → Workspace → Account → Settings
+
+目标 (v3):
+  Dashboard (舰队总览)
+    └─ 全局指标条 + Agent 卡片网格
+
+  Agents (助理管理)
+    ├─ 列表/网格视图 + 创建向导
+    ├─ 单个 agent 详情 (配置/日志/指标/快照)
+    └─ 批量操作
+
+  Projects (项目空间)
+    ├─ 项目列表 + 绑定的 agent
+    └─ 共享上下文管理
+
+  Templates (模板库)
+    ├─ 内置模板 + 我的模板
+    └─ 导入/导出
+
+  Gateway (网关) — v2 保留
+    ├─ 状态控制 + 流量监控
+    └─ Relay 管理
+
+  Analytics (分析)
+    ├─ 成本报表 (per-agent/model/project)
+    ├─ 性能对比
+    └─ 审计日志
+
+  Settings (设置)
+    ├─ 账户 & 计费
+    ├─ 外观 & 语言
+    └─ 安全策略 & 全局预算
+```
 
 ---
 
 ## 6. Revenue Model / 收入模型
 
-### 核心模型：API 中间层抽成
+（同 v2，核心不变。管理层直接放大计费层收入。）
 
-```
-用户在 Switch 充值 → Lurus 账户余额增加
-应用调用 Switch 网关 → 转发到 Lurus Cloud → 按 token 数计费扣余额
-Lurus 用批量价调用上游 → 赚差价
+| 来源 | 占比 | v3 增长驱动 |
+|------|------|------------|
+| **API Token 销售** | 70% | 多实例 = 更多 token 消耗 |
+| **订阅计划** | 20% | Agent 数量限制推动 Pro 升级 |
+| **模板市场** | 5% (新) | 开发者发布付费模板 |
+| **增值服务** | 5% | 高级监控、优先通道 |
 
-毛利率 = (用户支付价 - 上游成本) / 用户支付价
-目标毛利率: 30-50%（通过批量折扣 + 智能路由 + 缓存实现）
-```
+### 免费 vs Pro 边界
 
-### 收入来源
-
-| 来源 | 占比（预期） | 说明 |
-|------|-------------|------|
-| **API Token 销售** | 70% | 核心：用户充值购买 API 额度 |
-| **订阅计划** | 20% | Pro 月付包：含基础额度 + 更低单价 |
-| **应用分成** | 5% | 第三方应用通过 Switch 产生的调用，平台抽成 |
-| **增值服务** | 5% | 高级路由策略、优先通道、SLA 保障 |
-
-### 定价层级
-
-| 层级 | 价格 | 权益 |
-|------|------|------|
-| **免费** | ¥0 | 网关功能 + 自带 Key 模式（不走 Lurus 计费）|
-| **按量付费** | 充值即用 | Lurus 定价（比官方便宜 10-30%）|
-| **Switch Pro** | ¥39/月 | 含 ¥50 额度 + 额外调用 8 折 + 高级路由 + 费用分析 |
-| **Switch Team** | ¥29/人/月（≥3 人）| 团队余额池 + 管理后台 + 审计 |
-
-### 增长飞轮
-
-```
-更多应用接入 Switch
-    → 用户装 Switch 的理由更多
-        → 用户量增长
-            → 充值量增长
-                → 吸引更多应用接入
-                    → 循环 ↑
-```
+| 能力 | 免费 | Pro (¥39/月) |
+|------|------|-------------|
+| Agent 数量 | ≤ 5 | 无限 |
+| 并发运行 | ≤ 3 | 无限 |
+| 预算控制 | 全局预算 | Per-agent 预算 + 智能降级 |
+| 模板 | 内置 | 内置 + 自定义 + 社区 |
+| 日志保留 | 7 天 | 90 天 |
+| 项目空间 | 1 个 | 无限 |
 
 ---
 
 ## 7. Success Metrics / 成功指标
 
-### North Star Metric / 北极星指标
+### North Star Metric
 
-**月 API 调用 GMV（通过 Switch 产生的 API 消费总额）**
+**月活 Agent 实例数 (MAI) × 月均 Token 消耗**
 
 ### Key Metrics
 
-| Category | Metric | Phase 1 Target | Phase 3 Target |
-|----------|--------|----------------|----------------|
-| **Revenue** | 月 API GMV | ¥10,000 | ¥100,000 |
-| **Users** | 月活安装量 (MAU) | 500 | 5,000 |
-| **Activation** | 首次充值转化率 | 15% | 25% |
-| **Engagement** | 日均 API 调用次数/用户 | 50 | 200 |
-| **Apps** | 接入 Switch 的应用数 | 5（内置） | 30+ |
-| **Retention** | 30 日留存率 | 40% | 60% |
-| **Gateway** | 网关可用性 | 99.5% | 99.9% |
-| **Gateway** | 本地延迟开销 (p99) | < 50ms | < 20ms |
+| Category | Metric | Phase 1 | Phase 3 |
+|----------|--------|---------|---------|
+| **Agent** | 月活 Agent 实例数 | 2,000 | 20,000 |
+| **Agent** | 平均每用户 Agent 数 | 3 | 8 |
+| **Revenue** | 月 API GMV | ¥10,000 | ¥150,000 |
+| **Users** | MAU | 500 | 5,000 |
+| **Activation** | 首次创建 Agent 转化率 | 60% | 80% |
+| **Engagement** | 日均活跃 Agent 数/用户 | 2 | 5 |
+| **Template** | 模板使用率 | 40% | 70% |
+| **Retention** | 30 日留存 | 45% | 65% |
 
 ---
 
 ## 8. Competitive Landscape / 竞争格局
 
-| 竞品 | 模式 | 优势 | Switch 差异 |
-|------|------|------|------------|
-| **OpenRouter** | Web API 聚合 | 200+ 模型，成熟 | Switch 是本地网关，Key 不出机器；深度集成桌面工具 |
-| **TypingMind** | Web Chat UI + Key 管理 | 好用的 Chat | Switch 不做 Chat，做基础设施层 |
-| **LiteLLM Proxy** | 开源 LLM 代理 | 免费开源 | Switch 有计费+App Store+GUI，不只是代理 |
-| **各工具自带 Key** | 原生 | 无额外依赖 | Switch 提供统一账单+折扣+跨工具管理 |
+| 竞品 | 模式 | Switch v3 差异 |
+|------|------|---------------|
+| **Docker Desktop** | 容器管理 | Switch 专注 AI 助理，内置模板+计费+上下文管理 |
+| **OpenRouter** | Web API 聚合 | Switch 是本地管理器，管的是助理实例不是 API |
+| **LangChain/CrewAI** | 多 Agent 编排框架 | Switch 是产品不是框架，零代码操作 |
+| **Cursor/Windsurf** | AI IDE | Switch 管理多个工具实例，不限于 IDE |
+| 各工具自带管理 | 原生 | Switch 跨工具统一管理 |
 
 ### 护城河
 
-1. **双边网络效应** — 应用越多 → 用户越多 → 开发者越愿意接入 → 应用越多
-2. **余额锁定** — 用户充了钱在 Lurus 账户里，自然继续用
-3. **习惯形成** — 所有工具都指向 `localhost:19090`，换掉 Switch 要改所有工具配置
-4. **数据资产** — 用量分析、Prompt 库、MCP 配置、配置快照都在 Switch 里
-5. **本地优先** — 中国市场对"数据不出境"的硬需求，云端竞品天然劣势
+1. **多实例锁定** — 用户的 20 个 agent 配置、预算、日志都在 Switch 里，迁移成本极高
+2. **模板网络效应** — 模板越多 → 新用户上手越快 → 用户越多 → 模板越多
+3. **计费粘性** — 余额在 Lurus，agent 越多消耗越快，充值越频繁
+4. **上下文资产** — 项目空间、共享知识库、快照，这些是用户积累的智力资产
 
 ---
 
@@ -395,96 +345,39 @@ Lurus 用批量价调用上游 → 赚差价
 
 ### In Scope
 
-- 本地 OpenAI-compatible API 网关（always-on）
-- Per-app token 管理和用量计量
-- 统一计费（充值/订阅/费用分析）
-- 已知工具自动检测+一键注入网关
-- App Registry（应用注册和发现）
-- 系统托盘常驻（后台运行，不占前台）
-- 预算控制（per-app 配额）
-- 跨平台（Windows / macOS / Linux）
+- Agent 多实例生命周期管理
+- Per-agent 预算和资源控制
+- 项目空间和上下文共享
+- Agent 模板库 (builtin + custom)
+- 统一日志和监控
+- 本地 Gateway + 统一计费（v2 保留）
+- 系统托盘常驻
+- 跨平台 (Windows / macOS / Linux)
 
 ### Out of Scope
 
 - Chat UI（不做聊天界面）
 - 本地模型推理（不嵌入 Ollama）
-- 云端 API 网关（那是 Lurus Cloud NewAPI 的事）
+- 多 Agent 编排（Phase 6 远期，不在 MVP）
+- Agent 间实时通信（Phase 6 远期）
+- 远程机器管理（Phase 6 远期）
 - 移动端
-- IDE 插件（但可以被 IDE 插件连接）
-
-### Constraints
-
-1. **架构**: Wails v2 单二进制，网关内建，不嵌入外部 binary
-2. **数据**: 用量统计用本地 SQLite，账户数据从 Lurus Cloud 拉取
-3. **网络**: 必须能连 Lurus Cloud 才能用付费功能；自带 Key 模式可离线
-4. **兼容**: 网关 API 严格 OpenAI-compatible，不发明私有协议
 
 ---
 
 ## 10. Roadmap / 分阶段实施
 
-### Phase 1: Gateway Foundation（4 周）
+| Phase | 名称 | 时长 | 核心目标 |
+|-------|------|------|---------|
+| **0** | Agent 基础 | 2 周 | 数据模型、多实例配置、SQLite、进程关联 |
+| **1** | 舰队管理 | 3 周 | 创建向导、仪表盘、启停、健康检查、日志流 |
+| **2** | 资源管控 | 2 周 | Per-agent 预算、Burn Rate、降级、成本报表 |
+| **3** | 上下文 | 2 周 | 项目空间、模板库、快照继承、共享知识 |
+| **4** | 监控 | 2 周 | 统一日志、性能对比、告警、桌面通知、审计 |
+| **5** | 模板生态 | 1 周 | 内置模板、自定义、导入导出、一键部署 |
+| **6** | 高级编排 | 3 周 (远期) | 任务队列、Agent 间通信、工作流、多机管理 |
 
-**目标**: Switch 变成一个可用的本地 LLM 网关，用户充值后任何工具指向 localhost 即可调用。
-
-| 任务 | 说明 | 涉及包 |
-|------|------|--------|
-| **P1.1 自建本地网关** | 内建 HTTP Server，OpenAI-compatible /v1/* 路由，透传到 Lurus Cloud | 新建 `gateway/` 替代 `serverctl/` |
-| **P1.2 Per-App Token** | App Registry：注册应用 → 分配 token → 网关鉴权 | 新建 `appreg/` |
-| **P1.3 本地计量** | SQLite 记录每次 API 调用（app_id, model, tokens_in, tokens_out, cost, timestamp） | 新建 `metering/` |
-| **P1.4 系统托盘** | Switch 启动后常驻系统托盘，网关后台运行，GUI 按需打开 | 新建 `tray/` |
-| **P1.5 Dashboard 改版** | 首页展示：网关状态、余额、今日调用量、per-app 消费排行 | 前端 DashboardPage 重写 |
-| **P1.6 已知工具一键接入** | 检测 Claude/Codex/Gemini → 一键写入 Switch 网关 endpoint + app token | 重构 `installer/` → `appconn/` |
-
-**Phase 1 验收标准**:
-- 启动 Switch → 网关自动运行在 localhost:19090
-- Claude Code 的 settings.json 被注入 Switch 网关地址
-- 用 Claude Code 发一条消息 → Switch 计量到这次调用 → Dashboard 显示消费
-
-### Phase 2: Billing & Control（3 周）
-
-**目标**: 完整的费用管理闭环，用户能充值、能看账单、能控预算。
-
-| 任务 | 说明 | 涉及包 |
-|------|------|--------|
-| **P2.1 Billing 页面升级** | 余额、充值、订阅、消费明细（per-app + per-model 维度） | 前端 BillingPage + `billing/` |
-| **P2.2 预算控制** | 给每个应用设月预算上限，超额自动断 | 新建 `budget/` |
-| **P2.3 费用预警** | 桌面通知：余额不足、某应用异常消费、预算即将耗尽 | `tray/` + OS notification |
-| **P2.4 自带 Key 模式** | 网关支持 BYO Key（不走 Lurus 计费），用户可选 | `gateway/upstream/` |
-| **P2.5 Relay → Upstream 迁移** | 将现有 Relay 概念升级为 Gateway 的上游路由配置 | 合并 `relay/` → `gateway/upstream/` |
-
-**Phase 2 验收标准**:
-- Dashboard 显示"本月 Claude Code 花了 ¥47，Codex 花了 ¥23"
-- 给 Codex 设 ¥50/月预算 → 超额后 Codex 的请求被拒绝，Claude Code 不受影响
-- 余额低于 ¥10 时弹出桌面通知
-
-### Phase 3: App Ecosystem（4 周）
-
-**目标**: 从"管理 5 个已知工具"扩展为"任意应用都能接入"。
-
-| 任务 | 说明 | 涉及包 |
-|------|------|--------|
-| **P3.1 App Registry UI** | 用户可手动添加应用（名称+图标）→ 获得独立 app token | 前端 AppRegistryPage + `appreg/` |
-| **P3.2 Cloud App Directory** | 从 Lurus Cloud 拉取推荐应用列表（名称/描述/接入指南） | `appreg/` + Cloud API |
-| **P3.3 一键安装 + 自动配置** | 从 App Directory 安装应用 → 自动注入 Switch 网关 | `appconn/` + `installer/` |
-| **P3.4 智能缓存** | 相同请求的 LLM 响应本地缓存（TTL + LRU），显著降低重复调用成本 | `gateway/middleware/` |
-| **P3.5 GY 迁移** | 将 GY 硬编码产品迁移为 App Registry 的种子数据 | 废弃 `gy/` → `appreg/` |
-| **P3.6 开发者文档** | "如何让你的应用接入 Switch" 接入指南 | docs |
-
-**Phase 3 验收标准**:
-- 用户手动注册一个 Python 脚本作为"应用" → 获得 token → 脚本用 OpenAI SDK 调用成功
-- App Directory 展示 10+ 可接入应用
-- 缓存命中时延迟 < 5ms
-
-### Phase 4: Growth & Moat（持续）
-
-| 任务 | 说明 |
-|------|------|
-| **P4.1 智能路由** | 按任务复杂度/成本偏好自动选 Provider+Model |
-| **P4.2 推广返利强化** | 分享链接 → 被推荐用户消费 → 推荐人返利 |
-| **P4.3 Switch SDK** | npm/pip 包，应用内嵌入余额查询/模型选择/充值跳转 |
-| **P4.4 团队版** | 团队余额池 + 管理后台 + 审计日志 |
-| **P4.5 开发者分成** | 第三方应用通过 Switch 产生的消费，开发者获得分成 |
+**MVP = Phase 0 + Phase 1 + Phase 2 (7 周)**
 
 ---
 
@@ -492,109 +385,33 @@ Lurus 用批量价调用上游 → 赚差价
 
 | Risk | Impact | Likelihood | Mitigation |
 |------|--------|-----------|------------|
-| 网关延迟影响用户体验 | 高 | 中 | 本地纯转发开销 < 5ms；性能基准测试+持续监控 |
-| 自建网关 vs NewAPI 功能差距 | 中 | 低 | Switch 网关只做透传+计量，不需要完整 NewAPI 功能 |
-| 用户不信任本地代理安全性 | 高 | 中 | 开源网关代码；安全审计；本地数据加密 |
-| 上游 Provider ToS 风险 | 高 | 低 | 法务审查；作为"增值服务"定位而非纯转售 |
-| 双边市场冷启动 | 高 | 高 | 自有工具（Claude/Codex/Gemini 连接器）作为种子供给；充值折扣作为种子需求 |
-| Wails 系统托盘支持不完善 | 中 | 中 | 使用 `getlantern/systray` 或 `fyne.io/systray` 独立库 |
+| 进程管理跨平台差异 | 高 | 高 | Windows/macOS/Linux 各有 `exec_*.go`，已有模式 |
+| SQLite 并发写冲突 | 中 | 中 | WAL 模式 + 写锁超时 + 读写分离 |
+| 20+ 实例内存压力 | 中 | 中 | Switch 本身 < 50MB，管理的是外部进程不是嵌入进程 |
+| Agent 崩溃级联 | 高 | 低 | 独立进程模型，各实例隔离，崩溃不传染 |
+| 用户可能不需要这么多助理 | 高 | 中 | 模板降低门槛；即使只管 3 个也比手动好 |
+| 现有 Process Monitor 能力不足 | 中 | 高 | Phase 0 重构，从 PID 监控升级为 Agent 生命周期管理 |
 
 ---
 
 ## 12. Key Decisions / 关键决策
 
-### D1: 自建网关 vs 继续嵌入 NewAPI
+### D4: Agent 是进程还是配置？
 
-**决策: 自建轻量网关。**
+**决策: Agent = 配置 Profile + 可选的运行实例。**
 
-理由：
-- NewAPI binary ~50MB，Switch 目前 < 20MB，嵌入后体积翻倍
-- Per-app metering 是核心需求，嵌入 NewAPI 要 fork 修改，维护成本高
-- Switch 网关只需透传+计量，90% 的 NewAPI 功能（用户管理/渠道管理/admin UI）不需要
-- 自建可完全控制启动速度、内存占用、API 兼容性
+Agent 可以存在但不运行（已配置但未启动）。启动时 Switch 生成配置文件 → 启动对应工具的子进程 → 关联 PID → 监控。
 
-### D2: 始终运行 vs 按需启动
+这意味着 Switch 不嵌入 AI 工具的逻辑，而是**编排外部工具进程**。
 
-**决策: 系统托盘常驻，网关始终运行。**
+### D5: 全新 UI 还是渐进式改造？
 
-理由：
-- 应用随时可能调 API，网关必须始终可用
-- 类似 Docker Desktop 的体验 — 后台运行，不打扰
-- 内存占用目标 < 30MB（纯 Go HTTP Server，无 VM）
+**决策: 渐进式改造。**
 
-### D3: 产品目录名称
+在现有导航中插入 "Agents" 和 "Projects" 页面，Dashboard 改版为 Agent 总览。保留 Gateway / Settings / Account 等已有页面。分 Phase 逐步替换。
 
-**现状**: 代码在 `2c-gui-switch`，问题文件在 `2c-app-switch`
-**建议**: 统一为 `2c-gui-switch`（desktop GUI 准确反映产品形态），`2c-app-switch` 仅保留规划文档或归档。
+### D6: SQLite 还是纯文件？
 
----
+**决策: SQLite（WAL 模式）。**
 
-## 13. 现有代码改造清单
-
-### 保留（无需改动）
-
-| 文件/包 | 原因 |
-|---------|------|
-| `main.go` | Wails bootstrap，结构不变 |
-| `internal/appconfig/` | App 设置，不变 |
-| `internal/billing/` | 计费 client 完全复用 |
-| `internal/config/` | 工具配置 model，复用 |
-| `internal/docmgr/` | CLAUDE.md 管理，保留 |
-| `internal/envmgr/` | Key 管理，复用 |
-| `internal/mcp/` | MCP 预设，保留 |
-| `internal/modelcatalog/` | 模型目录，保留 |
-| `internal/packager/` | 打包工具，保留 |
-| `internal/process/` | 进程监控，保留 |
-| `internal/promoter/` | 推广系统，保留并强化 |
-| `internal/promptlib/` | Prompt 库，保留 |
-| `internal/snapshot/` | 快照，保留 |
-| `internal/updater/` | 自更新，保留 |
-| `internal/validator/` | 校验，保留 |
-| `internal/downloader/` | 下载工具，保留 |
-| `internal/proxydetect/` | 代理检测，保留 |
-| `internal/analytics/` | 追踪，保留 |
-
-### 重构
-
-| 文件/包 | 改动 |
-|---------|------|
-| `app.go` | God Object 拆分（已在 Sprint 1 计划）；增加网关生命周期 |
-| `services.go` | 替换 `serverMgr` → `gatewayMgr`；增加 `appRegistry`, `metering`, `budget` |
-| `internal/proxy/` | 简化为 Lurus 账户凭证存储（endpoint + token），移除网关相关逻辑 |
-| `internal/installer/` | 保留工具安装能力，配置注入拆分到 `appconn/` |
-| `bindings_proxy.go` | QuickSetup/SwitchModel/ConfigureAllToolsRelay 移到 appconn bindings |
-| `bindings_server.go` | Start/StopServer → Start/StopGateway |
-| `bindings_relay.go` | Relay 概念升级为 upstream provider |
-| `bindings_gy.go` | GY 产品移到 App Registry |
-
-### 新增
-
-| 文件/包 | 内容 |
-|---------|------|
-| `internal/gateway/` | 本地 HTTP 网关：路由、中间件、upstream 管理 |
-| `internal/gateway/middleware/` | auth（per-app token）、metering、ratelimit、cache |
-| `internal/gateway/upstream/` | 上游 provider 管理（Lurus Cloud / BYO Key / custom） |
-| `internal/appreg/` | App Registry：注册、token 管理、元数据、cloud sync |
-| `internal/appconn/` | App Connector：已知工具检测 + 配置注入 |
-| `internal/metering/` | 本地 SQLite 计量：per-app / per-model 用量 |
-| `internal/budget/` | 预算控制：per-app 配额、超额策略 |
-| `internal/tray/` | 系统托盘：状态、余额、快捷操作 |
-| `bindings_gateway.go` | 网关 Wails bindings |
-| `bindings_appreg.go` | App Registry Wails bindings |
-| `bindings_metering.go` | 用量统计 Wails bindings |
-| `frontend/src/pages/AppRegistryPage.tsx` | 应用管理页面 |
-| `frontend/src/pages/MeteringPage.tsx` | 用量分析页面 |
-| `frontend/src/stores/gatewayStore.ts` | 网关状态 store（现有，需重构） |
-| `frontend/src/stores/appStore.ts` | 应用列表 store |
-| `frontend/src/stores/meteringStore.ts` | 用量数据 store |
-
-### 废弃
-
-| 文件/包 | 原因 |
-|---------|------|
-| `internal/serverctl/` | 不再嵌入外部 NewAPI binary |
-| `internal/relay/` | 合并到 `gateway/upstream/` |
-| `internal/toolconfig/` | 合并到 `appconn/` |
-| `internal/generator/` | 合并到 `appconn/` |
-| `internal/gy/` | 升级为 `appreg/` 种子数据 |
-| Gateway* 前端页面（10 个） | 不再需要 NewAPI admin UI，替换为自建网关 Dashboard |
+Agent 元数据、运行日志、用量统计需要结构化查询（按时间、按 agent、按 model 聚合）。JSON 文件无法高效支持。已有 metering 也可迁移到 SQLite。

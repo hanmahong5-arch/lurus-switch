@@ -10,11 +10,13 @@ import {updater} from '../models';
 import {installer} from '../models';
 import {gy} from '../models';
 import {relay} from '../models';
+import {agent} from '../models';
 import {healthscore} from '../models';
 import {proxydetect} from '../models';
 import {modelcatalog} from '../models';
 import {appconfig} from '../models';
 import {metering} from '../models';
+import {auth} from '../models';
 import {promptlib} from '../models';
 import {preset} from '../models';
 import {docmgr} from '../models';
@@ -111,11 +113,17 @@ export function ClearAllUserPrompts():Promise<number>;
 
 export function ClearToolSnapshots(arg1:string):Promise<number>;
 
+export function CloneAgent(arg1:string,arg2:string):Promise<agent.Profile>;
+
 export function ComputeHealthScore():Promise<healthscore.ScoreReport>;
 
 export function ConfigureAllProxy():Promise<Record<string, string>>;
 
 export function ConfigureAllToolsRelay():Promise<Record<string, string>>;
+
+export function CreateAgent(arg1:agent.CreateParams):Promise<agent.Profile>;
+
+export function DeleteAgent(arg1:string):Promise<void>;
 
 export function DeleteApp(arg1:string):Promise<void>;
 
@@ -187,6 +195,8 @@ export function FetchCloudRelayEndpoints():Promise<Array<relay.RelayEndpoint>>;
 
 export function FetchModelCatalog():Promise<modelcatalog.Catalog>;
 
+export function FetchProviderModels(arg1:string,arg2:string):Promise<Array<string>>;
+
 export function FullSetupForGateway():Promise<main.FullSetupResult>;
 
 export function GenerateClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
@@ -203,6 +213,12 @@ export function GeneratePicoClawConfig(arg1:config.PicoClawConfig):Promise<strin
 
 export function GenerateZeroClawConfig(arg1:config.ZeroClawConfig):Promise<string>;
 
+export function GetAgent(arg1:string):Promise<agent.Profile>;
+
+export function GetAgentOutput(arg1:string,arg2:number):Promise<Array<string>>;
+
+export function GetAgentStats():Promise<main.AgentStats>;
+
 export function GetAllToolConfigPaths():Promise<Record<string, string>>;
 
 export function GetAppSettings():Promise<appconfig.AppSettings>;
@@ -210,6 +226,8 @@ export function GetAppSettings():Promise<appconfig.AppSettings>;
 export function GetAppSummaries(arg1:string):Promise<Array<metering.AppSummary>>;
 
 export function GetAppVersion():Promise<string>;
+
+export function GetAuthState():Promise<auth.AuthState>;
 
 export function GetBuiltinMCPPresets():Promise<Array<mcp.MCPPreset>>;
 
@@ -315,9 +333,13 @@ export function InstallTool(arg1:string):Promise<installer.InstallResult>;
 
 export function KillCLIProcess(arg1:number):Promise<void>;
 
+export function LaunchAgent(arg1:string):Promise<void>;
+
 export function LaunchGYProduct(arg1:string):Promise<void>;
 
 export function LaunchTool(arg1:string,arg2:Array<string>):Promise<string>;
+
+export function ListAgents(arg1:agent.ListFilter):Promise<Array<agent.Profile>>;
 
 export function ListAllAPIKeys():Promise<Array<envmgr.KeyEntry>>;
 
@@ -359,6 +381,10 @@ export function LoadPicoClawConfig(arg1:string):Promise<config.PicoClawConfig>;
 
 export function LoadZeroClawConfig(arg1:string):Promise<config.ZeroClawConfig>;
 
+export function Login():Promise<auth.AuthState>;
+
+export function Logout():Promise<void>;
+
 export function OpenAdminPanel():Promise<void>;
 
 export function OpenConfigDir():Promise<void>;
@@ -384,6 +410,8 @@ export function PromoterGetShareLink():Promise<string>;
 export function QuickSetup(arg1:string):Promise<Record<string, string>>;
 
 export function ReadToolConfig(arg1:string):Promise<toolconfig.ToolConfigInfo>;
+
+export function RefreshAuth():Promise<auth.AuthState>;
 
 export function RegisterApp(arg1:string,arg2:string,arg3:string):Promise<appreg.App>;
 
@@ -441,6 +469,8 @@ export function StartGateway():Promise<void>;
 
 export function StartServer():Promise<void>;
 
+export function StopAgent(arg1:string):Promise<void>;
+
 export function StopGateway():Promise<void>;
 
 export function StopServer():Promise<void>;
@@ -458,6 +488,8 @@ export function UninstallAllTools():Promise<Array<installer.InstallResult>>;
 export function UninstallTool(arg1:string):Promise<installer.InstallResult>;
 
 export function UpdateAPIKey(arg1:string,arg2:string,arg3:string):Promise<void>;
+
+export function UpdateAgent(arg1:string,arg2:agent.UpdateParams):Promise<agent.Profile>;
 
 export function UpdateAllTools():Promise<Array<installer.InstallResult>>;
 

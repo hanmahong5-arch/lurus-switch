@@ -5,6 +5,7 @@
   },
   "nav": {
     "home": "首页",
+    "agents": "助理",
     "tools": "工具",
     "gateway": "网关",
     "workspace": "工作台",
@@ -783,7 +784,11 @@
     "testConnection": "测试连接",
     "connecting": "连接中...",
     "connectedMs": "已连接 ({{ms}}ms)",
-    "chooseProvider": "选择供应商"
+    "chooseProvider": "选择供应商",
+    "fetchModels": "获取模型",
+    "fetchModelsHint": "调用 /v1/models 发现可用模型 ID",
+    "modelsFound": "发现 {{count}} 个模型 — 点击复制",
+    "copyModel": "复制模型 ID"
   },
   "hooks": {
     "events": {
@@ -843,7 +848,39 @@
   },
   "ui": {
     "showAdvanced": "展开高级选项",
-    "learnMore": "了解更多"
+    "learnMore": "了解更多",
+    "cancel": "取消",
+    "refresh": "刷新"
+  },
+  "agents": {
+    "title": "助理",
+    "subtitle": "管理你的 AI 助理舰队",
+    "new": "新建助理",
+    "createTitle": "创建助理",
+    "create": "创建",
+    "created": "助理已创建",
+    "name": "名称",
+    "namePlaceholder": "例如：前端审查员",
+    "icon": "图标",
+    "tool": "工具",
+    "model": "模型",
+    "tags": "标签（逗号分隔）",
+    "total": "总数",
+    "running": "运行中",
+    "idle": "空闲",
+    "errors": "错误",
+    "filterAll": "全部",
+    "filterRunning": "运行中",
+    "filterStopped": "已停止",
+    "filterCreated": "已创建",
+    "filterError": "错误",
+    "empty": "还没有助理",
+    "createFirst": "创建你的第一个助理",
+    "confirmDelete": "删除助理「{{name}}」？",
+    "started": "{{name}} 已启动",
+    "stopped": "{{name}} 已停止",
+    "cloned": "已克隆 {{name}}",
+    "deleted": "已删除 {{name}}"
   },
   "help": {
     "gateway": {

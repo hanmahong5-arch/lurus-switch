@@ -91,15 +91,18 @@ export function AuthLoginPanel() {
 
   // --- Not logged in state ---
   return (
-    <div className="border border-border rounded-lg p-4 bg-card space-y-3">
-      <div className="flex items-center gap-2">
-        <Shield className="h-4 w-4 text-primary" />
-        <h3 className="text-sm font-medium">{t('auth.lurusAccount', 'Lurus Account')}</h3>
+    <div className="border border-border rounded-lg overflow-hidden bg-card space-y-3">
+      {/* Hero gradient band */}
+      <div className="px-4 pt-5 pb-4 bg-gradient-to-br from-[hsl(228,99%,65%)] to-[hsl(222,47%,18%)]">
+        <div className="flex items-center gap-2 mb-1.5">
+          <Shield className="h-4 w-4 text-white/90" />
+          <h3 className="text-sm font-semibold text-white">{t('auth.lurusAccount', 'Lurus Account')}</h3>
+        </div>
+        <p className="text-xs text-white/70">
+          {t('auth.loginDescription', 'Login with your Lurus account to access billing, API quotas, and auto-configure all tools.')}
+        </p>
       </div>
-
-      <p className="text-xs text-muted-foreground">
-        {t('auth.loginDescription', 'Login with your Lurus account to access billing, API quotas, and auto-configure all tools.')}
-      </p>
+      <div className="px-4 pb-4 space-y-3">
 
       {/* Error message */}
       {loginError && (
@@ -150,6 +153,7 @@ export function AuthLoginPanel() {
           {t('auth.manualTokenHint', 'If you prefer manual setup, configure the API endpoint and token in the section below.')}
         </p>
       )}
+      </div>
     </div>
   )
 }

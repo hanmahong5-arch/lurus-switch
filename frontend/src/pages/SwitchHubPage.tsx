@@ -4,6 +4,7 @@ import {
   Activity, BarChart3, ChevronDown, ChevronRight, DollarSign, Clock, ShieldAlert,
   Eye, EyeOff, Wifi, WifiOff, BookOpen, Zap, AlertTriangle, CheckCircle2,
   Circle, CircleDot, Link2, Unlink, ClipboardCopy, Wrench, FolderOpen, Signal, Database,
+  Archive,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn, safeArray } from '../lib/utils'
@@ -336,7 +337,7 @@ function ToolDiagRow({
             </button>
           )}
 
-          {/* Snapshot + Open Config buttons for installed tools */}
+          {/* Open Config + Snapshots buttons for installed tools */}
           {diag.installed && (
             <>
               <button
@@ -349,9 +350,9 @@ function ToolDiagRow({
               <button
                 onClick={() => onShowSnapshots(diag.tool)}
                 className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-primary transition-colors"
-                title={t('switch.snapshots')}
+                title={t('switch.snapshots', 'Snapshots')}
               >
-                <RotateCw className="h-3 w-3" />
+                <Archive className="h-3 w-3" />
               </button>
             </>
           )}

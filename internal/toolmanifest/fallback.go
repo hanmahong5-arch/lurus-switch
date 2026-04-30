@@ -3,6 +3,7 @@ package toolmanifest
 import (
 	_ "embed"
 	"encoding/json"
+	"log"
 	"sync"
 )
 
@@ -16,12 +17,15 @@ var (
 
 // Builtin returns the compile-time embedded manifest.
 // It is used as the last-resort fallback when network and cache are both unavailable.
+// If the embedded JSON fails to parse (build error), logs the failure and returns
+// an empty manifest rather than crashing the desktop app.
 func Builtin() *Manifest {
 	builtinOnce.Do(func() {
 		var m Manifest
 		if err := json.Unmarshal(builtinJSON, &m); err != nil {
-			// Embedded JSON must always be valid; panic here is a programming error.
-			panic("toolmanifest: corrupt builtin manifest: " + err.Error())
+			log.Printf("toolmanifest: corrupt builtin manifest (build error): %v", err)
+			builtinManifest = &Manifest{}
+			return
 		}
 		builtinManifest = &m
 	})

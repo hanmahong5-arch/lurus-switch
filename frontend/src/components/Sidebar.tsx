@@ -1,6 +1,6 @@
 import {
   Settings, Home, Wrench, Wallet, Briefcase,
-  Megaphone, ShieldCheck, Radio,
+  Megaphone, ShieldCheck, Radio, Bot,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -52,7 +52,15 @@ export function Sidebar() {
     <aside className="w-56 bg-muted/50 border-r border-border flex flex-col">
       {/* Logo / Title */}
       <div className="p-4 border-b border-border wails-drag">
-        <h1 className="text-lg font-semibold">Lurus Switch</h1>
+        <div className="flex items-center gap-2 mb-0.5">
+          {/* Geometric whale SVG mark */}
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 14 Q2 8 7 6 Q10 5 12 7 L18 5 Q20 5 20 8 L19 13 Q18 16 15 16 L13 16 Q12 18 10 19 L8 20 Q7 20 7.5 18.5 L8 17 Q5 17 3 14 Z" fill="currentColor" className="text-primary"/>
+            <circle cx="16" cy="9" r="1.2" fill="white" opacity="0.85"/>
+            <path d="M19 8 Q21 6 20 4" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.6"/>
+          </svg>
+          <h1 className="text-lg font-semibold">Lurus Switch</h1>
+        </div>
         <p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
       </div>
 
@@ -69,7 +77,17 @@ export function Sidebar() {
             onClick={() => setActiveTool('home')}
           />
 
-          {/* 2. Tools */}
+          {/* 2. Agents */}
+          <NavButton
+            id="agents"
+            name={t('nav.agents', 'Agents')}
+            icon={Bot}
+            iconColor="text-violet-500"
+            active={activeTool === 'agents'}
+            onClick={() => setActiveTool('agents')}
+          />
+
+          {/* 3. Tools */}
           <NavButton
             id="tools"
             name={t('nav.tools')}

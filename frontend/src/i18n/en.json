@@ -5,6 +5,7 @@
   },
   "nav": {
     "home": "Home",
+    "agents": "Agents",
     "tools": "Tools",
     "gateway": "Gateway",
     "workspace": "Workspace",
@@ -783,7 +784,11 @@
     "testConnection": "Test Connection",
     "connecting": "Connecting...",
     "connectedMs": "Connected ({{ms}}ms)",
-    "chooseProvider": "Choose Provider"
+    "chooseProvider": "Choose Provider",
+    "fetchModels": "Fetch Models",
+    "fetchModelsHint": "Query /v1/models to discover available model IDs",
+    "modelsFound": "{{count}} models discovered — click to copy",
+    "copyModel": "Copy model ID"
   },
   "hooks": {
     "events": {
@@ -843,7 +848,39 @@
   },
   "ui": {
     "showAdvanced": "Show advanced options",
-    "learnMore": "Learn more"
+    "learnMore": "Learn more",
+    "cancel": "Cancel",
+    "refresh": "Refresh"
+  },
+  "agents": {
+    "title": "Agents",
+    "subtitle": "Manage your AI assistant fleet",
+    "new": "New Agent",
+    "createTitle": "Create Agent",
+    "create": "Create",
+    "created": "Agent created",
+    "name": "Name",
+    "namePlaceholder": "e.g. Frontend Reviewer",
+    "icon": "Icon",
+    "tool": "Tool",
+    "model": "Model",
+    "tags": "Tags (comma-separated)",
+    "total": "Total",
+    "running": "running",
+    "idle": "idle",
+    "errors": "errors",
+    "filterAll": "All",
+    "filterRunning": "Running",
+    "filterStopped": "Stopped",
+    "filterCreated": "Created",
+    "filterError": "Error",
+    "empty": "No agents yet",
+    "createFirst": "Create your first agent",
+    "confirmDelete": "Delete agent \"{{name}}\"?",
+    "started": "{{name}} started",
+    "stopped": "{{name}} stopped",
+    "cloned": "Cloned {{name}}",
+    "deleted": "Deleted {{name}}"
   },
   "help": {
     "gateway": {

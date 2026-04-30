@@ -40,6 +40,7 @@ type Server struct {
 	// External dependencies (injected).
 	registry *appreg.Registry
 	meter    *metering.Store
+	fallback *FallbackChain // cascade through backup upstreams on failure
 
 	// Crash recovery callback (optional, set via SetCrashCallback).
 	onCrash CrashCallback
@@ -56,8 +57,10 @@ func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Sto
 		cfgPath:  cfgPath,
 		registry: registry,
 		meter:    meter,
+		fallback: NewFallbackChain(nil),
 	}
 	s.cfg = s.loadConfig()
+	s.fallback.SetEntries(s.cfg.Fallbacks)
 	return s
 }
 

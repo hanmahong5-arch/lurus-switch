@@ -58,33 +58,31 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build upstream request.
-	targetURL := strings.TrimRight(upstreamURL, "/") + r.URL.Path
-	if r.URL.RawQuery != "" {
-		targetURL += "?" + r.URL.RawQuery
-	}
+	// Normalize base URL: strip /v1 to prevent path duplication.
+	normalizedURL := NormalizeChannelBaseURL(upstreamURL)
 
-	upstreamReq, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL, bytes.NewReader(body))
-	if err != nil {
-		writeOpenAIError(w, http.StatusInternalServerError, "internal_error",
-			fmt.Sprintf("failed to create upstream request: %v", err))
-		return
-	}
+	// Collect request headers for upstream (swap auth token).
+	outHeaders := make(http.Header)
+	copyRequestHeaders2(outHeaders, r)
 
-	// Copy relevant headers, swap auth token.
-	copyRequestHeaders(upstreamReq, r)
-	upstreamReq.Header.Set("Authorization", "Bearer "+userToken)
-
-	// Send to upstream.
-	client := &http.Client{Timeout: upstreamTimeout}
-	resp, err := client.Do(upstreamReq)
+	// Try primary upstream with fallback chain support.
+	// On 5xx/429/timeout, automatically cascade to next configured upstream.
+	resp, servedBy, err := s.fallback.TryUpstream(
+		r.Method, r.URL.Path, r.URL.RawQuery,
+		body, outHeaders,
+		normalizedURL, userToken,
+	)
 	if err != nil {
 		writeOpenAIError(w, http.StatusBadGateway, "upstream_error",
-			fmt.Sprintf("upstream request failed: %v", err))
+			fmt.Sprintf("all upstreams failed: %v", err))
 		s.recordError(meta, model, err.Error())
 		return
 	}
 	defer resp.Body.Close()
+
+	if meta != nil {
+		meta.ServedBy = servedBy
+	}
 
 	// Thinking Budget Rectifier: if upstream returns a budget constraint error,
 	// auto-fix the request and retry once (inspired by CC-Switch).
@@ -94,11 +92,12 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		if readErr == nil && ShouldRectifyThinkingBudget(string(errBody)) {
 			rectifiedBody, result := RectifyThinkingBudget(body)
 			if result.Applied {
-				retryReq, _ := http.NewRequestWithContext(r.Context(), r.Method, targetURL, bytes.NewReader(rectifiedBody))
-				copyRequestHeaders(retryReq, r)
-				retryReq.Header.Set("Authorization", "Bearer "+userToken)
-				retryReq.Header.Set("Content-Length", fmt.Sprintf("%d", len(rectifiedBody)))
-				retryResp, retryErr := client.Do(retryReq)
+				// Retry via fallback chain with rectified body.
+				retryResp, _, retryErr := s.fallback.TryUpstream(
+					r.Method, r.URL.Path, r.URL.RawQuery,
+					rectifiedBody, outHeaders,
+					normalizedURL, userToken,
+				)
 				if retryErr == nil {
 					defer retryResp.Body.Close()
 					resp = retryResp
@@ -221,18 +220,33 @@ func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {
 
 // --- request/response helpers ---
 
+var proxiedHeaders = []string{
+	"Content-Type", "Accept", "User-Agent",
+	"X-Request-ID", "X-Stainless-Arch", "X-Stainless-Lang",
+	"X-Stainless-OS", "X-Stainless-Package-Version",
+	"X-Stainless-Runtime", "X-Stainless-Runtime-Version",
+}
+
 func copyRequestHeaders(dst, src *http.Request) {
-	for _, key := range []string{
-		"Content-Type", "Accept", "User-Agent",
-		"X-Request-ID", "X-Stainless-Arch", "X-Stainless-Lang",
-		"X-Stainless-OS", "X-Stainless-Package-Version",
-		"X-Stainless-Runtime", "X-Stainless-Runtime-Version",
-	} {
+	for _, key := range proxiedHeaders {
 		if v := src.Header.Get(key); v != "" {
 			dst.Header.Set(key, v)
 		}
 	}
 	dst.Header.Set("Content-Length", src.Header.Get("Content-Length"))
+}
+
+// copyRequestHeaders2 copies proxied headers from an http.Request into an http.Header map.
+// Used by FallbackChain which needs a standalone header set (not tied to a single request).
+func copyRequestHeaders2(dst http.Header, src *http.Request) {
+	for _, key := range proxiedHeaders {
+		if v := src.Header.Get(key); v != "" {
+			dst.Set(key, v)
+		}
+	}
+	if cl := src.Header.Get("Content-Length"); cl != "" {
+		dst.Set("Content-Length", cl)
+	}
 }
 
 func copyResponseHeaders(w http.ResponseWriter, resp *http.Response) {

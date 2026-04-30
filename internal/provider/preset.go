@@ -13,6 +13,8 @@ type Preset struct {
 	DocsURL     string `json:"docsUrl"`     // link to API docs
 	Models      string `json:"models"`      // comma-separated popular model IDs
 	Description string `json:"description"` // one-liner
+	FreeTier    bool   `json:"freeTier"`    // true if provider offers a meaningful free tier (no credit card)
+	NeedsProxy  bool   `json:"needsProxy"`  // true if blocked in mainland China (needs xray/VPN proxy)
 }
 
 // Presets returns all built-in provider presets.
@@ -52,6 +54,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "sk-ant-...", DocsURL: "https://docs.anthropic.com",
 		Models:      "claude-opus-4-20250514,claude-sonnet-4-20250514,claude-haiku-4-5-20251001",
 		Description: "Claude models — Opus, Sonnet, Haiku",
+		NeedsProxy: true,
 	},
 	{
 		ID: "openai", Name: "OpenAI", Icon: "openai", IconColor: "#00A67E",
@@ -59,6 +62,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "sk-...", DocsURL: "https://platform.openai.com/docs",
 		Models:      "gpt-4.1,gpt-4.1-mini,o3,o4-mini,codex-mini-latest",
 		Description: "GPT-4.1, o3, Codex — chat, reasoning, code",
+		NeedsProxy: true,
 	},
 	{
 		ID: "google", Name: "Google AI", Icon: "google", IconColor: "#4285F4",
@@ -66,6 +70,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "AIza...", DocsURL: "https://ai.google.dev/docs",
 		Models:      "gemini-2.5-pro,gemini-2.5-flash,gemini-2.0-flash",
 		Description: "Gemini 2.5 Pro/Flash — multimodal, long context",
+		FreeTier: true, NeedsProxy: true,
 	},
 	{
 		ID: "mistral", Name: "Mistral AI", Icon: "mistral", IconColor: "#FF7000",
@@ -73,6 +78,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "...", DocsURL: "https://docs.mistral.ai",
 		Models:      "mistral-large-latest,codestral-latest,mistral-small-latest",
 		Description: "Mistral Large, Codestral, Small",
+		NeedsProxy: true,
 	},
 	{
 		ID: "xai", Name: "xAI", Icon: "xai", IconColor: "#000000",
@@ -80,6 +86,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "xai-...", DocsURL: "https://docs.x.ai",
 		Models:      "grok-3,grok-3-mini",
 		Description: "Grok-3, Grok-3 Mini",
+		NeedsProxy: true,
 	},
 	{
 		ID: "cohere", Name: "Cohere", Icon: "cohere", IconColor: "#39594D",
@@ -87,6 +94,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "...", DocsURL: "https://docs.cohere.com",
 		Models:      "command-a-03-2025,command-r-plus",
 		Description: "Command A, Command R+",
+		NeedsProxy: true,
 	},
 
 	// ═══════════════════════════════════════
@@ -165,6 +173,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "sk-or-...", DocsURL: "https://openrouter.ai/docs",
 		Models:      "anthropic/claude-sonnet-4,openai/gpt-4.1,google/gemini-2.5-pro",
 		Description: "Multi-model aggregator — pay per token",
+		FreeTier: true, NeedsProxy: true,
 	},
 	{
 		ID: "together", Name: "Together AI", Icon: "together", IconColor: "#0EA5E9",
@@ -172,13 +181,15 @@ var builtinPresets = []Preset{
 		KeyFormat: "...", DocsURL: "https://docs.together.ai",
 		Models:      "meta-llama/Llama-4-Maverick-17B-128E,deepseek-ai/DeepSeek-R1",
 		Description: "Open model hosting — Llama, DeepSeek, Mistral",
+		NeedsProxy: true,
 	},
 	{
 		ID: "groq", Name: "Groq", Icon: "groq", IconColor: "#F55036",
 		Category: "proxy", BaseURL: "https://api.groq.com/openai/v1",
 		KeyFormat: "gsk_...", DocsURL: "https://console.groq.com/docs",
-		Models:      "llama-3.3-70b-versatile,deepseek-r1-distill-llama-70b",
-		Description: "Ultra-fast inference — LPU hardware",
+		Models:      "meta-llama/llama-4-scout-17b-16e-instruct,openai/gpt-oss-120b,llama-3.3-70b-versatile,moonshotai/kimi-k2-instruct,qwen/qwen3-32b,llama-3.1-8b-instant",
+		Description: "Ultra-fast free inference — Llama 4, GPT-OSS 120B, Kimi K2, Qwen3",
+		FreeTier: true, NeedsProxy: true,
 	},
 	{
 		ID: "fireworks", Name: "Fireworks AI", Icon: "fireworks", IconColor: "#FF6B35",
@@ -186,6 +197,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "fw_...", DocsURL: "https://docs.fireworks.ai",
 		Models:      "accounts/fireworks/models/llama-v3p3-70b-instruct",
 		Description: "Fast open model inference",
+		NeedsProxy: true,
 	},
 	{
 		ID: "siliconflow", Name: "SiliconFlow (硅基流动)", Icon: "siliconflow", IconColor: "#8B5CF6",

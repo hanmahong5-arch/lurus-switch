@@ -1,737 +1,583 @@
 # Lurus Switch - Epics & Sprint Planning
 
-**Version**: 1.0
-**Date**: 2026-02-27
-**Aligned PRD**: prd.md v2.0
+**Version**: 2.0
+**Date**: 2026-04-10
+**Aligned PRD**: product-brief v3 (龙虾管理员 — AI 助理舰队管理中心)
 **Sprint Duration**: 2 weeks
+**Supersedes**: epics v1.0 (Sprint 4-8 replaced; Sprint 1-3 retained as completed)
 
 ---
 
 ## Overview / 概览
 
-本文档将 PRD 中的 3 个 Milestone 分解为 8 个 Epic，每个 Epic 包含用户故事和验收标准。
-Sprint 1-3 构成 MVP (Milestone 1)，Sprint 4-6 构成 Milestone 2，Sprint 7-8 构成 Milestone 3。
+Sprint 1-3 (M1 MVP: Foundation + Onboarding + Config Editor) 已于 2026-02-28 完成。
+本文档重新规划 Sprint 4+，对齐龙虾管理员 v3 愿景。
 
-### Milestone-to-Epic Mapping
+### Milestone-to-Phase Mapping
 
-| Milestone | Epics | Sprints |
-|-----------|-------|---------|
-| M1: Core Config Manager | Epic 1, Epic 2, Epic 3 | Sprint 1-3 |
-| M2: Smart Optimization | Epic 4, Epic 5, Epic 6 | Sprint 4-6 |
-| M3: Ecosystem & Distribution | Epic 7, Epic 8 | Sprint 7-8+ |
+| Milestone | Phase | Epics | Sprints | 目标 |
+|-----------|-------|-------|---------|------|
+| M1 (已完成) | — | E1-E3 | S1-S3 | 基础清理 + 入门 + 配置编辑器 |
+| M2: Agent MVP | P0-P2 | E4-E7 | S4-S7 | Agent 管理 + 预算控制 = 可用的舰队管理器 |
+| M3: Agent Pro | P3-P5 | E8-E10 | S8-S10 | 上下文 + 监控 + 模板 = 完整产品 |
+| M4: Ecosystem (远期) | P6 | E11 | S11+ | 编排 + 多机 + 社区 |
 
 ### Epic Dependency Graph
 
 ```
-Epic 1: Foundation ──┬──→ Epic 2: Onboarding & Dashboard
-                     │
-                     ├──→ Epic 3: Visual Config Editor V2
-                     │         │
-                     │         ├──→ Epic 4: CLAUDE.md Generator
-                     │         │
-                     │         └──→ Epic 5: MCP Server Manager
-                     │
-                     └──→ Epic 6: Cost Dashboard (also depends on lurus-api)
-                              │
-Epic 7: Distribution ←───────┤  (independent, can start after Epic 3)
-                              │
-Epic 8: Team & Ecosystem ←───┘  (depends on Epic 4, 5, 6)
+[已完成] E1 Foundation → E2 Onboarding → E3 Config Editor
+                                               │
+    ┌──────────────────────────────────────────┘
+    │
+    ▼
+E4 Agent Foundation ──→ E5 Agent Lifecycle ──→ E6 Agent Dashboard
+    │                        │                       │
+    ▼                        ▼                       ▼
+E7 Resource Mgmt ←──── E5 (budget needs lifecycle) E8 Context & Knowledge
+    │                                                │
+    ▼                                                ▼
+E9 Monitoring ←─────────────────────────────── E10 Templates
+    │
+    ▼
+E11 Orchestration (远期)
 ```
 
 ---
 
-## Epic 1: Foundation Cleanup & Quality / 基础整治与质量提升
+## 已完成 Sprints (M1 — 保留，不修改)
 
-**Sprint**: 1 (Week 1-2)
-**PRD Refs**: F1 (partial), NFR 6.1-6.3
-**Goal**: Establish a clean, stable codebase and working app settings as the foundation for all subsequent features.
+### Sprint 1: Foundation Cleanup (E1) ✅
+- S1.1: Remove dead code — **done** (3pt)
+- S1.2: Decompose app.go God Object — **done** (8pt)
+- S1.3: Implement i18n — **done** (5pt)
+- S1.4: Fix Settings page — **done** (5pt)
+- S1.5: Add React error boundaries — **done** (2pt)
 
-### Current State (技术债务清单)
+### Sprint 2: Onboarding & Dashboard (E2) ✅
+- S2.1: First-time setup wizard — **done** (5pt)
+- S2.2: Dashboard redesign with ToolCard — **done** (5pt)
+- S2.3: Quota widget — **done** (3pt)
+- S2.4: Tool health indicators — **done** (3pt)
+- S2.5: Proxy auto-detection — **done** (5pt)
 
-- `app.go` is a God Object (~67 fields, imports 15+ packages, exposes all Wails bindings directly)
-- `ClaudePage.tsx` contains legacy UI code that is superseded by `ToolConfigPage.tsx`
-- `configStore` has unused types and methods from early prototyping
-- Settings page (theme, language, data management) is rendered but non-functional
-- No i18n system; Chinese and English strings are hardcoded and mixed
-- No error boundaries; unhandled frontend errors crash the entire app
+### Sprint 3: Visual Config Editor V2 (E3) ✅
+- S3.1-S3.3: Form editors (Claude/Codex/Gemini) — **done** (11pt)
+- S3.4: Presets — **done** (5pt)
+- S3.5: Validation — **done** (3pt)
+- S3.6: Snapshots — **done** (2pt)
 
-### User Stories
-
-#### S1.1: Remove Dead Code
-
-**As a** developer,
-**I want** unused code removed from the codebase,
-**So that** the project is easier to understand and maintain.
-
-**Acceptance Criteria**:
-- [ ] `ClaudePage.tsx` is deleted; no imports reference it
-- [ ] Unused types in `internal/config/store.go` are removed (verified via `go vet` + IDE unused analysis)
-- [ ] Unused generator methods (if any) are removed
-- [ ] `picoclaw` and `nullclaw` related files are reviewed: delete if no longer in PRD scope, or document why they exist
-- [ ] `go build ./...` and `cd frontend && bun run build` both pass with zero warnings related to removed code
-- [ ] All tests still pass: `go test ./...`
-
-#### S1.2: Break Up app.go God Object
-
-**As a** developer,
-**I want** `app.go` split into focused service facades,
-**So that** each Wails binding group has a single responsibility and is testable independently.
-
-**Acceptance Criteria**:
-- [ ] `app.go` retains only lifecycle methods (`startup`, `shutdown`, `domReady`) and `GetSystemInfo()`
-- [ ] Tool-related bindings extracted to `internal/facade/tool_facade.go` (detect, install, uninstall, update)
-- [ ] Config-related bindings extracted to `internal/facade/config_facade.go` (load, save, validate, preview)
-- [ ] Billing bindings extracted to `internal/facade/billing_facade.go`
-- [ ] MCP, Snapshot, Prompt, Doc, Env, Analytics bindings extracted to respective facade files
-- [ ] All facades are registered in `main.go` via Wails `Bind()` option
-- [ ] Existing frontend calls updated to use new binding paths (if Wails namespace changes)
-- [ ] All tests pass; no behavior regression
-
-#### S1.3: Implement i18n System
-
-**As a** Chinese developer (primary user),
-**I want** the entire UI in consistent Chinese with the option to switch to English,
-**So that** I have a professional, native-language experience.
-
-**Acceptance Criteria**:
-- [ ] i18n library integrated (e.g., `react-i18next` or lightweight alternative)
-- [ ] All hardcoded UI strings extracted to locale files: `frontend/src/locales/zh.json`, `frontend/src/locales/en.json`
-- [ ] Chinese (`zh`) is the default locale
-- [ ] Language switch in Settings page persists choice to app config (via Go backend `appconfig`)
-- [ ] No mixed-language UI: every visible string comes from locale files
-- [ ] At least 95% of existing UI strings are translated (remaining 5% tracked as TODOs in locale file)
-
-#### S1.4: Fix Non-Functional Settings
-
-**As a** user,
-**I want** Settings page controls to actually work,
-**So that** I can customize my app experience.
-
-**Acceptance Criteria**:
-- [ ] **Theme toggle**: Dark/Light mode switch persists to `appconfig` and applies immediately via CSS class on `<html>`
-- [ ] **Language selector**: Switches locale and persists (see S1.3)
-- [ ] **Data management**: "Clear cache" button clears snapshot store and temp files; "Export data" exports app config as JSON; "Reset to defaults" resets appconfig with confirmation dialog
-- [ ] **Proxy settings**: Reads current proxy from `proxy.ProxyManager` and allows manual override (linked to F3 in later Epic, but basic display works now)
-- [ ] **Auto-update toggle**: Enables/disables update check on startup
-- [ ] All settings persist across app restart
-
-#### S1.5: Add Error Boundaries
-
-**As a** user,
-**I want** individual page errors to be caught gracefully,
-**So that** one broken feature does not crash the entire app.
-
-**Acceptance Criteria**:
-- [ ] React Error Boundary component created at `frontend/src/components/ErrorBoundary.tsx`
-- [ ] Each route/page wrapped in an Error Boundary
-- [ ] Error UI shows: what happened, a "retry" button, and an option to copy error details
-- [ ] Go backend panics caught by Wails runtime (verify: intentional panic in a binding does not crash the app)
-- [ ] Frontend `window.onerror` and `unhandledrejection` caught and logged
+**已完成总计: 65 points**
 
 ---
 
-## Epic 2: Onboarding & Dashboard / 引导流程与仪表盘
+## Phase 0: Agent 基础 (Sprint 4, 2 weeks)
 
-**Sprint**: 2 (Week 3-4)
-**PRD Refs**: F1.1-F1.4, F3.1, UI 5.2-5.3
-**Dependencies**: Epic 1 (clean codebase, working settings, i18n)
-**Goal**: Deliver a polished first-run experience and a dashboard that shows tool status at a glance.
+### Epic 4: Agent Foundation / Agent 基础数据层
 
-### User Stories
+**Goal**: 建立 Agent 数据模型和多实例配置能力，为后续所有 Agent 功能奠基。
 
-#### S2.1: First-Time Setup Wizard (Onboarding)
+#### S4.1: Agent Profile 数据模型 + SQLite
+
+**As a** developer,
+**I want** a structured Agent data model persisted in SQLite,
+**So that** each agent has a unique identity and can be managed independently.
+
+**Acceptance Criteria**:
+- [ ] 新建 `internal/agent/` 包
+- [ ] `AgentProfile` struct: ID (UUID), Name, Icon (emoji/path), Tags[], ToolType (claude/codex/gemini/openclaw/zeroclaw/picoclaw/nullclaw), ModelID, SystemPrompt, MCPServers[], Permissions, BudgetLimit, Status (created/running/stopped/error), CreatedAt, UpdatedAt
+- [ ] SQLite store (WAL mode): Create/Read/Update/Delete/List agents
+- [ ] `%APPDATA%/lurus-switch/switch.db` as single DB file
+- [ ] Migration support (version table, auto-migrate on startup)
+- [ ] Unit tests for CRUD operations
+- [ ] `go test ./internal/agent/... → PASS`
+
+**Points**: 8
+
+#### S4.2: Multi-Instance Config Support
+
+**As a** user,
+**I want** to create multiple named configurations for the same tool,
+**So that** "Claude-Frontend" and "Claude-Backend" can coexist with different settings.
+
+**Acceptance Criteria**:
+- [ ] Each Agent Profile links to a **named config variant** (not the global tool config)
+- [ ] Config variants stored in `%APPDATA%/lurus-switch/agent-configs/<agent-id>/`
+- [ ] Config generation uses agent's model, prompt, MCP, permissions (not global defaults)
+- [ ] Existing `config.Store` extended with `SaveAgentConfig(agentID, toolType, config)` / `LoadAgentConfig(agentID)`
+- [ ] Tests: create 3 Claude agents with different models, verify each generates correct config
+
+**Points**: 5
+
+#### S4.3: Process-Agent Binding
+
+**As a** system,
+**I want** each running process linked to its Agent Profile,
+**So that** I can show which agent is running vs just showing PIDs.
+
+**Acceptance Criteria**:
+- [ ] `internal/process/monitor.go` extended: `LaunchAgent(ctx, agentID) (sessionID, error)` — reads AgentProfile → generates temp config → launches tool process
+- [ ] Running processes tracked with `agentID` in session metadata
+- [ ] `ListAgents()` returns agents with their current process state (running/stopped)
+- [ ] When process exits, agent status updated to "stopped" (or "error" if non-zero exit)
+- [ ] `StopAgent(agentID)` → gracefully stops the associated process
+- [ ] Tests: launch agent, verify PID tracking, stop agent, verify cleanup
+
+**Points**: 5
+
+#### S4.4: Agent Wails Bindings + Basic Frontend
+
+**As a** user,
+**I want** to see a list of my agents in the UI,
+**So that** I can begin managing them visually.
+
+**Acceptance Criteria**:
+- [ ] `bindings_agent.go`: CreateAgent, ListAgents, GetAgent, UpdateAgent, DeleteAgent, LaunchAgent, StopAgent
+- [ ] New Zustand store: `agentStore.ts` (agents[], selectedAgent, CRUD actions)
+- [ ] New page: `AgentsPage.tsx` — simple list view with agent name, tool icon, status badge, actions (start/stop/delete)
+- [ ] Navigation: add "Agents" tab in sidebar (between Home and Tools)
+- [ ] i18n keys for all new strings (zh + en)
+- [ ] `cd frontend && bun run build → success`
+
+**Points**: 8
+
+**Sprint 4 Total: 26 points** (larger sprint due to foundational nature)
+
+---
+
+## Phase 1: Agent 生命周期管理 (Sprint 5-6, 4 weeks)
+
+### Epic 5: Agent Lifecycle / Agent 生命周期
+
+**Goal**: 完整的 agent 创建→运行→监控→恢复流程。
+
+#### S5.1: Agent Creation Wizard
+
+**As a** user,
+**I want** a step-by-step wizard to create a new agent,
+**So that** I don't have to manually configure every field.
+
+**Acceptance Criteria**:
+- [ ] Multi-step wizard component:
+  1. 选工具 (tool type selector with icons)
+  2. 选模型 (model picker, filtered by tool)
+  3. 设名称 + 图标 + 标签
+  4. 设系统提示词 (optional, from template or custom)
+  5. 设 MCP servers (optional, from presets)
+  6. 设预算 (optional, default unlimited)
+  7. 确认 + 创建
+- [ ] "从模板创建" shortcut bypasses steps 2-6
+- [ ] Created agent appears in agent list immediately
+- [ ] i18n complete
+
+**Points**: 8
+
+#### S5.2: Agent Dashboard (Home Page Redesign)
+
+**As a** user,
+**I want** the home page to show all my agents at a glance,
+**So that** I know what's running, what's idle, and what's broken.
+
+**Acceptance Criteria**:
+- [ ] Global metrics bar: 🟢 N running · 🟡 N idle · 🔴 N error · 💰 today $X / $Y · ⏱️ Nk tokens/h
+- [ ] Agent card grid (responsive, 2-4 columns):
+  - Status LED (green/yellow/red/gray)
+  - Agent name + tool icon
+  - Current task (if available via stdout parsing)
+  - Runtime + token consumption + budget progress bar
+  - Quick actions: [Start/Stop] [Logs] [Config]
+- [ ] Filter: by status, by tool, by project, by tag
+- [ ] Sort: by name, by status, by token consumption, by creation date
+- [ ] Empty state: "No agents yet" → link to creation wizard
+- [ ] Replaces current HomePage (preserve health score as a collapsible section)
+
+**Points**: 8
+
+#### S5.3: Health Check + Auto-Restart
+
+**As a** user,
+**I want** agents to be automatically restarted when they crash,
+**So that** my work isn't interrupted by transient failures.
+
+**Acceptance Criteria**:
+- [ ] `internal/agent/health.go`: periodic health check (process alive? responsive?)
+- [ ] Check interval: configurable per agent, default 30 seconds
+- [ ] On crash detection: auto-restart with exponential backoff (5s → 10s → 30s → 60s → give up)
+- [ ] Max restart attempts: configurable, default 5
+- [ ] After max restarts: set status to "error", stop retrying, emit alert event
+- [ ] Wails event: `agent:health:change` (agentID, oldStatus, newStatus)
+- [ ] Frontend: real-time status update on agent cards
+- [ ] Tests: simulate process exit, verify restart behavior
+
+**Points**: 5
+
+#### S5.4: Agent Log Stream
+
+**As a** user,
+**I want** to see real-time logs from each agent,
+**So that** I can debug issues without opening a separate terminal.
+
+**Acceptance Criteria**:
+- [ ] `internal/logstream/` package: captures stdout+stderr per agent
+- [ ] Ring buffer per agent (last 5000 lines, configurable)
+- [ ] Wails binding: `GetAgentLogs(agentID, lastN)` + `StreamAgentLogs(agentID)` via events
+- [ ] Frontend: log viewer panel (slide-out or full page)
+  - Auto-scroll to bottom
+  - Pause/resume auto-scroll
+  - Search within logs
+  - Clear logs
+  - Copy selected
+- [ ] Log level coloring (stderr = red, stdout = normal)
+
+**Points**: 5
+
+#### S5.5: Agent Clone
+
+**As a** user,
+**I want** to duplicate an existing agent,
+**So that** I can quickly create variants without reconfiguring from scratch.
+
+**Acceptance Criteria**:
+- [ ] `CloneAgent(sourceID, newName)` → creates new AgentProfile with same config, new ID/name
+- [ ] Clone preserves: tool type, model, system prompt, MCP, permissions, budget settings
+- [ ] Clone does NOT copy: runtime state, logs, metering history
+- [ ] UI: "Clone" button in agent card dropdown menu
+- [ ] Cloned agent starts in "stopped" state
+
+**Points**: 3
+
+#### S5.6: Batch Operations
+
+**As a** user managing 10+ agents,
+**I want** to select multiple agents and perform bulk actions,
+**So that** I don't have to click each one individually.
+
+**Acceptance Criteria**:
+- [ ] Multi-select in agent list (checkboxes)
+- [ ] "Select all" / "Select by tag" / "Select by status"
+- [ ] Batch actions: Start All, Stop All, Restart All, Delete All (with confirmation)
+- [ ] Batch action progress indicator
+- [ ] Keyboard shortcuts: Ctrl+A (select all), Delete (with confirmation)
+
+**Points**: 5
+
+**Sprint 5 Total: 21 points**
+**Sprint 6 Total: 13 points** (S5.4-S5.6 overflow to Sprint 6)
+
+---
+
+## Phase 2: 资源管控 (Sprint 7, 2 weeks)
+
+### Epic 7: Resource Management / 资源管控
+
+**Goal**: 控制多 agent 的成本爆炸。
+
+#### S7.1: Per-Agent Budget
+
+**As a** user,
+**I want** to set a token budget for each agent,
+**So that** no single agent can drain my balance unexpectedly.
+
+**Acceptance Criteria**:
+- [ ] `internal/agent/budget.go`:
+  - `SetBudget(agentID, limit TokenBudget)` — daily/monthly/total limit in tokens or currency
+  - `CheckBudget(agentID) (remaining, exceeded bool)`
+  - Budget enforcement in gateway middleware: if agent's app token exceeds budget → reject with 429
+- [ ] Overage policy per agent: `pause` (default) | `degrade` (switch to cheaper model) | `notify_only`
+- [ ] Budget usage stored in SQLite (daily granularity)
+- [ ] UI: budget setting in agent creation wizard + agent detail page
+- [ ] Budget progress bar on agent card
+
+**Points**: 8
+
+#### S7.2: Burn Rate Dashboard
+
+**As a** user,
+**I want** to see real-time token consumption rates,
+**So that** I can predict my monthly spend and take action before it's too late.
+
+**Acceptance Criteria**:
+- [ ] Metrics computed from metering data:
+  - Current hour burn rate (tokens/hour, $/hour)
+  - Today's total spend
+  - This month's total + projected month-end
+  - Per-agent breakdown (top N consumers)
+- [ ] Visualization: line chart (7-day trend) + bar chart (per-agent ranking)
+- [ ] Warning thresholds: 50% / 80% / 100% of global budget → color change
+- [ ] Accessible from Dashboard page and Analytics page
+
+**Points**: 5
+
+#### S7.3: Global Budget + Smart Degradation
+
+**As a** user,
+**I want** a global monthly spending cap,
+**So that** I never exceed my budget even if I forget to set per-agent limits.
+
+**Acceptance Criteria**:
+- [ ] Global budget in Settings: monthly cap (currency)
+- [ ] When 80% reached: desktop notification warning
+- [ ] When 95% reached: auto-degrade all agents to cheapest available model
+- [ ] When 100% reached: pause all non-essential agents (user marks "essential" per agent)
+- [ ] Override: user can manually resume paused agents (one-time override for current day)
+- [ ] Budget reset: monthly on billing cycle date
+
+**Points**: 5
+
+#### S7.4: Cost Report & Export
+
+**As a** user,
+**I want** detailed cost reports by agent, model, project, and time period,
+**So that** I can optimize my spending.
+
+**Acceptance Criteria**:
+- [ ] Report page with filters: date range, agent, model, project
+- [ ] Pivot table: rows = agents, columns = models, values = tokens & cost
+- [ ] Time series: daily cost trend with agent breakdown
+- [ ] Export: CSV download
+- [ ] Aggregation: total, average, max, min per dimension
+
+**Points**: 5
+
+**Sprint 7 Total: 23 points**
+
+---
+
+## Phase 3: 上下文与知识管理 (Sprint 8, 2 weeks)
+
+### Epic 8: Context & Knowledge / 上下文与知识
+
+**Goal**: 解决多 agent 的知识碎片化问题。
+
+#### S8.1: Project Workspace
+
+**As a** user working on multiple projects,
+**I want** to group agents by project and share context within a project,
+**So that** all agents on the same project have access to the same knowledge.
+
+**Acceptance Criteria**:
+- [ ] `internal/project/` package: Project (ID, Name, Description, ContextFiles[], AgentIDs[])
+- [ ] SQLite store: CRUD projects
+- [ ] Assign agents to projects (many-to-one: agent belongs to one project)
+- [ ] Project context files: markdown/txt files that get injected into agent system prompts on launch
+- [ ] UI: Projects page with project list + bound agents + context file editor
+- [ ] Navigation: add "Projects" tab in sidebar
+
+**Points**: 8
+
+#### S8.2: Context Template Library
+
+**As a** user,
+**I want** to save and reuse combinations of system prompt + CLAUDE.md + MCP config,
+**So that** I can quickly apply the same context setup to new agents.
+
+**Acceptance Criteria**:
+- [ ] `internal/template/context.go`: ContextTemplate (name, systemPrompt, claudeMdContent, mcpServers[], tags[])
+- [ ] Builtin templates: "Code Reviewer", "Technical Writer", "Test Engineer", "Data Analyst" (with appropriate prompts)
+- [ ] User can save current agent's context as a new template
+- [ ] Apply template to agent (overwrite or merge)
+- [ ] Stored in `%APPDATA%/lurus-switch/templates/`
+
+**Points**: 5
+
+#### S8.3: Agent Snapshot & Resume
+
+**As a** user,
+**I want** to save an agent's working state and resume it later,
+**So that** I don't lose progress when I need to stop and restart work.
+
+**Acceptance Criteria**:
+- [ ] Agent snapshot captures: config + system prompt + working directory + last 100 log lines + metering summary
+- [ ] Create snapshot: manual or auto-on-stop
+- [ ] Resume from snapshot: create new agent from snapshot → same config → same working dir
+- [ ] Snapshot list in agent detail page with timestamps
+- [ ] Stored in `%APPDATA%/lurus-switch/snapshots/agents/<agent-id>/`
+
+**Points**: 5
+
+#### S8.4: Shared Knowledge Base
+
+**As a** user,
+**I want** a set of documents that all agents in a project can access,
+**So that** shared knowledge (API specs, coding standards, FAQs) doesn't need to be duplicated.
+
+**Acceptance Criteria**:
+- [ ] Knowledge base = folder of markdown/txt files per project
+- [ ] Auto-injected into system prompt header on agent launch (configurable: inject all / inject by tag)
+- [ ] UI: knowledge base editor in project detail page (add/edit/delete documents)
+- [ ] Size limit: warn if total injection > 10,000 tokens
+
+**Points**: 5
+
+**Sprint 8 Total: 23 points**
+
+---
+
+## Phase 4: 监控与可观测性 (Sprint 9, 2 weeks)
+
+### Epic 9: Monitoring & Observability / 监控与可观测性
+
+**Goal**: 完整的运维可见性。
+
+#### S9.1: Unified Log Center
+
+**As a** user with 10+ agents,
+**I want** a single place to see logs from all agents,
+**So that** I can investigate issues without switching between individual agent logs.
+
+**Acceptance Criteria**:
+- [ ] Log aggregation page: combined view of all agent logs
+- [ ] Filters: by agent, by log level (stdout/stderr), by time range, by keyword
+- [ ] Color-coded by agent (each agent a different color)
+- [ ] Timestamp alignment across agents
+- [ ] Real-time streaming (new logs appear live)
+
+**Points**: 5
+
+#### S9.2: Performance Comparison Panel
+
+**As a** user,
+**I want** to compare the efficiency of different agents/models,
+**So that** I can optimize which model to use for which task type.
+
+**Acceptance Criteria**:
+- [ ] Comparison table: agent name, tool, model, avg tokens/request, error rate, total cost, runtime
+- [ ] Sortable by any column
+- [ ] Time period selector
+- [ ] "Best value" highlight (lowest cost per successful request)
+
+**Points**: 5
+
+#### S9.3: Alert Rules + Desktop Notifications
+
+**As a** user,
+**I want** to be notified when something goes wrong,
+**So that** I can take action before problems escalate.
+
+**Acceptance Criteria**:
+- [ ] Alert rules engine: condition → action
+  - Agent crashed (N times in M minutes) → notification
+  - Budget > X% used → notification
+  - Agent idle > N hours → notification (potential waste)
+  - Global spend rate > $X/hour → notification
+- [ ] Desktop notification via OS native API (Wails notification API or direct syscall)
+- [ ] Alert history page (last 100 alerts with timestamps)
+- [ ] Configurable: enable/disable per rule
+
+**Points**: 5
+
+#### S9.4: Audit Log
+
+**As a** user (especially enterprise),
+**I want** a complete record of all agent operations,
+**So that** I have accountability and can troubleshoot.
+
+**Acceptance Criteria**:
+- [ ] Audit events: agent created/started/stopped/deleted, budget changed, config changed, alert fired
+- [ ] Stored in SQLite (audit_log table)
+- [ ] UI: audit log page with filters (event type, agent, date range)
+- [ ] Export: CSV
+- [ ] Auto-purge: keep last 90 days (configurable)
+
+**Points**: 3
+
+**Sprint 9 Total: 18 points**
+
+---
+
+## Phase 5: 模板生态 (Sprint 10, 1-2 weeks)
+
+### Epic 10: Template Ecosystem / 模板生态
+
+**Goal**: 降低新用户门槛，形成生态飞轮。
+
+#### S10.1: Built-in Agent Templates
 
 **As a** new user,
-**I want** a guided setup wizard on first launch,
-**So that** I can configure my tools and proxy without reading documentation.
+**I want** pre-made agent templates I can use immediately,
+**So that** I don't have to figure out the optimal configuration myself.
 
 **Acceptance Criteria**:
-- [ ] Wizard appears on first launch (detected via `appconfig.onboarding_completed` flag)
-- [ ] Step 1: Welcome screen with app intro (i18n)
-- [ ] Step 2: Auto-detect installed AI CLI tools (Claude Code, Codex, Gemini CLI) and display results
-- [ ] Step 3: Proxy configuration — auto-detect system proxy (HTTP_PROXY, HTTPS_PROXY, system settings); if in China region (detected by locale or timezone), prominently offer Clash/V2Ray presets
-- [ ] Step 4: Optional API key setup (text inputs with show/hide toggle; stored via OS keychain if available, fallback encrypted file)
-- [ ] Step 5: Summary + "Go to Dashboard" button
-- [ ] User can skip the wizard at any step; skipped state saved
-- [ ] Wizard can be re-triggered from Settings page
-- [ ] All steps respect current locale (zh/en)
+- [ ] 15+ built-in templates across categories:
+  - **Development**: Code Reviewer, Backend Developer, Frontend Developer, Test Engineer, DevOps Assistant
+  - **Writing**: Technical Writer, Blog Writer, Translator
+  - **Analysis**: Data Analyst, Code Auditor, Security Reviewer
+  - **Productivity**: Meeting Summarizer, Email Drafter, Research Assistant
+  - **Automation**: Bot Manager (ZeroClaw), Task Automator (OpenClaw)
+- [ ] Each template includes: name, description, icon, tool type, recommended model, system prompt, MCP suggestions
+- [ ] Template browser UI with category filters and search
+- [ ] "Use this template" → opens creation wizard with pre-filled fields
 
-#### S2.2: Dashboard Redesign with Tool Cards
+**Points**: 5
+
+#### S10.2: Custom Templates + Import/Export
+
+**As a** power user,
+**I want** to save my agent configurations as templates and share them,
+**So that** I can reuse my setups and help others.
+
+**Acceptance Criteria**:
+- [ ] "Save as template" from any agent's detail page
+- [ ] Template editor: edit name, description, icon, and all config fields
+- [ ] Export template as `.json` file
+- [ ] Import template from `.json` file
+- [ ] Template versioning (auto-increment on save)
+- [ ] Template stored in `%APPDATA%/lurus-switch/templates/`
+
+**Points**: 5
+
+#### S10.3: One-Click Deploy from Template
 
 **As a** user,
-**I want** a dashboard showing the status of all my AI CLI tools,
-**So that** I can see version, health, and config validity at a glance.
+**I want** to create a running agent from a template with one click,
+**So that** the setup is instant.
 
 **Acceptance Criteria**:
-- [ ] Dashboard displays one `ToolCard` per detected tool (Claude Code, Codex CLI, Gemini CLI)
-- [ ] Each `ToolCard` shows: tool name, installed version (or "Not installed"), config validity indicator (green/yellow/red), last config modification time
-- [ ] Uninstalled tools show an "Install" button; installed tools show "Configure" and "Update" buttons
-- [ ] Tool detection runs in parallel and completes within 3 seconds (NFR 6.1)
-- [ ] Dashboard layout is responsive: 3 columns on wide screens, 1 column on narrow
-- [ ] Empty state: if no tools detected, show "Get Started" prompt linking to wizard
+- [ ] "Deploy" button on template card → creates agent + auto-starts
+- [ ] If required tool not installed → prompt to install first
+- [ ] Auto-name: template name + counter ("Code Reviewer #3")
+- [ ] Default budget from template (if specified) or user's global default
 
-#### S2.3: Quota Widget on Dashboard
+**Points**: 3
 
-**As a** lurus-api user,
-**I want** a quota/balance widget on the dashboard,
-**So that** I can see my remaining API credits without navigating elsewhere.
-
-**Acceptance Criteria**:
-- [ ] Widget displays current balance and usage percentage if lurus-api credentials are configured
-- [ ] If credentials are not configured, widget shows "Connect your account" CTA linking to billing page
-- [ ] Widget refreshes on dashboard load and has a manual refresh button
-- [ ] Graceful degradation: if lurus-api is unreachable, show "Offline" state with last known value (if cached)
-- [ ] Visual: compact card fitting in dashboard sidebar or top bar
-
-#### S2.4: Tool Health Indicators
-
-**As a** user,
-**I want** to see if my tool configuration is valid and if the tool can connect to its API,
-**So that** I can fix issues before they interrupt my workflow.
-
-**Acceptance Criteria**:
-- [ ] Health check runs config validation (format correctness, required fields present)
-- [ ] Health check pings the tool's API endpoint if API key is configured (timeout: 5 seconds)
-- [ ] Results displayed as status icons on ToolCard: green (all good), yellow (config warning), red (error/unreachable)
-- [ ] Clicking the status icon expands a detail panel showing specific issues
-- [ ] Health check results cached for 5 minutes; manual refresh available
-
-#### S2.5: Proxy Auto-Detection
-
-**As a** Chinese developer,
-**I want** the app to auto-detect my proxy settings,
-**So that** I don't need to manually configure them every time.
-
-**Acceptance Criteria**:
-- [ ] On startup, detect: `HTTP_PROXY` / `HTTPS_PROXY` env vars, system proxy settings (Windows registry / macOS networksetup / Linux gsettings)
-- [ ] Detect common proxy software: Clash (port 7890), V2Ray (port 10808/10809)
-- [ ] Display detected proxy in Settings and Dashboard
-- [ ] If proxy detected but not configured in tool configs, suggest applying it (non-intrusive notification)
-- [ ] User can override auto-detected proxy with manual settings
+**Sprint 10 Total: 13 points**
 
 ---
 
-## Epic 3: Visual Config Editor V2 / 可视化配置编辑器 V2
+## Phase 6: 高级编排 (Sprint 11+, 远期, 此处仅规划不分解)
 
-**Sprint**: 3 (Week 5-6)
-**PRD Refs**: F2.1-F2.6, F4.1-F4.3
-**Dependencies**: Epic 1 (facades, i18n), Epic 2 (dashboard navigation)
-**Goal**: Replace raw Monaco editing with form-based editors for common settings while retaining Monaco for advanced/raw mode.
+### Epic 11: Advanced Orchestration / 高级编排
 
-### User Stories
+**Scope**: Agent 分组标签、任务队列、Agent 间通信、工作流编辑器、多机管理、安全策略引擎。
 
-#### S3.1: Form-Based Editor for Claude Code
+**Not decomposed into stories yet** — will be planned after Phase 5 delivery based on user feedback and market validation.
 
-**As a** user,
-**I want** a visual form to edit Claude Code settings,
-**So that** I don't need to know the JSON schema to configure it correctly.
+**Key capabilities**:
+- Task queue with priority scheduling
+- Agent-to-agent output routing (A's output → B's input)
+- Visual workflow editor (multi-agent pipeline)
+- Remote machine management (via SSH/Tailscale tunnel)
+- Fine-grained security policies (per-agent filesystem/network sandboxing)
 
-**Acceptance Criteria**:
-- [ ] Form editor covers: model selection (dropdown), permission flags (checkboxes), sandbox mode (toggle), API key (masked input), custom instructions path
-- [ ] Tabs: "Basic" (form) / "Advanced" (Monaco editor showing the raw JSON)
-- [ ] Changes in form mode are reflected in Monaco preview in real-time
-- [ ] Changes in Monaco mode are reflected in form mode (bidirectional sync)
-- [ ] Invalid JSON in Monaco mode shows inline error; form mode prevents invalid states
-- [ ] Save button writes to the actual Claude Code settings file path
-- [ ] Config backup created automatically before save (F4 prerequisite)
-
-#### S3.2: Form-Based Editor for Codex CLI
-
-**As a** user,
-**I want** a visual form to edit Codex CLI TOML config,
-**So that** I can configure model, safety level, and approval policies without TOML syntax knowledge.
-
-**Acceptance Criteria**:
-- [ ] Form editor covers: model selection, safety level (dropdown: low/medium/high), approval policy (auto/manual/ask), API base URL
-- [ ] Tabs: "Basic" (form) / "Advanced" (Monaco with TOML syntax highlighting)
-- [ ] Bidirectional sync between form and Monaco
-- [ ] TOML validation before save
-- [ ] Config backup before save
-
-#### S3.3: Form-Based Editor for Gemini CLI
-
-**As a** user,
-**I want** a visual form to edit Gemini CLI settings,
-**So that** I can configure extensions and safety settings easily.
-
-**Acceptance Criteria**:
-- [ ] Form editor covers: model selection, extension toggles, safety settings, API key
-- [ ] Tabs: "Basic" (form) / "Advanced" (Monaco with Markdown highlighting for GEMINI.md)
-- [ ] Bidirectional sync between form and Monaco
-- [ ] Config backup before save
-
-#### S3.4: Preset Templates
-
-**As a** new user,
-**I want** to apply preset configurations for common use cases,
-**So that** I get a good starting point without manual tuning.
-
-**Acceptance Criteria**:
-- [ ] 4 presets available per tool: "Quick Start" (defaults), "Security First" (restricted permissions), "Performance" (best model, aggressive caching), "Budget" (cheapest model, minimal features)
-- [ ] Preset selection shows a diff preview: what will change from current config
-- [ ] Applying a preset auto-backs up the current config as a named snapshot
-- [ ] Presets defined in `frontend/src/data/presets/` as typed JSON objects (not hardcoded in components)
-- [ ] Presets are extensible: adding a new preset requires only a new JSON entry, no code changes
-
-#### S3.5: Config Validation with Actionable Errors
-
-**As a** user,
-**I want** clear, actionable error messages when my config is invalid,
-**So that** I know exactly what to fix.
-
-**Acceptance Criteria**:
-- [ ] Validation runs on every form change (debounced 300ms) and before save
-- [ ] Errors displayed inline next to the offending field (form mode) or as gutter markers (Monaco mode)
-- [ ] Each error message contains: what is wrong, what is expected, a suggested fix (e.g., "Model 'gpt-4o' is not valid for Claude Code. Did you mean 'claude-sonnet-4-20250514'?")
-- [ ] Warnings (non-blocking) are visually distinct from errors (blocking)
-- [ ] Validation rules defined in Go backend (`internal/validator/`) to ensure single source of truth
-
-#### S3.6: Config Snapshot Management
-
-**As a** user,
-**I want** to save, restore, and compare configuration snapshots,
-**So that** I can experiment with settings and roll back if needed.
-
-**Acceptance Criteria**:
-- [ ] "Save snapshot" button in config editor; user provides a name (auto-suggested: `<tool>-<date>-<time>`)
-- [ ] Snapshot list page shows: name, tool, timestamp, size
-- [ ] "Restore" action loads snapshot into editor with a diff preview showing what will change
-- [ ] "Compare" action opens side-by-side diff view of two snapshots
-- [ ] "Export" downloads snapshot as JSON; "Import" loads from JSON file
-- [ ] Maximum 50 snapshots per tool; oldest auto-deleted with warning
-- [ ] Snapshots stored in app data directory (`internal/snapshot/store.go`)
+**Estimated**: 40+ points, 3-4 sprints
 
 ---
 
-## Epic 4: Smart CLAUDE.md Generator / 智能 CLAUDE.md 生成器
-
-**Sprint**: 4 (Week 7-8)
-**PRD Refs**: F5.1-F5.5
-**Dependencies**: Epic 1 (facades, i18n), Epic 3 (editor infrastructure)
-**Goal**: Deliver the core "information asymmetry" feature -- automatically generate and optimize project-level instruction files.
-
-### User Stories
-
-#### S4.1: Project Scanner
-
-**As a** developer,
-**I want** the app to scan my project directory and detect its tech stack,
-**So that** a CLAUDE.md can be generated with accurate, project-specific content.
-
-**Acceptance Criteria**:
-- [ ] User selects a project directory via native OS file picker (Wails dialog)
-- [ ] Scanner detects: programming languages (by file extensions and config files), frameworks (package.json, go.mod, Cargo.toml, requirements.txt, etc.), directory structure patterns (monorepo, standard layouts), existing CLAUDE.md / GEMINI.md / .codex files
-- [ ] Scan completes within 5 seconds for projects up to 10,000 files
-- [ ] Scan excludes: `node_modules/`, `.git/`, `vendor/`, `target/`, `dist/`, `build/`
-- [ ] Results displayed as a summary card: detected languages, frameworks, project type
-- [ ] Go implementation in `internal/docmgr/scanner.go`
-
-#### S4.2: Template Library
-
-**As a** developer,
-**I want** curated CLAUDE.md templates organized by framework,
-**So that** I can start with a high-quality base and customize from there.
-
-**Acceptance Criteria**:
-- [ ] Templates available for: Go (Gin/Echo/Wails), React (Next.js/Vite), Python (FastAPI/Django), Rust, Vue, TypeScript (general)
-- [ ] Each template includes: project structure guidance, coding standards, testing requirements, error handling patterns, forbidden patterns
-- [ ] Templates stored in `internal/docmgr/templates/` as Go embedded files
-- [ ] Template selection UI shows: template name, target framework, preview of content, user rating (local-only for now)
-- [ ] User can fork a template and save as custom template
-
-#### S4.3: Quality Scoring
-
-**As a** developer,
-**I want** a quality score for my CLAUDE.md file,
-**So that** I know how effective it is and where to improve.
-
-**Acceptance Criteria**:
-- [ ] Scoring criteria (0-100 scale): completeness (are key sections present?), specificity (does it reference actual project paths/patterns?), clarity (positive instructions vs negative "don't" patterns), length (penalize too short <50 lines or too long >500 lines), structure (proper heading hierarchy, consistent formatting)
-- [ ] Score displayed as a ring/gauge chart (`QualityScoreRing` component)
-- [ ] Score breakdown shows: category scores with explanations
-- [ ] Score updates in real-time as user edits
-
-#### S4.4: Optimization Suggestions
-
-**As a** developer,
-**I want** actionable suggestions to improve my CLAUDE.md,
-**So that** I can optimize my AI coding assistant's performance.
-
-**Acceptance Criteria**:
-- [ ] Suggestions generated based on quality scoring gaps
-- [ ] Examples of suggestions: "Replace 'Don't use console.log' with 'Use structured logging via pino'" (positive framing), "Add a testing section specifying your test runner and coverage targets", "Your CLAUDE.md is 600 lines -- consider splitting into root + service-level files", "Add framework-specific patterns (detected: Next.js App Router)"
-- [ ] Suggestions ranked by impact (high/medium/low)
-- [ ] One-click "Apply" inserts suggested text at the appropriate location
-- [ ] Suggestion engine implemented in Go (`internal/docmgr/optimizer.go`) using rule-based analysis (no LLM dependency)
-
-#### S4.5: Multi-Tool Instruction Support
-
-**As a** developer using multiple AI tools,
-**I want** to generate GEMINI.md and Codex instructions alongside CLAUDE.md,
-**So that** all my tools get optimized project context.
-
-**Acceptance Criteria**:
-- [ ] After generating a CLAUDE.md, user can click "Also generate for Gemini/Codex"
-- [ ] Adapter layer translates CLAUDE.md patterns to GEMINI.md format and Codex instruction format
-- [ ] User can review and edit each generated file independently
-- [ ] Export writes all files to the project directory (with backup of existing files)
-
----
-
-## Epic 5: MCP Server Manager / MCP 服务器管理器
-
-**Sprint**: 5 (Week 9-10)
-**PRD Refs**: F6.1-F6.5
-**Dependencies**: Epic 1 (facades), Epic 3 (config editor infrastructure)
-**Goal**: Replace manual JSON editing of MCP server configurations with a visual manager.
-
-### User Stories
-
-#### S5.1: Visual MCP Configuration
-
-**As a** user,
-**I want** a form-based UI to add and edit MCP server configurations,
-**So that** I don't need to hand-write JSON paths, arguments, and environment variables.
-
-**Acceptance Criteria**:
-- [ ] Form fields: server name, transport type (stdio/sse), command path (with OS file picker for stdio), arguments (tag input), environment variables (key-value editor)
-- [ ] Form validates: command exists on PATH or at absolute path, required fields present, no duplicate server names
-- [ ] Preview pane shows the resulting JSON that will be written to the tool's config
-- [ ] Save writes to Claude Code `settings.json` MCP section and/or Gemini CLI MCP config
-- [ ] Edit existing MCP server: loads current config into form
-- [ ] Delete MCP server with confirmation
-
-#### S5.2: MCP Server Directory / Catalog
-
-**As a** user,
-**I want** to browse popular MCP servers from a catalog,
-**So that** I can discover and install useful MCP integrations without searching the web.
-
-**Acceptance Criteria**:
-- [ ] Built-in catalog with 20+ curated MCP servers (filesystem, GitHub, database, web search, etc.)
-- [ ] Catalog data stored locally in `internal/mcp/catalog.json` (embedded at build time)
-- [ ] Each entry shows: name, description, category, install command, popularity indicator
-- [ ] "Install" button runs the install command and auto-configures the MCP server entry
-- [ ] Search and filter by category
-- [ ] Catalog is updatable: app checks for catalog updates from GitHub (optional, with user consent)
-
-#### S5.3: MCP Health Monitoring
-
-**As a** user,
-**I want** to see if my configured MCP servers are running and responsive,
-**So that** I can troubleshoot connection issues.
-
-**Acceptance Criteria**:
-- [ ] For stdio servers: verify the command binary exists and is executable
-- [ ] For SSE servers: ping the endpoint URL (HTTP HEAD, timeout 5s)
-- [ ] Status indicators on each MCP server card: green (OK), yellow (slow/warning), red (unreachable/missing)
-- [ ] "View logs" button shows the last 100 lines of MCP server output (if available from tool's log)
-- [ ] Health check runs on page load and is manually refreshable
-
-#### S5.4: Cross-Tool MCP Sync
-
-**As a** user managing both Claude Code and Gemini CLI,
-**I want** to sync MCP server configurations between tools,
-**So that** I don't need to configure the same server twice.
-
-**Acceptance Criteria**:
-- [ ] Sync UI shows: MCP servers configured in Claude Code only, Gemini only, and both
-- [ ] User can select servers and click "Sync to Gemini" or "Sync to Claude"
-- [ ] Sync translates config format between tools (Claude JSON format vs Gemini format)
-- [ ] Conflict resolution: if both tools have the same server name with different configs, show a diff and let user choose
-- [ ] Sync is manual (not automatic) to prevent surprises
-
----
-
-## Epic 6: Cost Dashboard / 成本仪表盘
-
-**Sprint**: 6 (Week 11-12)
-**PRD Refs**: F7.1-F7.5
-**Dependencies**: Epic 1 (facades, i18n), lurus-api gateway (external dependency)
-**Goal**: Provide visibility into AI tool spending through the lurus-api gateway.
-
-### User Stories
-
-#### S6.1: lurus-api Integration
-
-**As a** lurus-api user,
-**I want** the desktop app to connect to my lurus-api account,
-**So that** I can view my usage data locally.
-
-**Acceptance Criteria**:
-- [ ] Settings page has "Connect lurus-api" section: API URL input (default: `https://api.lurus.cn`), API key input
-- [ ] Connection test button verifies credentials and displays account info
-- [ ] Credentials stored securely (OS keychain preferred, encrypted file fallback)
-- [ ] Billing client (`internal/billing/client.go`) handles authentication, request signing, and retry logic
-- [ ] Graceful handling of: invalid credentials (clear error message), network errors (offline mode), rate limiting (backoff)
-
-#### S6.2: Usage Charts
-
-**As a** user,
-**I want** to see my AI API usage as visual charts,
-**So that** I can understand my spending patterns.
-
-**Acceptance Criteria**:
-- [ ] Daily usage bar chart (last 30 days)
-- [ ] Weekly summary line chart (last 12 weeks)
-- [ ] Monthly totals (last 6 months)
-- [ ] Breakdown by: model (pie chart), tool (stacked bar)
-- [ ] Charts use a lightweight library (e.g., Recharts or Chart.js) -- not a heavy BI framework
-- [ ] Data cached locally with 1-hour TTL; manual refresh available
-- [ ] Date range selector for custom periods
-
-#### S6.3: Budget Alerts
-
-**As a** user,
-**I want** to set daily and monthly budget limits,
-**So that** I get warned before overspending.
-
-**Acceptance Criteria**:
-- [ ] Settings for: daily budget (USD), monthly budget (USD)
-- [ ] Dashboard widget shows: current spend vs budget as progress bar
-- [ ] Notification when 80% of budget reached (in-app toast notification)
-- [ ] Notification when 100% of budget reached (prominent warning banner)
-- [ ] Budget settings persisted in appconfig
-- [ ] Historical budget adherence: monthly report showing days over budget
-
-#### S6.4: Optimization Recommendations
-
-**As a** user,
-**I want** cost-saving suggestions based on my usage patterns,
-**So that** I can reduce spending without sacrificing productivity.
-
-**Acceptance Criteria**:
-- [ ] Analyze usage data and generate suggestions: model downgrade (e.g., "Use Haiku for 60% of your queries to save ~$30/month"), prompt caching opportunities, idle tool detection ("Codex CLI has 0 usage this month -- consider disabling")
-- [ ] Each suggestion shows: estimated monthly savings, effort to implement (one-click vs manual), impact on quality (low/medium/high)
-- [ ] "Apply" button for one-click suggestions (e.g., switch default model in tool config)
-- [ ] Suggestions refresh weekly; dismissed suggestions don't reappear for 30 days
-
----
-
-## Epic 7: Distribution / 分发渠道
-
-**Sprint**: 7 (Week 13-14)
-**PRD Refs**: F9.1-F9.5
-**Dependencies**: Epic 3 (stable MVP release)
-**Goal**: Make Lurus Switch installable through package managers and auto-updatable.
-
-### User Stories
-
-#### S7.1: Scoop Manifest (Windows)
-
-**As a** Windows developer,
-**I want** to install Lurus Switch via `scoop install lurus-switch`,
-**So that** I can manage it alongside my other dev tools.
-
-**Acceptance Criteria**:
-- [ ] Scoop manifest JSON file created at `deploy/scoop/lurus-switch.json`
-- [ ] Manifest includes: version, download URL (GitHub Releases), SHA256 hash, bin path, shortcuts
-- [ ] `scoop install` successfully installs the app (tested locally)
-- [ ] `scoop update lurus-switch` updates to the latest version
-- [ ] Manifest auto-generated by CI on release tag push
-
-#### S7.2: Homebrew Formula (macOS/Linux)
-
-**As a** macOS/Linux developer,
-**I want** to install Lurus Switch via `brew install lurus-switch`,
-**So that** installation and updates are seamless.
-
-**Acceptance Criteria**:
-- [ ] Homebrew formula created at `deploy/homebrew/lurus-switch.rb`
-- [ ] Formula includes: version, SHA256, dependencies, caveats
-- [ ] Tap repository set up: `homebrew-tap` repo in the org
-- [ ] `brew install hanmahong5-arch/tap/lurus-switch` works end-to-end
-- [ ] Formula auto-updated by CI on release tag push
-
-#### S7.3: Auto-Update Improvements
-
-**As a** user,
-**I want** the app to notify me of updates and update itself seamlessly,
-**So that** I always have the latest features and fixes.
-
-**Acceptance Criteria**:
-- [ ] Update check on startup (respects "disable auto-update" setting from S1.4)
-- [ ] Notification shows: current version, new version, changelog summary
-- [ ] "Update now" button downloads and applies update (Wails self-update or platform-appropriate method)
-- [ ] Update progress bar during download
-- [ ] Fallback: if self-update fails, provide direct download link to GitHub Releases
-- [ ] Update checker uses `internal/updater/github_checker.go` (already exists, improve reliability)
-
-#### S7.4: GitHub Releases Automation
-
-**As a** maintainer,
-**I want** GitHub Releases created automatically on version tag push,
-**So that** I don't need to manually build and upload binaries.
-
-**Acceptance Criteria**:
-- [ ] GitHub Actions workflow: `.github/workflows/release-switch.yml`
-- [ ] Triggered by: push tag `lurus-switch/v*`
-- [ ] Builds: Windows x64, macOS x64, macOS arm64, Linux x64
-- [ ] Artifacts: `.exe` (Windows), `.app` bundle in `.dmg` (macOS), `.AppImage` or tarball (Linux)
-- [ ] Creates GitHub Release with: version tag, auto-generated changelog (from commits since last release), attached binaries
-- [ ] Updates Scoop manifest and Homebrew formula with new version + hash
-
----
-
-## Epic 8: Team & Ecosystem / 团队与生态
-
-**Sprint**: 8+ (Week 15+)
-**PRD Refs**: F8.1-F8.4, F10.1-F10.3
-**Dependencies**: Epic 4, Epic 5, Epic 6
-**Goal**: Build retention through sharing, community content, and team features.
-
-### User Stories
-
-#### S8.1: Config Sharing (Export/Import Packages)
-
-**As a** team lead,
-**I want** to export my tool configurations as a shareable package,
-**So that** I can distribute standardized settings to my team.
-
-**Acceptance Criteria**:
-- [ ] "Export package" creates a ZIP containing: tool configs (API keys stripped), CLAUDE.md template, MCP server configs, preset selections
-- [ ] "Import package" applies all configs with a review step (show diff of what will change)
-- [ ] Package format is versioned (header includes format version for forward compatibility)
-- [ ] Import handles conflicts: if user has existing configs, show merge/replace/skip options per file
-
-#### S8.2: Community Prompt Library
-
-**As a** developer,
-**I want** a library of high-quality prompts organized by category,
-**So that** I can find effective prompts for common tasks.
-
-**Acceptance Criteria**:
-- [ ] Built-in prompt library with 50+ curated prompts in categories: coding, debugging, refactoring, documentation, testing, code review
-- [ ] Each prompt shows: title, description, category, word count, preview
-- [ ] "Copy" button copies prompt to clipboard
-- [ ] "Save to favorites" for quick access
-- [ ] User can create custom prompts and organize them in personal collections
-- [ ] Search by keyword and filter by category
-- [ ] Prompt data stored locally (`internal/promptlib/store.go` already exists)
-
-#### S8.3: Team Cost Reports
-
-**As a** team lead,
-**I want** aggregated cost reports across team members,
-**So that** I can manage my team's AI tool budget.
-
-**Acceptance Criteria**:
-- [ ] Requires lurus-api Team tier subscription
-- [ ] Dashboard shows: total team spend, per-member breakdown, per-model breakdown
-- [ ] Monthly report exportable as CSV
-- [ ] Budget alerts at team level (separate from individual budgets)
-- [ ] Data fetched via lurus-api team endpoints
-
-#### S8.4: Prompt Version Control
-
-**As a** developer,
-**I want** my custom prompts to have version history,
-**So that** I can track changes and revert to previous versions.
-
-**Acceptance Criteria**:
-- [ ] Each prompt save creates a version entry (timestamp, content hash)
-- [ ] Version history view shows: list of versions with timestamps and diffs
-- [ ] "Restore version" replaces current content with historical version
-- [ ] Maximum 20 versions per prompt; oldest auto-pruned
-
----
-
-## Sprint Planning Summary / Sprint 规划总览
-
-### MVP Scope (Sprint 1-3)
-
-| Sprint | Epic | Key Deliverables | Success Criteria |
-|--------|------|-----------------|-----------------|
-| Sprint 1 | Epic 1: Foundation | Dead code removed, app.go refactored, i18n working, settings functional, error boundaries | `go test ./...` pass, `bun run build` clean, all settings persist across restart |
-| Sprint 2 | Epic 2: Onboarding | Setup wizard, dashboard with ToolCards, quota widget, proxy auto-detection | New user can complete setup in <2 minutes; dashboard loads in <2s |
-| Sprint 3 | Epic 3: Config Editor V2 | Form editors for 3 tools, presets, validation, snapshots | User can configure any tool without touching raw config files |
-
-### Post-MVP Scope (Sprint 4-8)
-
-| Sprint | Epic | Key Deliverables | External Dependencies |
-|--------|------|------------------|-----------------------|
-| Sprint 4 | Epic 4: CLAUDE.md Generator | Project scanner, template library, quality scoring, optimization suggestions | None |
-| Sprint 5 | Epic 5: MCP Manager | Visual MCP config, server catalog, health monitoring, cross-tool sync | None |
-| Sprint 6 | Epic 6: Cost Dashboard | lurus-api integration, usage charts, budget alerts, cost optimization | lurus-api gateway endpoints |
-| Sprint 7 | Epic 7: Distribution | Scoop manifest, Homebrew formula, auto-update, CI/CD release | GitHub Actions, Scoop/Homebrew infra |
-| Sprint 8+ | Epic 8: Team & Ecosystem | Config sharing, prompt library, team reports | lurus-api Team tier, lurus-identity |
-
-### Risk Register / 风险登记
-
-| Risk | Impact | Mitigation |
-|------|--------|-----------|
-| Wails v2 → v3 migration during development | High | Pin to Wails v2 for MVP; evaluate v3 after Sprint 3 |
-| lurus-api team endpoints not ready for Epic 6/8 | Medium | Implement with mock data first; integrate when API is ready |
-| MCP protocol changes (still evolving) | Medium | Abstract MCP config behind an adapter layer; catalog is data-driven |
-| i18n coverage incomplete | Low | Track untranslated strings as TODOs; community contributions post-launch |
-| Scoop/Homebrew review process delays | Low | Ship GitHub Releases first (Sprint 7 week 1); package managers are secondary channel |
-
----
-
-## Definition of Done (per Story) / 完成定义
-
-A story is **Done** when ALL of the following are satisfied:
-
-1. **Code complete**: Implementation merged to development branch
-2. **Tests pass**: `go test ./...` and `bun run build` pass with no regressions
-3. **i18n complete**: All new UI strings have zh and en translations
-4. **No hardcoded values**: URLs, ports, timeouts, magic strings extracted to config/constants
-5. **Error handling**: All new external calls have error handling with user-friendly messages
-6. **Accessibility**: New interactive elements have `aria-label` or equivalent
-7. **Verified**: Manual smoke test or automated test proves the feature works end-to-end
-8. **Documented**: CLAUDE.md updated if new patterns or conventions introduced
-
----
-
-## Appendix: Story Estimation Reference
-
-| Size | Points | Typical Scope |
-|------|--------|---------------|
-| XS | 1 | Config change, single-file fix |
-| S | 2 | Single component or function, <100 LOC |
-| M | 3 | Feature spanning 2-3 files, ~200-500 LOC |
-| L | 5 | Feature spanning multiple packages, ~500-1000 LOC |
-| XL | 8 | Major feature or refactor, >1000 LOC, cross-cutting concerns |
-
-| Story | Estimate | Notes |
-|-------|----------|-------|
-| S1.1 Remove Dead Code | S (2) | Mostly deletion |
-| S1.2 Break Up app.go | L (5) | Touches all bindings + frontend calls |
-| S1.3 Implement i18n | L (5) | Need to extract all strings |
-| S1.4 Fix Settings | M (3) | Settings exist, just need wiring |
-| S1.5 Error Boundaries | S (2) | Standard React pattern |
-| S2.1 Onboarding Wizard | L (5) | Multi-step UI + proxy detection |
-| S2.2 Dashboard Redesign | M (3) | Redesign existing page |
-| S2.3 Quota Widget | S (2) | Billing client exists |
-| S2.4 Health Indicators | M (3) | New validation + network checks |
-| S2.5 Proxy Auto-Detection | M (3) | OS-specific detection logic |
-| S3.1 Claude Editor | L (5) | Form + Monaco bidirectional sync |
-| S3.2 Codex Editor | M (3) | Similar pattern to S3.1 |
-| S3.3 Gemini Editor | M (3) | Similar pattern to S3.1 |
-| S3.4 Presets | M (3) | Data-driven templates |
-| S3.5 Validation | M (3) | Extend existing validator |
-| S3.6 Snapshots | M (3) | Snapshot store exists, add UI |
-| S4.1 Project Scanner | L (5) | File system traversal + pattern matching |
-| S4.2 Template Library | M (3) | Embedded Go templates |
-| S4.3 Quality Scoring | M (3) | Rule-based scoring engine |
-| S4.4 Optimization Suggestions | L (5) | Complex rule engine |
-| S4.5 Multi-Tool Instructions | M (3) | Adapter/translation layer |
-| S5.1 Visual MCP Config | L (5) | Complex form + file system access |
-| S5.2 MCP Catalog | M (3) | Curated data + search UI |
-| S5.3 MCP Health | M (3) | Process/network checks |
-| S5.4 Cross-Tool Sync | M (3) | Config format translation |
-| S6.1 lurus-api Integration | M (3) | Billing client exists, add auth flow |
-| S6.2 Usage Charts | L (5) | Charting library + data transformation |
-| S6.3 Budget Alerts | M (3) | Threshold logic + notifications |
-| S6.4 Cost Optimization | L (5) | Analysis engine + apply actions |
-| S7.1 Scoop Manifest | S (2) | JSON template + CI step |
-| S7.2 Homebrew Formula | S (2) | Ruby template + tap repo |
-| S7.3 Auto-Update | M (3) | Improve existing updater |
-| S7.4 Release CI | M (3) | GitHub Actions workflow |
-| S8.1 Config Sharing | M (3) | ZIP packaging + merge UI |
-| S8.2 Prompt Library | M (3) | Store exists, add browsing UI |
-| S8.3 Team Reports | L (5) | API integration + charts |
-| S8.4 Prompt Versioning | S (2) | Simple version list |
-
-**Total Points**: ~117 across 8 sprints
-**Average per Sprint**: ~15 points (feasible for 1-2 developer team)
+## Summary / 总览
+
+| Sprint | Phase | Epic | Points | 状态 |
+|--------|-------|------|--------|------|
+| S1 | — | E1: Foundation Cleanup | 23 | ✅ 完成 |
+| S2 | — | E2: Onboarding & Dashboard | 21 | ✅ 完成 |
+| S3 | — | E3: Visual Config Editor V2 | 21 | ✅ 完成 |
+| S4 | P0 | E4: Agent Foundation | 26 | 📋 计划 |
+| S5 | P1 | E5: Agent Lifecycle (part 1) | 21 | 📋 计划 |
+| S6 | P1 | E5: Agent Lifecycle (part 2) | 13 | 📋 计划 |
+| S7 | P2 | E7: Resource Management | 23 | 📋 计划 |
+| S8 | P3 | E8: Context & Knowledge | 23 | 📋 计划 |
+| S9 | P4 | E9: Monitoring & Observability | 18 | 📋 计划 |
+| S10 | P5 | E10: Template Ecosystem | 13 | 📋 计划 |
+| S11+ | P6 | E11: Advanced Orchestration | ~40 | 🔮 远期 |
+
+**M2 MVP (P0-P2): Sprint 4-7, ~83 points, ~8 weeks**
+**M3 Pro (P3-P5): Sprint 8-10, ~54 points, ~6 weeks**
+**Total planned: ~202 points (including M1 65pt completed)**

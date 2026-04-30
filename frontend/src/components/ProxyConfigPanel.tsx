@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Save, Settings2, Loader2, ExternalLink, CheckCircle2, WifiOff, Wifi, Sparkles } from 'lucide-react'
+import { Save, Settings2, Loader2, ExternalLink, CheckCircle2, WifiOff, Wifi, Sparkles, ListChecks, Copy, Check } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { classifyError } from '../lib/errorClassifier'
 import type { ProxySettings } from '../stores/dashboardStore'
-import { PingEndpoint } from '../../wailsjs/go/main/App'
+import { PingEndpoint, FetchProviderModels } from '../../wailsjs/go/main/App'
 import { ProviderPicker } from './ProviderPicker'
 
 interface ProxyConfigPanelProps {
@@ -28,6 +28,11 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
   const [pingState, setPingState] = useState<PingState>('idle')
   const [pingMs, setPingMs] = useState(0)
   const [pingError, setPingError] = useState('')
+
+  const [modelsState, setModelsState] = useState<'idle' | 'fetching' | 'ok' | 'error'>('idle')
+  const [models, setModels] = useState<string[]>([])
+  const [modelsError, setModelsError] = useState('')
+  const [copiedModel, setCopiedModel] = useState<string | null>(null)
 
   const [showPicker, setShowPicker] = useState(false)
 
@@ -73,6 +78,32 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
     setProviderName(preset.name)
     setShowPicker(false)
     setPingState('idle')
+    setModelsState('idle')
+    setModels([])
+  }
+
+  const handleFetchModels = async () => {
+    if (!endpoint.trim()) return
+    setModelsState('fetching')
+    setModelsError('')
+    try {
+      const ids = await FetchProviderModels(endpoint.trim(), apiKey.trim())
+      setModels(ids || [])
+      setModelsState('ok')
+    } catch (err) {
+      setModelsError(classifyError(err).message)
+      setModelsState('error')
+    }
+  }
+
+  const handleCopyModel = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id)
+      setCopiedModel(id)
+      setTimeout(() => setCopiedModel(null), 1500)
+    } catch {
+      // Clipboard may be unavailable; non-fatal
+    }
   }
 
   return (
@@ -169,6 +200,24 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
           </button>
 
           <button
+            onClick={handleFetchModels}
+            disabled={modelsState === 'fetching' || !endpoint.trim()}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              'border border-border hover:bg-muted',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+            title={t('proxyPanel.fetchModelsHint', 'Query /v1/models to discover available model IDs')}
+          >
+            {modelsState === 'fetching' ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ListChecks className="h-3.5 w-3.5" />
+            )}
+            {t('proxyPanel.fetchModels', 'Fetch Models')}
+          </button>
+
+          <button
             onClick={onConfigureAll}
             disabled={configuring || !hasValues}
             className={cn(
@@ -200,6 +249,45 @@ export function ProxyConfigPanel({ settings, saving, configuring, onSave, onConf
             {pingState === 'pinging' && t('proxyPanel.connecting')}
             {pingState === 'ok' && t('proxyPanel.connectedMs', { ms: pingMs })}
             {pingState === 'error' && pingError}
+          </div>
+        )}
+
+        {/* Discovered models */}
+        {modelsState === 'error' && (
+          <div className="flex items-start gap-1.5 text-xs text-red-500 mt-1">
+            <WifiOff className="h-3 w-3 mt-0.5 shrink-0" />
+            <span className="break-all">{modelsError}</span>
+          </div>
+        )}
+        {modelsState === 'ok' && models.length > 0 && (
+          <div className="mt-1 p-2.5 rounded-md border border-border bg-muted/30">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1.5">
+              <ListChecks className="h-3 w-3" />
+              <span>
+                {t('proxyPanel.modelsFound', { count: models.length, defaultValue: '{{count}} models discovered — click to copy' })}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {models.map((id) => {
+                const isCopied = copiedModel === id
+                return (
+                  <button
+                    key={id}
+                    onClick={() => handleCopyModel(id)}
+                    className={cn(
+                      'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono transition-colors',
+                      isCopied
+                        ? 'bg-green-500/20 text-green-600'
+                        : 'bg-background border border-border hover:border-primary/50 hover:bg-muted'
+                    )}
+                    title={t('proxyPanel.copyModel', 'Copy model ID')}
+                  >
+                    {isCopied ? <Check className="h-2.5 w-2.5" /> : <Copy className="h-2.5 w-2.5 opacity-40" />}
+                    <span className="break-all">{id}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </div>

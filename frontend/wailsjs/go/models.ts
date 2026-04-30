@@ -1,3 +1,217 @@
+export namespace agent {
+	
+	export class Permissions {
+	    allowShell: boolean;
+	    allowFiles: boolean;
+	    allowNetwork: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Permissions(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.allowShell = source["allowShell"];
+	        this.allowFiles = source["allowFiles"];
+	        this.allowNetwork = source["allowNetwork"];
+	    }
+	}
+	export class CreateParams {
+	    name: string;
+	    icon: string;
+	    tags: string[];
+	    toolType: string;
+	    modelId: string;
+	    systemPrompt: string;
+	    mcpServers: string[];
+	    permissions: Permissions;
+	    projectId: string;
+	    budgetLimitTokens?: number;
+	    budgetLimitCurrency?: number;
+	    budgetPeriod: string;
+	    budgetPolicy: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CreateParams(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.icon = source["icon"];
+	        this.tags = source["tags"];
+	        this.toolType = source["toolType"];
+	        this.modelId = source["modelId"];
+	        this.systemPrompt = source["systemPrompt"];
+	        this.mcpServers = source["mcpServers"];
+	        this.permissions = this.convertValues(source["permissions"], Permissions);
+	        this.projectId = source["projectId"];
+	        this.budgetLimitTokens = source["budgetLimitTokens"];
+	        this.budgetLimitCurrency = source["budgetLimitCurrency"];
+	        this.budgetPeriod = source["budgetPeriod"];
+	        this.budgetPolicy = source["budgetPolicy"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class ListFilter {
+	    status?: string;
+	    toolType?: string;
+	    projectId?: string;
+	    tag?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ListFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.status = source["status"];
+	        this.toolType = source["toolType"];
+	        this.projectId = source["projectId"];
+	        this.tag = source["tag"];
+	    }
+	}
+	
+	export class Profile {
+	    id: string;
+	    name: string;
+	    icon: string;
+	    tags: string[];
+	    toolType: string;
+	    modelId: string;
+	    systemPrompt: string;
+	    mcpServers: string[];
+	    permissions: Permissions;
+	    projectId?: string;
+	    status: string;
+	    configDir?: string;
+	    // Go type: time
+	    createdAt: any;
+	    // Go type: time
+	    updatedAt: any;
+	    budgetLimitTokens?: number;
+	    budgetLimitCurrency?: number;
+	    budgetPeriod: string;
+	    budgetPolicy: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Profile(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.icon = source["icon"];
+	        this.tags = source["tags"];
+	        this.toolType = source["toolType"];
+	        this.modelId = source["modelId"];
+	        this.systemPrompt = source["systemPrompt"];
+	        this.mcpServers = source["mcpServers"];
+	        this.permissions = this.convertValues(source["permissions"], Permissions);
+	        this.projectId = source["projectId"];
+	        this.status = source["status"];
+	        this.configDir = source["configDir"];
+	        this.createdAt = this.convertValues(source["createdAt"], null);
+	        this.updatedAt = this.convertValues(source["updatedAt"], null);
+	        this.budgetLimitTokens = source["budgetLimitTokens"];
+	        this.budgetLimitCurrency = source["budgetLimitCurrency"];
+	        this.budgetPeriod = source["budgetPeriod"];
+	        this.budgetPolicy = source["budgetPolicy"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class UpdateParams {
+	    name?: string;
+	    icon?: string;
+	    tags?: string[];
+	    modelId?: string;
+	    systemPrompt?: string;
+	    mcpServers?: string[];
+	    permissions?: Permissions;
+	    projectId?: string;
+	    status?: string;
+	    budgetLimitTokens?: number;
+	    budgetLimitCurrency?: number;
+	    budgetPeriod?: string;
+	    budgetPolicy?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateParams(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.icon = source["icon"];
+	        this.tags = source["tags"];
+	        this.modelId = source["modelId"];
+	        this.systemPrompt = source["systemPrompt"];
+	        this.mcpServers = source["mcpServers"];
+	        this.permissions = this.convertValues(source["permissions"], Permissions);
+	        this.projectId = source["projectId"];
+	        this.status = source["status"];
+	        this.budgetLimitTokens = source["budgetLimitTokens"];
+	        this.budgetLimitCurrency = source["budgetLimitCurrency"];
+	        this.budgetPeriod = source["budgetPeriod"];
+	        this.budgetPolicy = source["budgetPolicy"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace analytics {
 	
 	export class UsageReport {
@@ -32,6 +246,8 @@ export namespace appconfig {
 	    onboardingCompleted: boolean;
 	    appMode: string;
 	    userLevel: string;
+	    authClientId?: string;
+	    authIssuer?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new AppSettings(source);
@@ -47,6 +263,8 @@ export namespace appconfig {
 	        this.onboardingCompleted = source["onboardingCompleted"];
 	        this.appMode = source["appMode"];
 	        this.userLevel = source["userLevel"];
+	        this.authClientId = source["authClientId"];
+	        this.authIssuer = source["authIssuer"];
 	    }
 	}
 
@@ -84,6 +302,65 @@ export namespace appreg {
 	        this.createdAt = this.convertValues(source["createdAt"], null);
 	        this.lastSeenAt = this.convertValues(source["lastSeenAt"], null);
 	        this.connected = source["connected"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
+export namespace auth {
+	
+	export class UserInfo {
+	    sub: string;
+	    name: string;
+	    email: string;
+	    picture: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UserInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.sub = source["sub"];
+	        this.name = source["name"];
+	        this.email = source["email"];
+	        this.picture = source["picture"];
+	    }
+	}
+	export class AuthState {
+	    is_logged_in: boolean;
+	    user?: UserInfo;
+	    expires_at?: string;
+	    has_gateway_token: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new AuthState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.is_logged_in = source["is_logged_in"];
+	        this.user = this.convertValues(source["user"], UserInfo);
+	        this.expires_at = source["expires_at"];
+	        this.has_gateway_token = source["has_gateway_token"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -1276,11 +1553,30 @@ export namespace envmgr {
 
 export namespace gateway {
 	
+	export class FallbackEntry {
+	    name: string;
+	    url: string;
+	    token: string;
+	    priority: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new FallbackEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.url = source["url"];
+	        this.token = source["token"];
+	        this.priority = source["priority"];
+	    }
+	}
 	export class Config {
 	    port: number;
 	    upstreamUrl: string;
 	    userToken: string;
 	    autoStart: boolean;
+	    fallbacks: FallbackEntry[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -1292,8 +1588,28 @@ export namespace gateway {
 	        this.upstreamUrl = source["upstreamUrl"];
 	        this.userToken = source["userToken"];
 	        this.autoStart = source["autoStart"];
+	        this.fallbacks = this.convertValues(source["fallbacks"], FallbackEntry);
 	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
+	
 	export class Status {
 	    running: boolean;
 	    port: number;
@@ -1548,6 +1864,26 @@ export namespace installer {
 
 export namespace main {
 	
+	export class AgentStats {
+	    total: number;
+	    running: number;
+	    stopped: number;
+	    error: number;
+	    created: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new AgentStats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.running = source["running"];
+	        this.stopped = source["stopped"];
+	        this.error = source["error"];
+	        this.created = source["created"];
+	    }
+	}
 	export class RuntimeDiagnostic {
 	    id: string;
 	    name: string;
@@ -2270,6 +2606,8 @@ export namespace provider {
 	    docsUrl: string;
 	    models: string;
 	    description: string;
+	    freeTier: boolean;
+	    needsProxy: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Preset(source);
@@ -2287,6 +2625,8 @@ export namespace provider {
 	        this.docsUrl = source["docsUrl"];
 	        this.models = source["models"];
 	        this.description = source["description"];
+	        this.freeTier = source["freeTier"];
+	        this.needsProxy = source["needsProxy"];
 	    }
 	}
 

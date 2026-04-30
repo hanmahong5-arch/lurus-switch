@@ -1,90 +1,60 @@
-# lurus-switch
+# Switch (2c-gui-switch)
 
-统一 AI CLI 工具配置管理桌面应用（Wails v2）。管理 Claude Code / Codex / Gemini CLI / PicoClaw / NullClaw 的配置、安装、代理、MCP、快照、账单等。
+桌面 AI CLI 网关——统一管理 Claude Code / Codex / Gemini CLI / PicoClaw / NullClaw 配置、安装、代理、MCP、快照、账单。Desktop 产品组 (P2)。
 
-**Tech Stack**: Go 1.25 + Wails v2.11 / React 18 + TypeScript + Vite + Tailwind CSS + Zustand + Monaco Editor / Bun (frontend package manager)
+- Delivery: Desktop (Wails v2)，无 K8s
+- Repo: `lurus-dev/lurus-switch` (GitHub releases 自更新)
+- Local SQLite: `%APPDATA%\lurus-switch\`
 
-## Structure
+## Tech Stack
+
+| Layer | Stack |
+|-------|-------|
+| Backend | Go 1.25 + Wails v2.11 |
+| Frontend | React 18 + TypeScript + Vite + Tailwind + Zustand + Monaco + Bun |
+
+## Directory
 
 ```
-main.go                      # Wails bootstrap (embed frontend/dist, window 1024x768)
-app.go                       # App struct — all Wails-bound methods (God Object, S1.2 targets decomposition)
-internal/
-  config/                    # Domain models: ClaudeConfig, CodexConfig, GeminiConfig, PicoClawConfig, NullClawConfig + Store
-  appconfig/                 # App-level UI settings (theme/language/autoUpdate); stored in %APPDATA%/lurus-switch/app-settings.json
-  generator/                 # Config file generation: Claude (JSON), Codex (TOML), Gemini (Markdown), PicoClaw/NullClaw (JSON)
-  validator/                 # Config validation, returns ValidationResult with field-level errors
-  installer/                 # Tool install/detect/update/uninstall via bun/pip; tools: claude, codex, gemini, picoclaw, nullclaw
-  packager/                  # Bun packager (standalone exe) + Rust packager (Codex binary download)
-  proxy/                     # NewAPI proxy settings; stored in %APPDATA%/lurus-switch/proxy.json
-  billing/                   # HTTP client → lurus-api /api/v2/* (user info, quota, plans, subscriptions, top-up)
-  updater/                   # Self-update via GitHub releases; npm registry version checker for tools
-  mcp/                       # MCP server presets (builtin + user-saved); apply to ~/.claude/settings.json or ~/.gemini/settings.json
-  snapshot/                  # Config file snapshots with diff support; stored in %APPDATA%/lurus-switch/snapshots/
-  promptlib/                 # Prompt library (builtin + user); export/import JSON
-  process/                   # CLI process monitor (list/kill/launch/output)
-  toolconfig/                # Read/write real tool config files on disk (see paths below)
-  docmgr/                    # Context file manager (CLAUDE.md scan/read/write)
-  envmgr/                    # API key listing and update across all tool configs
-  analytics/                 # Local usage tracking (tool actions, daily active events)
-  downloader/                # Generic file download utility
-frontend/src/
-  pages/                     # DashboardPage, ToolConfigPage, BillingPage, SettingsPage, AdminPage, DocumentPage, ProcessPage, PromptLibraryPage, ClaudePage, CodexPage, GeminiPage
-  stores/                    # configStore, dashboardStore, billingStore, promptStore (Zustand)
-  components/                # Reusable UI components (Radix UI primitives + Tailwind)
+main.go · app.go          # Wails bootstrap + God Object (S1.2 目标拆分)
+internal/                 # config, appconfig, generator, validator, installer, packager,
+                          # proxy, billing, updater, mcp, snapshot, promptlib, process,
+                          # toolconfig, docmgr, envmgr, analytics, downloader, auth
+frontend/src/             # pages/, stores/, components/
 ```
-
-## Tool Config File Paths
-
-| Tool | Config File | Format |
-|------|------------|--------|
-| claude | `~/.claude/settings.json` | JSON |
-| codex | `~/.codex/config.toml` | TOML |
-| gemini | `~/.gemini/settings.json` | JSON |
-| picoclaw | `~/.picoclaw/config.json` | JSON |
-| nullclaw | `~/.nullclaw/config.json` | JSON |
-
-## App Data Paths (Windows)
-
-| File | Path |
-|------|------|
-| App settings | `%APPDATA%\lurus-switch\app-settings.json` |
-| Proxy settings | `%APPDATA%\lurus-switch\proxy.json` |
-| Snapshots | `%APPDATA%\lurus-switch\snapshots\` |
-| Prompt library | `%APPDATA%\lurus-switch\prompts\` |
-| MCP presets | `%APPDATA%\lurus-switch\mcp-presets\` |
-| Analytics | `%APPDATA%\lurus-switch\analytics\` |
 
 ## Commands
 
 ```bash
-# Development
-wails dev                             # Hot reload dev mode (launches Vite + Go)
-wails build                           # Production build → build/bin/lurus-switch.exe
+wails dev                              # hot reload
+wails build                            # → build/bin/lurus-switch.exe
 
-# Backend tests
-go test -v ./...                      # All Go tests
-go test -v ./internal/config/...      # Config model tests only
-go test -v ./internal/proxy/...       # Proxy tests
+go test -v ./...                       # backend
+cd frontend && bun install && bun run test:run
+cd frontend && bun run build
 
-# Frontend
-cd frontend && bun install            # Install dependencies
-cd frontend && bun run dev            # Vite dev server only (no Wails)
-cd frontend && bun run build          # Production frontend build
-cd frontend && bun run test           # Vitest (watch)
-cd frontend && bun run test:run       # Vitest (single run)
-cd frontend && bun run test:coverage  # Coverage report
-
-# All tests (from lurus root)
-./tests/run-tests.ps1
+./tests/run-tests.ps1                  # all
 ```
 
-## Key Runtime Dependencies (no DB, no NATS)
+## Paths
 
-- **Billing API**: lurus-api `/api/v2/*` — configured via Proxy Settings (APIEndpoint + UserToken)
-- **Self-update**: GitHub Releases `lurus-dev/lurus-switch`
-- **Tool version checks**: npm registry `https://registry.npmjs.org`
-- **Tool installation**: `bun` (npm tools) / `pip` (PicoClaw, NullClaw)
+| Purpose | Path |
+|---------|------|
+| Tool configs | `~/.claude/settings.json`, `~/.codex/config.toml`, `~/.gemini/settings.json`, `~/.picoclaw/config.json`, `~/.nullclaw/config.json` |
+| App data | `%APPDATA%\lurus-switch\{app-settings.json,proxy.json,snapshots,prompts,mcp-presets,analytics,auth.enc}` |
+
+## Cross-service Dependencies
+
+- **2b-svc-api Hub (`lurus-api /api/v2/*`)**: user info, quota, plans, subscriptions, top-up — configured via Proxy Settings (APIEndpoint + UserToken)
+- **Zitadel OIDC (PKCE, port 31416)**: encrypted token (AES-GCM) at `auth.enc` → auto gateway token provisioning
+- **Env**: `LURUS_SWITCH_INTERNAL_KEY` (gateway provisioning)
+- **npm registry**: tool version checks · **bun/pip**: tool install
+
+## Gotchas
+
+- Token priority: OIDC session gateway token > manual proxy UserToken
+- `app.go` 是 God Object，新增 Wails 绑定时注意拆分（S1.2 计划）
+- 无 DB / NATS，所有状态走本地 JSON 或远端 API
 
 ## BMAD
 
@@ -95,22 +65,3 @@ cd frontend && bun run test:coverage  # Coverage report
 | Architecture | `./_bmad-output/planning-artifacts/architecture.md` |
 | Gap Analysis | `./_bmad-output/planning-artifacts/bmad-gap-analysis.md` |
 | Sprint Status | `./_bmad-output/sprint-status.yaml` |
-
-Current: Sprint 0 (Planning). Sprint 1 starts 2026-03-13 — key items: decompose app.go God Object (S1.2), implement i18n (S1.3), fix Settings page (S1.4).
-
-## Zitadel OIDC Login (2026-03-21)
-
-Auth flow: Zitadel PKCE (port 31416) → encrypted token storage (AES-GCM) → auto gateway provisioning.
-Fallback: Manual token entry in Proxy Settings (preserved for advanced users).
-
-| File | Purpose |
-|------|---------|
-| `internal/auth/session.go` | Encrypted token storage (`%APPDATA%/lurus-switch/auth.enc`) |
-| `internal/auth/pkce.go` | OIDC authorization code + PKCE flow |
-| `internal/auth/provisioner.go` | Gateway token auto-provisioning |
-| `bindings_auth.go` | Wails bindings: Login/Logout/RefreshAuth/GetAuthState |
-| `frontend/src/stores/authStore.ts` | Zustand auth state |
-| `frontend/src/components/AuthLoginPanel.tsx` | Login UI (3 states: logged-out/logging-in/logged-in) |
-
-Token priority: OIDC session gateway token > manual proxy UserToken
-Env: `LURUS_SWITCH_INTERNAL_KEY` (for gateway provisioning)

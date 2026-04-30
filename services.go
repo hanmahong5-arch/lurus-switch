@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"sync"
 
+	"lurus-switch/internal/agent"
 	"lurus-switch/internal/analytics"
 	"lurus-switch/internal/appreg"
 	"lurus-switch/internal/auth"
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/config"
+	"lurus-switch/internal/db"
 	"lurus-switch/internal/docmgr"
 	"lurus-switch/internal/envmgr"
 	"lurus-switch/internal/gateway"
@@ -63,6 +65,12 @@ type services struct {
 	appRegistry *appreg.Registry
 	meterStore  *metering.Store
 	gatewaySrv  *gateway.Server
+
+	// Agent fleet management (v3 龙虾管理员).
+	database       *db.DB
+	agentStore     *agent.Store
+	agentConfigMgr *agent.ConfigManager
+	agentInstMgr   *agent.InstanceManager
 }
 
 // newServices constructs all service dependencies. Initialization failures for
@@ -120,6 +128,22 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("metering store: %v", err))
 	}
 
+	// Open SQLite database for agent fleet management.
+	database, err := db.Open(appDataDir)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("database: %v", err))
+	}
+
+	var agentStr *agent.Store
+	if database != nil {
+		agentStr = agent.NewStore(database)
+	}
+
+	agentCfgMgr, err := agent.NewConfigManager(appDataDir)
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("agent config manager: %v", err))
+	}
+
 	svc := &services{
 		store:       store,
 		validator:   validator.NewValidator(),
@@ -140,6 +164,15 @@ func newServices(appDataDir, version string) (*services, []string) {
 		catalogMgr:  modelcatalog.NewManager(appDataDir),
 		appRegistry: appReg,
 		meterStore:  meterStr,
+		database:       database,
+		agentStore:     agentStr,
+		agentConfigMgr: agentCfgMgr,
+		agentInstMgr: func() *agent.InstanceManager {
+			if agentStr != nil && agentCfgMgr != nil {
+				return agent.NewInstanceManager(agentStr, agentCfgMgr, process.NewMonitor())
+			}
+			return nil
+		}(),
 	}
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {

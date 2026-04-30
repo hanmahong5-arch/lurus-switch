@@ -32,3 +32,6 @@ configs/output/
 _bmad/
 nul
 frontend/package.json.md5
+
+# Local agent worktrees (Claude Code subagent isolation)
+.claude/worktrees/

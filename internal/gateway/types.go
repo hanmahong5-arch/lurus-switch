@@ -4,10 +4,11 @@ import "time"
 
 // Config holds persistent gateway configuration.
 type Config struct {
-	Port       int    `json:"port"`        // default 19090
-	UpstreamURL string `json:"upstreamUrl"` // Lurus Cloud endpoint, e.g. https://api.lurus.cn
-	UserToken  string `json:"userToken"`   // user's Lurus Cloud bearer token
-	AutoStart  bool   `json:"autoStart"`   // start gateway on Switch launch
+	Port        int             `json:"port"`        // default 19090
+	UpstreamURL string          `json:"upstreamUrl"` // Lurus Cloud endpoint, e.g. https://api.lurus.cn
+	UserToken   string          `json:"userToken"`   // user's Lurus Cloud bearer token
+	AutoStart   bool            `json:"autoStart"`   // start gateway on Switch launch
+	Fallbacks   []FallbackEntry `json:"fallbacks"`   // ordered fallback upstreams (tried if primary fails/rate-limits)
 }
 
 // DefaultConfig returns production defaults.
@@ -43,4 +44,5 @@ type RequestMeta struct {
 	AppID     string
 	StartTime time.Time
 	Model     string
+	ServedBy  string // which upstream actually served this request ("primary" or fallback name)
 }

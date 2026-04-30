@@ -6,6 +6,7 @@ export type UserLevel = 'beginner' | 'regular' | 'power'
 // New consolidated navigation — 6 user-facing + 2 promoter-only
 export type ActiveTool =
   | 'home'
+  | 'agents'
   | 'tools'
   | 'gateway'
   | 'workspace'

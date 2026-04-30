@@ -17,3 +17,11 @@ func (a *App) GetProviderPresetsByCategory(category string) []provider.Preset {
 func (a *App) GetProviderPreset(id string) *provider.Preset {
 	return provider.PresetByID(id)
 }
+
+// FetchProviderModels queries an OpenAI-compatible /v1/models endpoint to discover
+// which model IDs the provider currently exposes. Used by the ProxyConfigPanel to
+// auto-populate a model dropdown after the user sets baseURL + apiKey.
+// Returns sorted, deduplicated model IDs. Empty apiKey is allowed (for local runtimes).
+func (a *App) FetchProviderModels(baseURL, apiKey string) ([]string, error) {
+	return provider.FetchModels(a.ctx, baseURL, apiKey)
+}

@@ -8,7 +8,9 @@ import { ToastContainer } from './components/Toast'
 import { ConnectionBanner } from './components/ConnectionBanner'
 import { SetupWizard } from './components/SetupWizard'
 import { CommandPalette } from './components/CommandPalette'
+import { DeepLinkImportModal } from './components/DeepLinkImportModal'
 import { HomePage } from './pages/HomePage'
+import { AgentsPage } from './pages/AgentsPage'
 import { NewToolsPage } from './pages/NewToolsPage'
 import { NewGatewayPage } from './pages/NewGatewayPage'
 import { WorkspacePage } from './pages/WorkspacePage'
@@ -18,6 +20,7 @@ import { PromoterHubPage } from './pages/PromoterHubPage'
 import { ApiAdminPage } from './pages/ApiAdminPage'
 import { useConfigStore, migrateLegacyRoute, type ActiveTool, type UserLevel } from './stores/configStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import { usePlatformEvents } from './hooks/usePlatformEvents'
 import { useNavPersist } from './lib/useNavPersist'
 import { useGatewayStore } from './stores/gatewayStore'
 import { useBillingStore } from './stores/billingStore'
@@ -28,7 +31,7 @@ import i18n from './i18n'
 
 // Legacy startup pages map to new routes
 const VALID_STARTUP_PAGES: ReadonlySet<string> = new Set([
-  'home', 'tools', 'gateway', 'workspace', 'account', 'settings',
+  'home', 'agents', 'tools', 'gateway', 'workspace', 'account', 'settings',
   // Legacy values still accepted for backward compatibility
   'dashboard', 'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw',
 ])
@@ -37,6 +40,7 @@ function App() {
   const { activeTool, setActiveTool, setAppMode, setUserLevel, setSubTab } = useConfigStore()
   useNavPersist()
   useKeyboardShortcuts()
+  usePlatformEvents()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   const { startPolling, stopPolling } = useGatewayStore()
   const { setUserInfo } = useBillingStore()
@@ -82,7 +86,10 @@ function App() {
           }
         }
       })
-      .catch(() => setShowWizard(false))
+      .catch((e) => {
+        console.error('GetAppSettings failed:', e)
+        setShowWizard(false)
+      })
   }, [])
 
   // Load proxy settings into dashboardStore on startup so billing polling and
@@ -145,6 +152,8 @@ function App() {
     switch (activeTool) {
       case 'home':
         return <HomePage />
+      case 'agents':
+        return <AgentsPage />
       case 'tools':
         return <NewToolsPage />
       case 'gateway':
@@ -169,6 +178,7 @@ function App() {
       <ConnectionBanner />
       <ToastContainer />
       <CommandPalette />
+      <DeepLinkImportModal />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-hidden">

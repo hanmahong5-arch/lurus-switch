@@ -37,15 +37,23 @@ func (g *GeminiInstaller) Detect(ctx context.Context) (*ToolStatus, error) {
 	verCmd := exec.CommandContext(verCtx, path, "--version")
 	hideWindow(verCmd)
 	out, err := verCmd.CombinedOutput()
-	if err != nil {
+	if err == nil {
+		if v := extractVersion(string(out)); v != "unknown" {
+			status.Installed = true
+			status.Version = v
+			return status, nil
+		}
+	}
+
+	// Fallback: try to read version from bun global package list.
+	if v := g.versionFromBun(ctx); v != "" {
 		status.Installed = true
-		status.Version = "unknown"
+		status.Version = v
 		return status, nil
 	}
 
-	version := extractVersion(string(out))
 	status.Installed = true
-	status.Version = version
+	status.Version = "unknown"
 	return status, nil
 }
 
@@ -249,4 +257,28 @@ func (g *GeminiInstaller) findExecutable() (string, error) {
 	}
 
 	return "", fmt.Errorf("gemini executable not found")
+}
+
+// versionFromBun reads the installed version from bun global packages.
+// This is a fallback when the binary itself fails to report its version
+// (e.g. corrupted bun shim).
+func (g *GeminiInstaller) versionFromBun(ctx context.Context) string {
+	bunPath, err := g.runtime.FindBun()
+	if err != nil {
+		return ""
+	}
+	bctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(bctx, bunPath, "pm", "ls", "-g")
+	hideWindow(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.Contains(line, GeminiNpmPackage) {
+			return extractVersion(line)
+		}
+	}
+	return ""
 }

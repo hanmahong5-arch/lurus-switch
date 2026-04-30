@@ -158,6 +158,10 @@ export function ClearToolSnapshots(arg1) {
   return window['go']['main']['App']['ClearToolSnapshots'](arg1);
 }
 
+export function CloneAgent(arg1, arg2) {
+  return window['go']['main']['App']['CloneAgent'](arg1, arg2);
+}
+
 export function ComputeHealthScore() {
   return window['go']['main']['App']['ComputeHealthScore']();
 }
@@ -168,6 +172,14 @@ export function ConfigureAllProxy() {
 
 export function ConfigureAllToolsRelay() {
   return window['go']['main']['App']['ConfigureAllToolsRelay']();
+}
+
+export function CreateAgent(arg1) {
+  return window['go']['main']['App']['CreateAgent'](arg1);
+}
+
+export function DeleteAgent(arg1) {
+  return window['go']['main']['App']['DeleteAgent'](arg1);
 }
 
 export function DeleteApp(arg1) {
@@ -310,6 +322,10 @@ export function FetchModelCatalog() {
   return window['go']['main']['App']['FetchModelCatalog']();
 }
 
+export function FetchProviderModels(arg1, arg2) {
+  return window['go']['main']['App']['FetchProviderModels'](arg1, arg2);
+}
+
 export function FullSetupForGateway() {
   return window['go']['main']['App']['FullSetupForGateway']();
 }
@@ -342,6 +358,18 @@ export function GenerateZeroClawConfig(arg1) {
   return window['go']['main']['App']['GenerateZeroClawConfig'](arg1);
 }
 
+export function GetAgent(arg1) {
+  return window['go']['main']['App']['GetAgent'](arg1);
+}
+
+export function GetAgentOutput(arg1, arg2) {
+  return window['go']['main']['App']['GetAgentOutput'](arg1, arg2);
+}
+
+export function GetAgentStats() {
+  return window['go']['main']['App']['GetAgentStats']();
+}
+
 export function GetAllToolConfigPaths() {
   return window['go']['main']['App']['GetAllToolConfigPaths']();
 }
@@ -356,6 +384,10 @@ export function GetAppSummaries(arg1) {
 
 export function GetAppVersion() {
   return window['go']['main']['App']['GetAppVersion']();
+}
+
+export function GetAuthState() {
+  return window['go']['main']['App']['GetAuthState']();
 }
 
 export function GetBuiltinMCPPresets() {
@@ -566,12 +598,20 @@ export function KillCLIProcess(arg1) {
   return window['go']['main']['App']['KillCLIProcess'](arg1);
 }
 
+export function LaunchAgent(arg1) {
+  return window['go']['main']['App']['LaunchAgent'](arg1);
+}
+
 export function LaunchGYProduct(arg1) {
   return window['go']['main']['App']['LaunchGYProduct'](arg1);
 }
 
 export function LaunchTool(arg1, arg2) {
   return window['go']['main']['App']['LaunchTool'](arg1, arg2);
+}
+
+export function ListAgents(arg1) {
+  return window['go']['main']['App']['ListAgents'](arg1);
 }
 
 export function ListAllAPIKeys() {
@@ -654,6 +694,14 @@ export function LoadZeroClawConfig(arg1) {
   return window['go']['main']['App']['LoadZeroClawConfig'](arg1);
 }
 
+export function Login() {
+  return window['go']['main']['App']['Login']();
+}
+
+export function Logout() {
+  return window['go']['main']['App']['Logout']();
+}
+
 export function OpenAdminPanel() {
   return window['go']['main']['App']['OpenAdminPanel']();
 }
@@ -704,6 +752,10 @@ export function QuickSetup(arg1) {
 
 export function ReadToolConfig(arg1) {
   return window['go']['main']['App']['ReadToolConfig'](arg1);
+}
+
+export function RefreshAuth() {
+  return window['go']['main']['App']['RefreshAuth']();
 }
 
 export function RegisterApp(arg1, arg2, arg3) {
@@ -818,6 +870,10 @@ export function StartServer() {
   return window['go']['main']['App']['StartServer']();
 }
 
+export function StopAgent(arg1) {
+  return window['go']['main']['App']['StopAgent'](arg1);
+}
+
 export function StopGateway() {
   return window['go']['main']['App']['StopGateway']();
 }
@@ -852,6 +908,10 @@ export function UninstallTool(arg1) {
 
 export function UpdateAPIKey(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateAPIKey'](arg1, arg2, arg3);
+}
+
+export function UpdateAgent(arg1, arg2) {
+  return window['go']['main']['App']['UpdateAgent'](arg1, arg2);
 }
 
 export function UpdateAllTools() {
