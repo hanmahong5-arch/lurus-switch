@@ -1,22 +1,257 @@
-# Sprint Status - Lurus Switch (龙虾管理员)
-# Updated: 2026-04-10
-# Aligned: product-brief v3, epics v2
+# Sprint Status - Lurus Switch (Channel Distribution Pivot)
+# Updated: 2026-05-01
+# Aligned: PRD v0.1 (B2B2C 渠道分销基础设施), epics v3, ADR-020
+# Pivot decision: see _bmad-output/decisions/ADR-020-channel-distribution-pivot.md
 
 current_sprint:
-  number: 3
-  name: "Visual Config Editor V2"
-  start: "2026-02-28"
-  end: "2026-02-28"
-  goal: "Form-based editors with presets and validation"
-  status: completed
+  number: "4e"
+  name: "EndUser 模式 + 白标打包 (Phase C)"
+  epic: E15
+  phase: C
+  start: "2026-05-01"
+  end: "2026-05-01"
+  goal: "白标 EndUser 客户端：内嵌 hub_url、激活码兑换、设备指纹绑定、心跳验证 + Reseller 白标打包工具"
+  status: done
+  completed: "2026-05-01"
+  total_points: 31
+  delivered_points: 31
+  stories:
+    - id: S-Xc.4
+      title: "redemption package — 设备指纹 + token 持久化"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - internal/redemption/fingerprint.go: hostname+user+MAC → SHA256 → 16 字符指纹，AES key 派生
+        - internal/redemption/store.go: AES-GCM 加密持久化 activation.enc，原子 tmp+rename
+        - internal/redemption/redeem.go: POST /api/v2/switch/redeem，typed RedeemError 分类（used/expired/disabled/network/server/endpointAbsent）
+        - 14 单测覆盖 fingerprint 稳定性、store roundtrip、生命周期 (Active/Stale/Revoked/Mismatch)、redeem 错误分类、heartbeat 401 撤销
+    - id: S-Xc.5
+      title: "心跳客户端 + 失效自动锁定"
+      status: done
+      points: 3
+      completed: "2026-05-01"
+      notes: |
+        - internal/redemption/heartbeat.go: 5min 周期 POST /api/v2/<tenant>/user/heartbeat，401 → revoked，404 → 兼容 active
+        - emit "redemption:heartbeat" Wails 事件，前端监听切换状态
+        - HeartbeatGrace=30min，单次 miss 不降级，符合 "3 次失败 → 待重连" 设计
+        - app.go startup 拉起心跳，shutdown 优雅停止
+    - id: S-Xc.3
+      title: "EndUserActivationPage UI + 激活码兑换"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - bindings_enduser.go: ActivateRedemption/GetEndUserStatus/ClearActivation/HeartbeatNow/GetDeviceFingerprint
+        - frontend/src/pages/EndUserActivationPage.tsx: 4-32 字符校验 + 错误 kind 分类 → 本地化提示
+        - App.tsx: needsResellerSetup 之后再加 endUserState 守卫，state ≠ active/stale 强制激活页
+        - i18n: enduser.activate.* + enduser.error.*（kind 8 类）
+    - id: S-Xc.6
+      title: "EndUserMainPage 简化 Dashboard"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - frontend/src/pages/EndUserMainPage.tsx: 状态 + 配额 + 到期 + 用户 ID + 简化 CLI 工具列表
+        - stale 状态显示降级 banner + 立即重试
+        - 重置激活按钮 → ClearActivation + 跳激活页
+        - App.tsx renderPage 拦截：home/被守卫的页面统一渲染 EndUserMainPage
+    - id: S-Xc.1
+      title: "白标打包脚手架"
+      status: done
+      points: 8
+      completed: "2026-05-01"
+      notes: |
+        - internal/whitelabel/profile.go: Profile struct + HMAC-SHA256 sign/verify (constant-time)
+        - internal/whitelabel/packer.go: Build → 拷贝 base 二进制 + 写签名 sidecar + sha256
+        - internal/whitelabel/loader.go: 启动时校验 sidecar，IsNoSidecar 区分 "非白标 vs 损坏"
+        - 13 单测：sign/verify roundtrip、tampering detection、validate 字段、idempotent build (CreatedAt 锁定)、loader 拒绝 unsupported version、tampered sidecar
+        - app.go startup applyWhiteLabelSidecar：合法 sidecar 自动锁定 EndUser 模式 + LockedHubURL
+        - rcedit 图标替换 stub，note 出现在 BuildResult.Notes（待真机测试）
+    - id: S-Xc.2
+      title: "PackagerPage UI"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - bindings_whitelabel.go: BuildWhiteLabelPackage/PreviewWhiteLabelLogo（基于 Reseller AdminToken 派生 HMAC）
+        - frontend/src/pages/PackagerPage.tsx: 表单（brand/hub/tenant/color/contact/logo）+ 上传校验 + 复制路径 + sha256 显示
+        - Sidebar.tsx 加 Reseller-only "白标打包" 入口
+        - i18n: nav.packager + packager.* keys
+  notes: |
+    Sprint 4e 一气呵成完成全部 31pt：
+    - 后端 27 单测全绿 (redemption 14 + whitelabel 13)，前端 102 测试全绿，bunx tsc clean，bun build 928KB OK
+    - HMAC key 当前从 AdminToken 派生（whitelabel:<token>），后续 Hub 加 /api/v2/admin/whitelabel/hmac-key 后切到远端，无 API 改动
+    - rcedit 图标替换、build 历史 (last-10 SQLite) 列入下一次迭代
+
+previous_sprint:
+  number: "4c"
+  name: "Hub Integration (Part 1) — Reseller Console Online"
+  epic: E13
+  phase: B
+  start: "2026-05-01"
+  end: "2026-05-14"
+  goal: "Channel/Token/Redemption/Log/Dashboard 五个核心 Reseller 页面接通 newhub V1 admin API"
+  status: done
+  completed: "2026-05-01"
+  total_points: 23
+  delivered_points: 23
+  stories:
+    - id: S-Xb.4
+      title: "GatewayChannelPage 接入 Hub bindings (Reseller mode)"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - frontend/src/lib/channelSource.ts: 多态适配器（Local/Hub），capability flags 控制高级特性可见性
+        - GatewayChannelPage.tsx: 重构为 source 驱动；Reseller 模式下隐藏 fetchModels/fixAbilities/tag-ops/batch-enable-disable（未绑定的 endpoint）
+        - bindings_hub.go: 新增 HubSearchChannels + HubCopyChannel
+    - id: S-Xb.5
+      title: "GatewayTokenPage 接入 Hub bindings"
+      status: done
+      points: 3
+      completed: "2026-05-01"
+      notes: |
+        - frontend/src/lib/tokenSource.ts: list/create/update/delete/batchDelete 统一适配
+        - Hub 模式下 keyword 客户端过滤（未提供 search endpoint）
+    - id: S-Xb.6
+      title: "GatewayRedemptionPage + CSV 导出"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - frontend/src/lib/redemptionSource.ts: create() 统一返回 GatewayRedemption[]
+        - downloadRedemptionsCSV 浏览器 Blob 下载（id,name,key,quota,created_at）
+        - 创建后显示 emerald banner 引导下载，因 Hub 不会再返回明文 key
+    - id: S-Xb.7
+      title: "GatewayLogPage 接入 HubListLogs"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - frontend/src/lib/logSource.ts: LogQuery 适配（Hub PascalCase + ISO 时间戳）
+        - LogEntry → GatewayLog 字段映射（model_name → model, channel → channel_id）
+        - capabilities.{stats,clearHistory} 在 Hub 模式下 false（未绑定）
+    - id: S-Xb.8
+      title: "GatewayDashboardPage 接入 Hub data + perf 端点"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - internal/hub/admin/data.go: GetDashboardSummary/GetQuotaDates/GetPerformanceStats
+        - bindings_hub.go: 三个对应 Wails 方法
+        - frontend/src/lib/dashboardSource.ts: Promise.all 并行拉取，类型转换 int64 → number
+
+previous_sprint_3:
+  number: "4b"
+  name: "AppMode Tri-State Foundation"
+  epic: E12
+  phase: A
+  start: "2026-05-04"
+  end: "2026-05-17"
+  goal: "Personal/Reseller/EndUser 三模式分离 + newhub V1+V2 client SDK"
+  status: done
+  completed: "2026-05-01"
+  total_points: 21
+  delivered_points: 21
+  stories:
+    - id: S-Xa.1
+      title: "AppMode 数据模型 + 持久化 + Wails Bindings"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - internal/appconfig/mode.go: AppMode 三态枚举 + legacy migration + lock check
+        - bindings_appmode.go: GetAppMode/SetAppMode/IsModeLocked Wails 绑定
+        - frontend/src/pages/AppModeSelectPage.tsx: 首启选择页（partial S-Xa.2）
+        - frontend/src/components/Sidebar.tsx: 模式徽章 + Personal/Reseller/EndUser 各自路由守卫（partial S-Xa.3 + S-Xa.4）
+        - frontend/src/pages/SettingsPage.tsx: 三态切换 UI + 锁定检测
+        - i18n: zh.json + en.json mode.* keys
+        - Tests: appconfig 13 tests pass, frontend 102 tests pass, build OK
+    - id: S-Xa.2
+      title: "首次启动模式选择向导"
+      status: done
+      points: 3
+      completed: "2026-05-01"
+      notes: "AppModeSelectPage.tsx + i18n keys; gates 'unset' state in App.tsx before SetupWizard"
+    - id: S-Xa.3
+      title: "路由守卫 + 11 GatewayXxx 限 Reseller"
+      status: done
+      points: 3
+      completed: "2026-05-01"
+      notes: "RESELLER_ONLY_PAGES + PERSONAL_ONLY_PAGES + ENDUSER_VISIBLE_PAGES sets in Sidebar.tsx; renderPage() guards in App.tsx; Sidebar conditional renders for Agents/Gateway/Workspace"
+    - id: S-Xa.4
+      title: "Sidebar 模式徽章 + 设置页切换"
+      status: done
+      points: 2
+      completed: "2026-05-01"
+      notes: "Sidebar 顶部模式 badge (color-coded); SettingsPage 三态切换 UI + IsModeLocked check disables UI in white-label builds"
+    - id: S-Xa.5
+      title: "newhub V1+V2 Client SDK"
+      status: done
+      points: 8
+      completed: "2026-05-01"
+      notes: |
+        - internal/hub/admin/{client,types,channels,tokens,redemptions,logs,tenants}.go: 完整 V1+V2 SDK
+        - 14 mock-server tests pass (auth header, envelope unwrap, success/failure mapping, 401 detection, all CRUD methods)
+        - bindings_hub.go: 18 个 Wails 方法（HubListChannels/AddChannel/.../HubListSwitchPresets/...）
+        - AppSettings 扩展：Reseller{HubURL, AdminToken, TenantSlug, DisplayName} 结构
+        - Wails 重生 module，TypeScript typecheck pass，前端 bundle 构建 pass
+
+previous_sprint_2:
+  number: "4d (partial — S-Xb.1)"
+  name: "Reseller Setup Wizard (manual entry path)"
+  epic: E14
+  phase: B
+  start: "2026-05-01"
+  end: "2026-05-01"
+  goal: "Reseller 用户能在 Switch 内接入已部署的 lurus-newhub 实例（手动 URL+Token 录入路径）"
+  status: done
+  completed: "2026-05-01"
+  total_points: 5
+  delivered_points: 5
+  stories:
+    - id: S-Xb.1
+      title: "ResellerSetupWizard 框架 + 手动接入"
+      status: done
+      points: 5
+      completed: "2026-05-01"
+      notes: |
+        - internal/hub/deploy/{deploy,manual,sealos,aliyun}.go: Provider 接口 + manual 实现 + Sealos/Aliyun 占位 stub
+        - 6 单测覆盖 ParseKind / 字段 trim / 输入校验 / stub 返回 ErrNotImplemented + 中文 hint
+        - bindings_reseller.go: ListResellerDeployKinds/TestHubConnection/ProvisionResellerHub/HasResellerConfig/ClearResellerConfig
+        - frontend/pages/ResellerSetupWizard.tsx: 4-step 向导（pick/manual/test/done）
+        - App.tsx 新增 needsResellerSetup 守卫：appMode=reseller 且无配置时强制进入向导
+  notes: |
+    S-Xb.2 (Sealos) + S-Xb.3 (阿里云 ECS) 自动部署 stub 化，原因：缺少真实凭证无法 e2e 验证，
+    按 Goal-Driven Execution 原则不写无法验证的代码。Provider 接口已就绪，后续有凭证时
+    在 sealos.go / aliyun.go 中实现即可，无前端改动。
 
 next_sprint:
+  number: "4f"
+  name: "Phase D — 上线准备"
+  epic: TBD
+  phase: D
+  start: "2026-05-02"
+  end: "2026-05-15"
+  goal: |
+    待选项（按优先级）:
+    1. Hub 端落地新 endpoints: /api/v2/switch/redeem, /api/v2/<tenant>/user/heartbeat,
+       /api/v2/admin/whitelabel/hmac-key（拉通 Switch 现有 stub）
+    2. 解冻 Sprint 4 Agent Foundation（v3 龙虾管理员），完成 S4.2/S4.3
+    3. rcedit 真机集成（Windows-only 图标替换）+ build 历史 SQLite 表
+    4. PackagerPage 上传 logo 实时预览 + 主题色 CSS 变量注入到打包产物
+
+# ── Frozen sprint (was Sprint 4) ──────────────────
+frozen_sprint:
   number: 4
   name: "Agent Foundation"
   epic: E4
-  start: "2026-04-14"
-  end: "2026-04-27"
-  goal: "Agent data model, SQLite, multi-instance config, process binding"
+  reason: "Channel Distribution Pivot (ADR-020) — Agent Fleet 路线 Phase A-C 后回归"
+  partial_progress:
+    - "S4.1 Agent Profile (internal/agent/) 已写"
+    - "S4.4 Agent Wails bindings + AgentsPage.tsx 已写"
+  resume_after: "Sprint 4e 完成 (Phase C 末)"
 
 sprints:
   # ── M1: Core Config Manager (COMPLETED) ──────────────────

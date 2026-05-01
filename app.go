@@ -62,6 +62,13 @@ func NewApp() *App {
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 
+	// White-label sidecar: if a signed whitelabel.json sits next to the
+	// running exe, lock the app to the embedded Hub URL + EndUser mode.
+	// Tampered sidecars cause a hard refusal — better to fail loudly than
+	// to let an EndUser silently fall back to Personal mode and dial home
+	// to hub.lurus.cn.
+	a.applyWhiteLabelSidecar()
+
 	// Auto-start legacy gateway server if configured to do so.
 	if a.serverMgr != nil {
 		if cfg := a.serverMgr.GetConfig(); cfg.AutoStart {
@@ -106,6 +113,14 @@ func (a *App) startup(ctx context.Context) {
 	// Fetch tool download manifest in the background so it is ready before the
 	// user reaches the install step. Does not block startup.
 	go safeGo("refresh-manifest", func() { a.refreshManifest() })
+
+	// EndUser heartbeat: probe Hub liveness so revoked tokens evict within
+	// minutes. No-op when no activation file is on disk; safe to start in
+	// any mode (Personal/Reseller users have no activation, so the loop
+	// just exits early on each tick).
+	if a.redemptionStore != nil {
+		a.restartHeartbeatLocked()
+	}
 
 	// Tray: surface quota + gateway status in the system tray.
 	a.trayMgr = tray.New(a.trayQuotaSnapshot, a.trayGatewayStatus)
@@ -157,6 +172,9 @@ func (a *App) shutdown(ctx context.Context) {
 	}
 	if a.hotkeyMgr != nil {
 		a.hotkeyMgr.Stop()
+	}
+	if a.heartbeat != nil {
+		a.heartbeat.Stop()
 	}
 
 	// Stop local API gateway (flushes metering buffer).

@@ -1,9 +1,14 @@
 # Switch (2c-gui-switch)
 
-桌面 AI CLI 网关——统一管理 Claude Code / Codex / Gemini CLI / PicoClaw / NullClaw 配置、安装、代理、MCP、快照、账单。Desktop 产品组 (P2)。
+桌面 AI CLI 网关 + 渠道分销基础设施。三模式：
+- **Personal**：个人 CLI 管家（Claude Code / Codex / Gemini / PicoClaw / NullClaw / OpenClaw 配置 + 代理 + MCP + 快照 + 账单），调 Lurus 自营 Hub。
+- **Reseller**：经销商运营台。部署专属 newhub 实例 → 生成激活码 → 导出白标 EndUser 安装包。
+- **EndUser**：白标 C 端客户端（Hub URL 锁死，激活码兑换 token，心跳验证）。
+
+Desktop 产品组 (P2)。详细路线图见 `_bmad-output/planning-artifacts/transformation-roadmap-v0.4.md`。
 
 - Delivery: Desktop (Wails v2)，无 K8s
-- Repo: `lurus-dev/lurus-switch` (GitHub releases 自更新)
+- Repo: `hanmahong5-arch/lurus-switch` (GitHub releases 自更新)
 - Local SQLite: `%APPDATA%\lurus-switch\`
 
 ## Tech Stack
@@ -45,9 +50,15 @@ cd frontend && bun run build
 
 ## Cross-service Dependencies
 
-- **2b-svc-api Hub (`lurus-api /api/v2/*`)**: user info, quota, plans, subscriptions, top-up — configured via Proxy Settings (APIEndpoint + UserToken)
-- **Zitadel OIDC (PKCE, port 31416)**: encrypted token (AES-GCM) at `auth.enc` → auto gateway token provisioning
-- **Env**: `LURUS_SWITCH_INTERNAL_KEY` (gateway provisioning)
+- **2b-svc-newhub (Lurus Hub)**: 三模式后端。Personal → Lurus 自营 `hub.lurus.cn`；Reseller → 部署经销商专属实例；EndUser → 白标包内嵌的经销商 hub URL。
+  - V2 多租户: `/api/v2/:tenant_slug/{auth/login, user/me, ...}` (Zitadel OIDC)
+  - V2 Switch 专用: `/api/v2/switch/{tools/versions, presets}`, `/api/v2/admin/switch/presets`
+  - V2 计费: `/api/v2/user/billing/{summary, payment-methods, checkout}`
+  - V2 经销商管理: `/api/v2/admin/{tenants, mappings, governance, audit/events}`
+  - V1 兼容（Reseller 控制台用）: `/api/{token, channel, redemption, log, data, wallet, openrouter-sync}/*`
+  - 激活码兑换: `POST /api/user/topup` (newapi 原生 RedeemCodeV2)
+- **2l-svc-platform**: Zitadel OIDC (PKCE, port 31416), 钱包/计费 — newhub 通过 gRPC 转发，Switch 不直连 platform
+- **Env**: `LURUS_SWITCH_INTERNAL_KEY` (Personal mode 自营 hub provisioning)
 - **npm registry**: tool version checks · **bun/pip**: tool install
 
 ## Gotchas

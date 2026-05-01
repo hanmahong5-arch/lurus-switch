@@ -3,6 +3,66 @@
     "title": "Lurus Switch",
     "subtitle": "Local AI Gateway"
   },
+  "mode": {
+    "welcome": {
+      "title": "Welcome to Lurus Switch",
+      "subtitle": "Pick your operating mode (changeable later in Settings)",
+      "hint": "Not sure? Most individual developers should choose Personal."
+    },
+    "personal": {
+      "label": "Personal",
+      "tagline": "Just for myself",
+      "desc": "Solo developer: install Claude Code / Codex / Gemini, manage proxies and configs, talk to the Lurus-operated LLM gateway."
+    },
+    "reseller": {
+      "label": "Reseller",
+      "tagline": "I run an AI tooling shop",
+      "desc": "Distributor: deploy your own Hub in one click, configure model routing, batch-issue activation codes, export white-labeled clients."
+    },
+    "enduser": {
+      "label": "EndUser",
+      "tagline": "I have an activation code",
+      "desc": "Customer: activate the client your reseller gave you, install CLI tools automatically, get to work."
+    }
+  },
+  "enduser": {
+    "activate": {
+      "title": "Activate your service",
+      "subtitle": "Enter the redemption code from your reseller",
+      "code": "Redemption code",
+      "submit": "Activate",
+      "deviceLabel": "Device fingerprint",
+      "deviceNote": "The redemption code is bound to this device. Switching devices requires re-activation."
+    },
+    "error": {
+      "invalidInput": "Invalid input — please check the code format.",
+      "network": "Unable to reach the Hub. Check your network and retry.",
+      "notFound": "Redemption code is unknown or invalid.",
+      "used": "This code has already been redeemed. Contact your reseller.",
+      "expired": "This code has expired. Contact your reseller.",
+      "disabled": "This code was disabled by the reseller.",
+      "endpointAbsent": "This Hub does not yet expose the redemption endpoint. Contact the reseller.",
+      "server": "Service is temporarily unavailable. Please retry shortly."
+    },
+    "main": {
+      "title": "My service",
+      "subtitle": "Quota, connection status, and CLI tool launchers.",
+      "status": "Status",
+      "statusActive": "Active",
+      "statusStale": "Degraded",
+      "quota": "Remaining quota",
+      "expires": "Expires",
+      "userId": "Account ID",
+      "tools": "CLI tools",
+      "noTools": "No CLI tools installed yet — head to the Tools page.",
+      "activatedAt": "Activated",
+      "reset": "Reset activation",
+      "resetConfirm": "Reset activation? Local credentials will be wiped and the next launch will ask for a new code.",
+      "stale": "Hub connection issue",
+      "staleHint": "We've been unable to reach the Hub for a while. Service is still usable, but please check your network.",
+      "retry": "Retry now"
+    }
+  },
   "nav": {
     "home": "Home",
     "agents": "Agents",
@@ -24,7 +84,21 @@
     "cliRunner": "CLI Runner",
     "gyProducts": "Lurus Apps",
     "promoterHub": "Promoter Hub",
-    "switchHub": "Switch Gateway"
+    "switchHub": "Switch Gateway",
+    "packager": "White-label Packager"
+  },
+  "packager": {
+    "title": "White-label Packager",
+    "subtitle": "Bake your Hub coordinates + branding into a distributable EndUser binary.",
+    "section": { "branding": "Branding" },
+    "brandName": "Brand name *",
+    "tenantSlug": "Tenant slug (optional, V2 multi-tenant)",
+    "primaryColor": "Primary color",
+    "supportContact": "Support contact",
+    "logo": "Brand logo (PNG/JPG/SVG, ≤256KB)",
+    "logoOversized": "Exceeds 256KB limit",
+    "build": "Build white-label package",
+    "success": "Build complete"
   },
   "home": {
     "title": "Home",

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BarChart3,
@@ -13,12 +13,14 @@ import {
   RefreshCw,
 } from 'lucide-react'
 import { useGatewayStore } from '../stores/gatewayStore'
+import { useConfigStore } from '../stores/configStore'
 import {
-  createGatewayClient,
+  makeDashboardSource,
+  type DashboardSource,
   type GatewayDashboardData,
   type GatewayQuotaDate,
   type GatewayPerformanceStats,
-} from '../lib/gateway-api'
+} from '../lib/dashboardSource'
 import { SimpleBarChart } from '../components/gateway/SimpleBarChart'
 
 const BYTES_PER_MB = 1024 * 1024
@@ -43,6 +45,8 @@ function getDateRange(): { start: string; end: string } {
 export function GatewayDashboardPage() {
   const { t } = useTranslation()
   const { status: serverStatus, adminToken } = useGatewayStore()
+  const appMode = useConfigStore((s) => s.appMode)
+  const isReseller = appMode === 'reseller'
 
   const [dashboardData, setDashboardData] = useState<GatewayDashboardData | null>(null)
   const [quotaDates, setQuotaDates] = useState<GatewayQuotaDate[]>([])
@@ -50,41 +54,45 @@ export function GatewayDashboardPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const client =
-    serverStatus?.running && adminToken
-      ? createGatewayClient(serverStatus.url, adminToken)
-      : null
+  const source: DashboardSource | null = useMemo(() => {
+    if (isReseller) return makeDashboardSource({ mode: 'hub' })
+    if (serverStatus?.running && adminToken) {
+      return makeDashboardSource({ mode: 'local', baseURL: serverStatus.url, token: adminToken })
+    }
+    return null
+  }, [isReseller, serverStatus?.running, serverStatus?.url, adminToken])
 
   const load = useCallback(async () => {
-    if (!client) return
+    if (!source) return
     setLoading(true)
     setError(null)
     try {
       const { start, end } = getDateRange()
-      const [dashRes, quotaRes, perfRes] = await Promise.all([
-        client.getDashboardData(),
-        client.getQuotaDates(start, end),
-        client.getPerformanceStats(),
-      ])
-      setDashboardData(dashRes.data ?? null)
-      setQuotaDates(quotaRes.data ?? [])
-      setPerformanceStats(perfRes.data ?? null)
+      const bundle = await source.fetch(start, end)
+      setDashboardData(bundle.summary)
+      setQuotaDates(bundle.quota)
+      setPerformanceStats(bundle.performance)
     } catch (e) {
       setError(String(e))
     } finally {
       setLoading(false)
     }
-  }, [serverStatus?.running, adminToken])
+  }, [source])
 
   useEffect(() => {
     load()
   }, [load])
 
-  if (!serverStatus?.running) {
+  if (!source) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground gap-2">
         <AlertCircle className="h-8 w-8" />
-        <p>{t('gateway.status.stopped')}</p>
+        <p>
+          {isReseller
+            ? t('gateway.hubNotConfigured', '请先在「设置」中配置 Reseller Hub URL 与管理员 Token')
+            : t('gateway.status.stopped')
+          }
+        </p>
       </div>
     )
   }

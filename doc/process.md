@@ -37,3 +37,11 @@ Implemented 5 stories: S2.5 Proxy Auto-Detection, S2.4 Tool Health Indicators, S
 Code review found 25 issues (2 Critical, 6 High, 9 Medium, 8 Low). Fixed 15 issues including XSS, missing types, stale closures, i18n gaps, concurrent port probing.
 Verification: `go test ./... -> PASS` | `npx tsc --noEmit -> PASS` | `bun run test:run -> 19/19 PASS`
 Remaining: 8 Low severity issues (cosmetic) deferred to backlog.
+
+## 2026-05-01: Sprint 4c — Reseller Console Online (23pts)
+S-Xb.4 Channel + S-Xb.5 Token + S-Xb.6 Redemption(+CSV) + S-Xb.7 Log + S-Xb.8 Dashboard：每个页面引入 *Source 适配器（Local/Hub 双路），通过 capability flags 隐藏 Reseller 模式不支持的高级动作（fetchModels/tag-ops/clearLogs/perfStats 等）。新增 Hub bindings: HubSearchChannels/HubCopyChannel/HubGetDashboardSummary/HubGetQuotaDates/HubGetPerformanceStats，admin SDK 增加 data.go。Hub LogQuery 用 Wails 生成的 PascalCase 字段透传。Redemption 创建后展示 emerald banner 引导 CSV 导出（key 不会再次返回明文）。
+Verification: `go build ./...` PASS | `go test ./internal/hub/admin ./internal/appconfig` PASS | `bunx tsc --noEmit` exit=0 | `bun run test:run` 102/102 | `bun run build` 896 KB bundle
+
+## 2026-05-01: Sprint 4d (partial — S-Xb.1) — Reseller Setup Wizard manual path (5pt)
+新增 internal/hub/deploy/ 包含 Provider 接口 + manual 实现 (URL/Token trim+校验) + Sealos/Aliyun stub (返回 ErrNotImplemented + 中文 hint 引导手动接入)。bindings_reseller.go 暴露 5 个 Wails 方法 (ListResellerDeployKinds / TestHubConnection / ProvisionResellerHub / HasResellerConfig / ClearResellerConfig)，TestHubConnection 用 8s 超时调 ListChannels(page=1) 做 smoke test。前端 ResellerSetupWizard.tsx 4 步向导 (pick/manual/test/done)，App.tsx 新增 needsResellerSetup 守卫拦截无配置的 Reseller 模式。S-Xb.2/.3 自动部署 stub 化（Goal-Driven：无凭证不写无法验证的代码）。
+Verification: `go test ./internal/hub/{admin,deploy} ./internal/appconfig` PASS (deploy 6 tests) | `tsc --noEmit` exit=0 | `bun run test:run` 102/102 | `bun run build` 906 KB bundle

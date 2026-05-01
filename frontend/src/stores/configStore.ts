@@ -1,7 +1,28 @@
 import { create } from 'zustand'
 
-export type AppMode = 'user' | 'promoter'
+// AppMode — three-mode dispatch (see ADR-020).
+// 'unset' is the bootstrap state shown to users on first launch.
+// Legacy 'user' / 'promoter' values from v0.1.0 saved configs are migrated
+// at the backend (internal/appconfig/mode.go) and never reach this store.
+export type AppMode = 'unset' | 'personal' | 'reseller' | 'enduser'
 export type UserLevel = 'beginner' | 'regular' | 'power'
+
+// migrateLegacyAppMode normalizes a raw value from disk (which may be the
+// legacy two-state set) to the tri-state used by the UI.
+export function migrateLegacyAppMode(raw: string | undefined | null): AppMode {
+  switch ((raw ?? '').toLowerCase().trim()) {
+    case 'personal':
+    case 'user': // legacy v0.1.0
+      return 'personal'
+    case 'reseller':
+    case 'promoter': // legacy v0.1.0
+      return 'reseller'
+    case 'enduser':
+      return 'enduser'
+    default:
+      return 'unset'
+  }
+}
 
 // New consolidated navigation — 6 user-facing + 2 promoter-only
 export type ActiveTool =
@@ -14,6 +35,7 @@ export type ActiveTool =
   | 'settings'
   | 'promotion'
   | 'api-admin'
+  | 'packager'
 
 // Sub-tab identifiers for each page
 export type ToolsSubTab = 'claude' | 'codex' | 'gemini' | 'picoclaw' | 'nullclaw' | 'zeroclaw' | 'openclaw' | 'mcp' | 'snapshots'
@@ -144,7 +166,7 @@ interface ConfigState {
 }
 
 export const useConfigStore = create<ConfigState>((set, get) => ({
-  appMode: 'user',
+  appMode: 'unset',
   setAppMode: (mode) => set({ appMode: mode }),
 
   userLevel: 'beginner',

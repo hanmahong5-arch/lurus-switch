@@ -5,10 +5,10 @@ import { cn } from '../lib/utils'
 import { useClassifiedError } from '../lib/useClassifiedError'
 import { InlineError } from '../components/InlineError'
 import { classifyError } from '../lib/errorClassifier'
-import { GetAppSettings, SaveAppSettings, ClearAllSnapshots, ClearAllUserPrompts } from '../../wailsjs/go/main/App'
+import { GetAppSettings, SaveAppSettings, ClearAllSnapshots, ClearAllUserPrompts, SetAppMode, IsModeLocked } from '../../wailsjs/go/main/App'
 import { appconfig } from '../../wailsjs/go/models'
 import { useConfigStore, type AppMode, type UserLevel } from '../stores/configStore'
-import { PROMOTER_ONLY_PAGES } from '../components/Sidebar'
+import { RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES } from '../components/Sidebar'
 
 type Tab = 'appearance' | 'proxy' | 'update' | 'data'
 
@@ -39,7 +39,11 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const { classified: error, setError, clearError } = useClassifiedError()
-  const [modeConfirm, setModeConfirm] = useState<AppMode | null>(null)
+  // modeConfirm holds the proposed target when the user clicks a different
+  // mode pill — null means no pending switch. Excludes 'unset' since that's
+  // the bootstrap-only state.
+  const [modeConfirm, setModeConfirm] = useState<Exclude<AppMode, 'unset'> | null>(null)
+  const [modeLocked, setModeLocked] = useState(false)
   const { t, i18n } = useTranslation()
   const { setAppMode, setUserLevel, activeTool, setActiveTool } = useConfigStore()
 
@@ -63,6 +67,7 @@ export function SettingsPage() {
         i18n.changeLanguage(loaded.language)
       }
     }).catch(() => {}).finally(() => setLoading(false))
+    IsModeLocked().then(setModeLocked).catch(() => setModeLocked(false))
   }, [])
 
   // Listen for system theme changes when in auto mode
@@ -220,32 +225,26 @@ export function SettingsPage() {
             <div className="border-t border-border pt-4">
               <SettingRow label={t('settings.appMode')} description={t('settings.appModeDesc')}>
                 <div className="flex rounded-md border border-border overflow-hidden">
-                  <button
-                    onClick={() => {
-                      if (settings.appMode !== 'user') setModeConfirm('user')
-                    }}
-                    className={cn(
-                      'px-3 py-1.5 text-sm font-medium transition-colors',
-                      settings.appMode === 'user'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {t('settings.modeUser')}
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (settings.appMode !== 'promoter') setModeConfirm('promoter')
-                    }}
-                    className={cn(
-                      'px-3 py-1.5 text-sm font-medium transition-colors',
-                      settings.appMode === 'promoter'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {t('settings.modePromoter')}
-                  </button>
+                  {(['personal', 'reseller', 'enduser'] as const).map((m) => (
+                    <button
+                      key={m}
+                      disabled={modeLocked && settings.appMode !== m}
+                      onClick={() => {
+                        if (modeLocked) return
+                        if (settings.appMode !== m) setModeConfirm(m)
+                      }}
+                      className={cn(
+                        'px-3 py-1.5 text-sm font-medium transition-colors',
+                        settings.appMode === m
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted text-muted-foreground hover:text-foreground',
+                        modeLocked && settings.appMode !== m && 'opacity-50 cursor-not-allowed'
+                      )}
+                      title={modeLocked ? t('settings.modeLockedHint', '已被白标包锁定') : ''}
+                    >
+                      {t(`mode.${m}.label`, m)}
+                    </button>
+                  ))}
                 </div>
               </SettingRow>
 
@@ -254,13 +253,11 @@ export function SettingsPage() {
                 <div className="mt-3 p-3 rounded-md border border-primary/30 bg-primary/5">
                   <p className="text-sm font-medium">
                     {t('settings.modeSwitchConfirm', {
-                      mode: modeConfirm === 'user' ? t('settings.modeUser') : t('settings.modePromoter'),
+                      mode: t(`mode.${modeConfirm}.label`, modeConfirm),
                     })}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {modeConfirm === 'user'
-                      ? t('settings.modeSwitchUserBody')
-                      : t('settings.modeSwitchPromoterBody')}
+                    {t(`mode.${modeConfirm}.desc`, '')}
                   </p>
                   <div className="flex gap-2 mt-2">
                     <button
@@ -272,17 +269,24 @@ export function SettingsPage() {
                     <button
                       onClick={async () => {
                         const newMode = modeConfirm
+                        try {
+                          await SetAppMode(newMode)
+                        } catch (e) {
+                          console.error('SetAppMode failed:', e)
+                          setModeConfirm(null)
+                          return
+                        }
                         const updated = { ...settings, appMode: newMode }
                         setSettings(updated)
                         setAppMode(newMode)
                         setModeConfirm(null)
-                        // Navigate away from promoter-only pages when switching to user mode
-                        if (newMode === 'user' && PROMOTER_ONLY_PAGES.has(activeTool)) {
+                        // Switch away from now-hidden pages.
+                        if (newMode !== 'reseller' && RESELLER_ONLY_PAGES.has(activeTool)) {
                           setActiveTool('home')
                         }
-                        try {
-                          await SaveAppSettings(appconfig.AppSettings.createFrom(updated))
-                        } catch { /* ignore */ }
+                        if (newMode !== 'personal' && PERSONAL_ONLY_PAGES.has(activeTool)) {
+                          setActiveTool('home')
+                        }
                       }}
                       className="px-3 py-1 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90"
                     >

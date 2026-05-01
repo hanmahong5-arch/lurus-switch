@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Key, Plus, Trash2, RefreshCw, AlertCircle, Edit2, Copy, Check } from 'lucide-react'
 import { useGatewayStore } from '../stores/gatewayStore'
-import { createGatewayClient, type GatewayToken } from '../lib/gateway-api'
+import { useConfigStore } from '../stores/configStore'
+import { makeTokenSource, type TokenSource, type GatewayToken } from '../lib/tokenSource'
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { StatusBadge } from '../components/gateway/StatusBadge'
@@ -13,6 +14,8 @@ const PER_PAGE = 50
 export function GatewayTokenPage() {
   const { t } = useTranslation()
   const { status: serverStatus, adminToken } = useGatewayStore()
+  const appMode = useConfigStore((s) => s.appMode)
+  const isReseller = appMode === 'reseller'
 
   const [tokens, setTokens] = useState<GatewayToken[]>([])
   const [page, setPage] = useState(0)
@@ -30,20 +33,26 @@ export function GatewayTokenPage() {
   // Batch
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
 
-  const client = serverStatus?.running && adminToken
-    ? createGatewayClient(serverStatus.url, adminToken)
-    : null
+  const source: TokenSource | null = useMemo(() => {
+    if (isReseller) return makeTokenSource({ mode: 'hub' })
+    if (serverStatus?.running && adminToken) {
+      return makeTokenSource({ mode: 'local', baseURL: serverStatus.url, token: adminToken })
+    }
+    return null
+  }, [isReseller, serverStatus?.running, serverStatus?.url, adminToken])
 
   const load = async (p = page) => {
-    if (!client) return
+    if (!source) return
     setLoading(true)
     setError(null)
     try {
-      const res = keyword.trim()
-        ? await client.searchTokens(keyword.trim(), p, PER_PAGE)
-        : await client.getTokens(p, PER_PAGE)
-      setTokens(res.data ?? [])
-      setTotal(res.data?.length === PER_PAGE ? (p + 2) * PER_PAGE : (p * PER_PAGE) + (res.data?.length ?? 0))
+      const res = await source.list(p, PER_PAGE, { keyword: keyword.trim() })
+      setTokens(res.items)
+      if (res.total > 0 && res.total !== res.items.length) {
+        setTotal(res.total)
+      } else {
+        setTotal(res.items.length === PER_PAGE ? (p + 2) * PER_PAGE : (p * PER_PAGE) + res.items.length)
+      }
     } catch (e) {
       setError(String(e))
     } finally {
@@ -51,7 +60,7 @@ export function GatewayTokenPage() {
     }
   }
 
-  useEffect(() => { load() }, [serverStatus?.running, adminToken])
+  useEffect(() => { load() }, [source])
 
   const handlePageChange = (p: number) => {
     setPage(p)
@@ -64,9 +73,9 @@ export function GatewayTokenPage() {
   }
 
   const handleDelete = async () => {
-    if (!client || confirmDelete === null) return
+    if (!source || confirmDelete === null) return
     try {
-      await client.deleteToken(confirmDelete)
+      await source.delete(confirmDelete)
       setTokens((prev) => prev.filter((tk) => tk.id !== confirmDelete))
       setConfirmDelete(null)
     } catch (e) {
@@ -75,9 +84,9 @@ export function GatewayTokenPage() {
   }
 
   const handleBatchDelete = async () => {
-    if (!client || selectedIds.size === 0) return
+    if (!source || selectedIds.size === 0) return
     try {
-      await client.batchDeleteTokens(Array.from(selectedIds))
+      await source.batchDelete(Array.from(selectedIds))
       setSelectedIds(new Set())
       await load()
     } catch (e) {
@@ -86,12 +95,12 @@ export function GatewayTokenPage() {
   }
 
   const handleSave = async () => {
-    if (!client || !editing) return
+    if (!source || !editing) return
     try {
       if (editing.id) {
-        await client.updateToken(editing as GatewayToken)
+        await source.update(editing as GatewayToken)
       } else {
-        await client.createToken(editing)
+        await source.create(editing)
       }
       setShowModal(false)
       setEditing(null)
@@ -102,9 +111,9 @@ export function GatewayTokenPage() {
   }
 
   const handleToggleStatus = async (tk: GatewayToken) => {
-    if (!client) return
+    if (!source) return
     try {
-      await client.updateToken({ id: tk.id, status: tk.status === 1 ? 2 : 1 })
+      await source.update({ id: tk.id, status: tk.status === 1 ? 2 : 1 })
       setTokens((prev) => prev.map((t) => t.id === tk.id ? { ...t, status: t.status === 1 ? 2 : 1 } : t))
     } catch (e) {
       setError(String(e))
@@ -139,11 +148,16 @@ export function GatewayTokenPage() {
     }
   }
 
-  if (!serverStatus?.running) {
+  if (!source) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground gap-2">
         <AlertCircle className="h-8 w-8" />
-        <p>{t('gateway.status.stopped')}</p>
+        <p>
+          {isReseller
+            ? t('gateway.hubNotConfigured', '请先在「设置」中配置 Reseller Hub URL 与管理员 Token')
+            : t('gateway.status.stopped')
+          }
+        </p>
       </div>
     )
   }

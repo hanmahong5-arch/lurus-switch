@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileText, RefreshCw, AlertCircle, Trash2, BarChart3 } from 'lucide-react'
 import { useGatewayStore } from '../stores/gatewayStore'
-import { createGatewayClient, type GatewayLog, type GatewayLogStat } from '../lib/gateway-api'
+import { useConfigStore } from '../stores/configStore'
+import { makeLogSource, type LogSource, type GatewayLog, type GatewayLogStat } from '../lib/logSource'
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { DateRangePicker } from '../components/gateway/DateRangePicker'
@@ -23,6 +24,8 @@ type LogTab = 'usage' | 'draw' | 'task'
 export function GatewayLogPage() {
   const { t } = useTranslation()
   const { status: serverStatus, adminToken } = useGatewayStore()
+  const appMode = useConfigStore((s) => s.appMode)
+  const isReseller = appMode === 'reseller'
 
   const [tab, setTab] = useState<LogTab>('usage')
   const [logs, setLogs] = useState<GatewayLog[]>([])
@@ -46,9 +49,15 @@ export function GatewayLogPage() {
   // Clear history
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
-  const client = serverStatus?.running && adminToken
-    ? createGatewayClient(serverStatus.url, adminToken)
-    : null
+  const source: LogSource | null = useMemo(() => {
+    if (isReseller) return makeLogSource({ mode: 'hub' })
+    if (serverStatus?.running && adminToken) {
+      return makeLogSource({ mode: 'local', baseURL: serverStatus.url, token: adminToken })
+    }
+    return null
+  }, [isReseller, serverStatus?.running, serverStatus?.url, adminToken])
+
+  const caps = source?.capabilities
 
   const typeForTab = (t: LogTab): number | undefined => {
     switch (t) {
@@ -59,23 +68,32 @@ export function GatewayLogPage() {
   }
 
   const load = async (p = page) => {
-    if (!client) return
+    if (!source) return
     setLoading(true)
     setError(null)
     try {
-      const params: Record<string, unknown> = {}
-      if (usernameFilter.trim()) params.username = usernameFilter.trim()
-      if (modelFilter.trim()) params.model = modelFilter.trim()
-      if (tokenNameFilter.trim()) params.token_name = tokenNameFilter.trim()
-      if (channelFilter.trim()) params.channel_id = parseInt(channelFilter) || undefined
-      if (startDate) params.start_timestamp = Math.floor(new Date(startDate).getTime() / 1000)
-      if (endDate) params.end_timestamp = Math.floor(new Date(endDate + 'T23:59:59').getTime() / 1000)
+      const channelId = channelFilter.trim() ? parseInt(channelFilter) : undefined
+      const startTs = startDate ? Math.floor(new Date(startDate).getTime() / 1000) : undefined
+      const endTs = endDate ? Math.floor(new Date(endDate + 'T23:59:59').getTime() / 1000) : undefined
       const logType = typeForTab(tab)
-      if (logType !== undefined) params.type = logType
 
-      const res = await client.getLogs(p, PER_PAGE, params as Parameters<typeof client.getLogs>[2])
-      setLogs(res.data ?? [])
-      setTotal(res.data?.length === PER_PAGE ? (p + 2) * PER_PAGE : (p * PER_PAGE) + (res.data?.length ?? 0))
+      const res = await source.list({
+        page: p,
+        perPage: PER_PAGE,
+        username: usernameFilter.trim() || undefined,
+        model: modelFilter.trim() || undefined,
+        tokenName: tokenNameFilter.trim() || undefined,
+        channelId: Number.isFinite(channelId as number) ? channelId : undefined,
+        startTimestamp: startTs,
+        endTimestamp: endTs,
+        type: logType,
+      })
+      setLogs(res.items)
+      if (res.total > 0 && res.total !== res.items.length) {
+        setTotal(res.total)
+      } else {
+        setTotal(res.items.length === PER_PAGE ? (p + 2) * PER_PAGE : (p * PER_PAGE) + res.items.length)
+      }
     } catch (e) {
       setError(String(e))
     } finally {
@@ -84,19 +102,19 @@ export function GatewayLogPage() {
   }
 
   const loadStats = async () => {
-    if (!client) return
+    if (!source?.stats) return
     try {
       const now = Date.now()
       const start = Math.floor((now - 13 * 86400000) / 1000)
       const end = Math.floor(now / 1000)
-      const res = await client.getLogStats(start, end)
-      setStats(res.data ?? [])
+      const data = await source.stats(start, end)
+      setStats(data)
     } catch (e) {
       setError(String(e))
     }
   }
 
-  useEffect(() => { load() }, [serverStatus?.running, adminToken, tab])
+  useEffect(() => { load() }, [source, tab])
 
   const handlePageChange = (p: number) => {
     setPage(p)
@@ -114,9 +132,9 @@ export function GatewayLogPage() {
   }
 
   const handleClearHistory = async () => {
-    if (!client) return
+    if (!source?.clearHistory) return
     try {
-      await client.clearLogs()
+      await source.clearHistory()
       setShowClearConfirm(false)
       setLogs([])
       setTotal(0)
@@ -139,11 +157,16 @@ export function GatewayLogPage() {
     { key: 'task', label: t('gateway.taskLogs') },
   ]
 
-  if (!serverStatus?.running) {
+  if (!source) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground gap-2">
         <AlertCircle className="h-8 w-8" />
-        <p>{t('gateway.status.stopped')}</p>
+        <p>
+          {isReseller
+            ? t('gateway.hubNotConfigured', '请先在「设置」中配置 Reseller Hub URL 与管理员 Token')
+            : t('gateway.status.stopped')
+          }
+        </p>
       </div>
     )
   }
@@ -156,20 +179,24 @@ export function GatewayLogPage() {
           {t('gateway.logs')}
         </h2>
         <div className="flex gap-2">
-          <button
-            onClick={handleToggleStats}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
-            title={t('gateway.logStats')}
-          >
-            <BarChart3 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => setShowClearConfirm(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-800 hover:bg-red-900/30 text-red-400 text-sm"
-          >
-            <Trash2 className="h-4 w-4" />
-            {t('gateway.clearHistory')}
-          </button>
+          {caps?.stats && (
+            <button
+              onClick={handleToggleStats}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
+              title={t('gateway.logStats')}
+            >
+              <BarChart3 className="h-4 w-4" />
+            </button>
+          )}
+          {caps?.clearHistory && (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-800 hover:bg-red-900/30 text-red-400 text-sm"
+            >
+              <Trash2 className="h-4 w-4" />
+              {t('gateway.clearHistory')}
+            </button>
+          )}
           <button
             onClick={() => load()}
             disabled={loading}

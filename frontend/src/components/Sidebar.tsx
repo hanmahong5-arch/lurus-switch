@@ -1,6 +1,6 @@
 import {
   Settings, Home, Wrench, Wallet, Briefcase,
-  Megaphone, ShieldCheck, Radio, Bot,
+  Megaphone, ShieldCheck, Radio, Bot, Package,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -37,16 +37,34 @@ function NavButton({ id, name, icon: Icon, iconColor, active, onClick, badge }: 
   )
 }
 
-// Pages that are only visible in promoter mode
-export const PROMOTER_ONLY_PAGES: Set<string> = new Set([
-  'promotion', 'api-admin',
+// Pages restricted to Reseller mode (经销商运营台).
+// In Personal / EndUser modes these are hidden from the sidebar AND blocked
+// by the route guard in App.tsx.
+export const RESELLER_ONLY_PAGES: Set<string> = new Set([
+  'promotion', 'api-admin', 'packager',
+])
+
+// Backwards-compat alias used by App.tsx until the rename propagates.
+export const PROMOTER_ONLY_PAGES = RESELLER_ONLY_PAGES
+
+// Pages restricted to Personal mode (Agent Fleet — frozen for Phase A-C, see ADR-020).
+export const PERSONAL_ONLY_PAGES: Set<string> = new Set([
+  'agents',
+])
+
+// Pages visible in EndUser mode (white-label client). Anything else is hidden.
+// Kept intentionally narrow to match the simplified EndUser dashboard.
+export const ENDUSER_VISIBLE_PAGES: Set<string> = new Set([
+  'home', 'tools', 'account', 'settings',
 ])
 
 export function Sidebar() {
   const { activeTool, setActiveTool, appMode } = useConfigStore()
   const { t } = useTranslation()
   const gatewayRunning = useGatewayStore((s) => s.status?.running ?? false)
-  const isPromoter = appMode === 'promoter'
+  const isReseller = appMode === 'reseller'
+  const isEndUser = appMode === 'enduser'
+  const showAgents = appMode === 'personal' // Agent Fleet is Personal-mode only
 
   return (
     <aside className="w-56 bg-muted/50 border-r border-border flex flex-col">
@@ -61,7 +79,24 @@ export function Sidebar() {
           </svg>
           <h1 className="text-lg font-semibold">Lurus Switch</h1>
         </div>
-        <p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground">{t('app.subtitle')}</p>
+          {appMode !== 'unset' && (
+            <span
+              className={
+                'text-[10px] px-1.5 py-0.5 rounded-sm font-medium ' +
+                (appMode === 'personal'
+                  ? 'bg-blue-500/15 text-blue-400'
+                  : appMode === 'reseller'
+                  ? 'bg-purple-500/15 text-purple-400'
+                  : 'bg-emerald-500/15 text-emerald-400')
+              }
+              title={t(`mode.${appMode}.desc`, '')}
+            >
+              {t(`mode.${appMode}.label`, appMode)}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Navigation */}
@@ -77,15 +112,17 @@ export function Sidebar() {
             onClick={() => setActiveTool('home')}
           />
 
-          {/* 2. Agents */}
-          <NavButton
-            id="agents"
-            name={t('nav.agents', 'Agents')}
-            icon={Bot}
-            iconColor="text-violet-500"
-            active={activeTool === 'agents'}
-            onClick={() => setActiveTool('agents')}
-          />
+          {/* 2. Agents (Personal mode only — Agent Fleet frozen elsewhere per ADR-020) */}
+          {showAgents && (
+            <NavButton
+              id="agents"
+              name={t('nav.agents', 'Agents')}
+              icon={Bot}
+              iconColor="text-violet-500"
+              active={activeTool === 'agents'}
+              onClick={() => setActiveTool('agents')}
+            />
+          )}
 
           {/* 3. Tools */}
           <NavButton
@@ -97,7 +134,8 @@ export function Sidebar() {
             onClick={() => setActiveTool('tools')}
           />
 
-          {/* 3. Gateway */}
+          {/* 3. Gateway (hidden in EndUser — they don't manage upstream) */}
+          {!isEndUser && (
           <div className="flex items-center">
             <div className="flex-1">
               <NavButton
@@ -120,8 +158,10 @@ export function Sidebar() {
               size="sm"
             />
           </div>
+          )}
 
-          {/* 4. Workspace */}
+          {/* 4. Workspace (hidden in EndUser — simplified C-end UX) */}
+          {!isEndUser && (
           <div className="flex items-center">
             <div className="flex-1">
               <NavButton
@@ -141,6 +181,7 @@ export function Sidebar() {
               size="sm"
             />
           </div>
+          )}
 
           {/* 5. Account */}
           <NavButton
@@ -152,8 +193,8 @@ export function Sidebar() {
             onClick={() => setActiveTool('account')}
           />
 
-          {/* Promoter-only sections */}
-          {isPromoter && (
+          {/* Reseller-only sections */}
+          {isReseller && (
             <>
               <div className="border-t border-border my-2" />
 
@@ -175,6 +216,16 @@ export function Sidebar() {
                 iconColor="text-red-500"
                 active={activeTool === 'api-admin'}
                 onClick={() => setActiveTool('api-admin')}
+              />
+
+              {/* 9. Packager (white-label EndUser builds) */}
+              <NavButton
+                id="packager"
+                name={t('nav.packager', '白标打包')}
+                icon={Package}
+                iconColor="text-fuchsia-500"
+                active={activeTool === 'packager'}
+                onClick={() => setActiveTool('packager')}
               />
             </>
           )}

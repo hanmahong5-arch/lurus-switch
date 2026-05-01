@@ -3,6 +3,66 @@
     "title": "Lurus Switch",
     "subtitle": "本地 AI 网关"
   },
+  "mode": {
+    "welcome": {
+      "title": "欢迎使用 Lurus Switch",
+      "subtitle": "请选择你的使用模式（之后可在设置中更改）",
+      "hint": "不知道选哪个？多数个人用户应选「Personal」。"
+    },
+    "personal": {
+      "label": "Personal",
+      "tagline": "我自己用",
+      "desc": "个人开发者：装 Claude Code/Codex/Gemini，统一管理代理与配置，使用 Lurus 自营 LLM 网关。"
+    },
+    "reseller": {
+      "label": "Reseller",
+      "tagline": "我要开 AI 编程小卖部",
+      "desc": "经销商：在自己云上一键部署 Hub，配模型路由，生成激活码批次，导出带自己品牌的客户端。"
+    },
+    "enduser": {
+      "label": "EndUser",
+      "tagline": "我有激活码",
+      "desc": "终端用户：用经销商发的激活码激活客户端，自动装 CLI 工具，开箱即用。"
+    }
+  },
+  "enduser": {
+    "activate": {
+      "title": "激活你的服务",
+      "subtitle": "输入经销商提供的激活码",
+      "code": "激活码",
+      "submit": "激活",
+      "deviceLabel": "设备指纹",
+      "deviceNote": "激活码与本机指纹绑定，更换设备需重新申请。"
+    },
+    "error": {
+      "invalidInput": "输入有误，请检查激活码格式。",
+      "network": "无法连接到 Hub，请检查网络后重试。",
+      "notFound": "激活码不存在或无效，请确认拼写。",
+      "used": "该激活码已被使用，请联系经销商更换。",
+      "expired": "该激活码已过期，请联系经销商。",
+      "disabled": "该激活码已被经销商禁用。",
+      "endpointAbsent": "Hub 暂未启用激活码兑换接口，请联系经销商升级。",
+      "server": "服务暂时不可用，请稍后重试。"
+    },
+    "main": {
+      "title": "我的服务",
+      "subtitle": "查看额度、连接状态，启动 CLI 工具。",
+      "status": "服务状态",
+      "statusActive": "正常",
+      "statusStale": "降级",
+      "quota": "剩余额度",
+      "expires": "到期时间",
+      "userId": "账号 ID",
+      "tools": "CLI 工具",
+      "noTools": "尚未安装任何 CLI 工具，点击「工具」页面安装。",
+      "activatedAt": "激活时间",
+      "reset": "重置激活",
+      "resetConfirm": "确定要重置激活状态吗？此操作会清除本地激活信息，下次启动需要重新输入激活码。",
+      "stale": "Hub 连接异常",
+      "staleHint": "已经一段时间没有联系到 Hub，服务暂时仍可用，但请检查网络。",
+      "retry": "立即重试"
+    }
+  },
   "nav": {
     "home": "首页",
     "agents": "助理",
@@ -24,7 +84,21 @@
     "cliRunner": "CLI 运行器",
     "gyProducts": "Lurus 生态",
     "promoterHub": "推广管理",
-    "switchHub": "Switch 网关"
+    "switchHub": "Switch 网关",
+    "packager": "白标打包"
+  },
+  "packager": {
+    "title": "白标打包",
+    "subtitle": "把你的 Hub 接入参数 + 品牌打成一个 EndUser 安装包。",
+    "section": { "branding": "品牌信息" },
+    "brandName": "品牌名 *",
+    "tenantSlug": "Tenant Slug（V2 多租户可选）",
+    "primaryColor": "主题色",
+    "supportContact": "客服联系方式",
+    "logo": "品牌 Logo（PNG/JPG/SVG，≤256KB）",
+    "logoOversized": "超过 256KB 限制",
+    "build": "生成白标包",
+    "success": "打包完成"
   },
   "home": {
     "title": "首页",

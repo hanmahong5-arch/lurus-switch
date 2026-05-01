@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Layers, Plus, Trash2, TestTube, RefreshCw, AlertCircle,
   Edit2, Copy, Download, ChevronDown, Check,
 } from 'lucide-react'
 import { useGatewayStore } from '../stores/gatewayStore'
-import { createGatewayClient, CHANNEL_TYPES, type GatewayChannel } from '../lib/gateway-api'
+import { useConfigStore } from '../stores/configStore'
+import { CHANNEL_TYPES } from '../lib/gateway-api'
+import { makeChannelSource, type ChannelSource, type GatewayChannel } from '../lib/channelSource'
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { StatusBadge } from '../components/gateway/StatusBadge'
@@ -16,6 +18,8 @@ const PER_PAGE = 50
 export function GatewayChannelPage() {
   const { t } = useTranslation()
   const { status: serverStatus, adminToken } = useGatewayStore()
+  const appMode = useConfigStore((s) => s.appMode)
+  const isReseller = appMode === 'reseller'
 
   // --- Data state ---
   const [channels, setChannels] = useState<GatewayChannel[]>([])
@@ -46,46 +50,56 @@ export function GatewayChannelPage() {
   const [showBatchTagInput, setShowBatchTagInput] = useState(false)
   const [batchTagValue, setBatchTagValue] = useState('')
 
-  const client = serverStatus?.running && adminToken
-    ? createGatewayClient(serverStatus.url, adminToken)
-    : null
+  // Pick the data source based on mode. Reseller talks to a remote Hub via
+  // Wails bindings; Personal talks to the in-process gateway directly. The
+  // memo'd source is stable across renders so callbacks don't churn.
+  const source: ChannelSource | null = useMemo(() => {
+    if (isReseller) return makeChannelSource({ mode: 'hub' })
+    if (serverStatus?.running && adminToken) {
+      return makeChannelSource({ mode: 'local', baseURL: serverStatus.url, token: adminToken })
+    }
+    return null
+  }, [isReseller, serverStatus?.running, serverStatus?.url, adminToken])
+
+  const caps = source?.capabilities
 
   const load = useCallback(async (p = page) => {
-    if (!client) return
+    if (!source) return
     setLoading(true)
     setError(null)
     try {
-      const res = keyword.trim()
-        ? await client.searchChannels(keyword.trim(), p, PER_PAGE)
-        : await client.getChannels(p, PER_PAGE)
-      let data = res.data ?? []
+      const res = await source.list(p, PER_PAGE, { keyword: keyword.trim() })
+      let data = res.items
 
-      // Client-side type filter
       if (typeFilter !== null) {
         data = data.filter((ch) => ch.type === typeFilter)
       }
-      // Client-side tag filter
       if (tagFilter.trim()) {
         const tf = tagFilter.trim().toLowerCase()
         data = data.filter((ch) => (ch.tag ?? '').toLowerCase().includes(tf))
       }
 
       setChannels(data)
-      // The API may not return total; estimate from response length
-      setTotal(data.length < PER_PAGE && p === 0
-        ? data.length
-        : Math.max((p + 1) * PER_PAGE + (data.length === PER_PAGE ? PER_PAGE : 0), data.length)
-      )
+      // Hub returns an authoritative total; local source falls back to length
+      // and we estimate the next-page existence as before.
+      if (res.total > 0 && res.total !== data.length) {
+        setTotal(res.total)
+      } else {
+        setTotal(data.length < PER_PAGE && p === 0
+          ? data.length
+          : Math.max((p + 1) * PER_PAGE + (data.length === PER_PAGE ? PER_PAGE : 0), data.length)
+        )
+      }
     } catch (e) {
       setError(String(e))
     } finally {
       setLoading(false)
     }
-  }, [client, keyword, typeFilter, tagFilter, page])
+  }, [source, keyword, typeFilter, tagFilter, page])
 
   useEffect(() => {
     load(page)
-  }, [serverStatus?.running, adminToken, page])
+  }, [source, page])
 
   const handleSearch = useCallback(() => {
     setPage(0)
@@ -96,9 +110,9 @@ export function GatewayChannelPage() {
   // ==================== Single row actions ====================
 
   const handleDelete = async (id: number) => {
-    if (!client) return
+    if (!source) return
     try {
-      await client.deleteChannel(id)
+      await source.delete(id)
       setChannels((prev) => prev.filter((c) => c.id !== id))
       setSelectedIds((prev) => {
         const next = new Set(prev)
@@ -112,20 +126,20 @@ export function GatewayChannelPage() {
   }
 
   const handleTest = async (id: number) => {
-    if (!client) return
+    if (!source) return
     setTestResults((prev) => ({ ...prev, [id]: 'testing...' }))
     try {
-      const res = await client.testChannel(id)
-      setTestResults((prev) => ({ ...prev, [id]: res.data ?? res.message ?? 'OK' }))
+      const msg = await source.test(id)
+      setTestResults((prev) => ({ ...prev, [id]: msg }))
     } catch (e) {
       setTestResults((prev) => ({ ...prev, [id]: String(e) }))
     }
   }
 
   const handleCopy = async (id: number) => {
-    if (!client) return
+    if (!source?.copy) return
     try {
-      await client.copyChannel(id)
+      await source.copy(id)
       await load(page)
     } catch (e) {
       setError(String(e))
@@ -133,17 +147,16 @@ export function GatewayChannelPage() {
   }
 
   const handleFetchModels = async (id: number) => {
-    if (!client) return
+    if (!source?.fetchModels) return
     try {
-      const res = await client.fetchChannelModels(id)
-      const models = res.data
-      if (models && models.length > 0) {
+      const models = await source.fetchModels(id)
+      if (models.length > 0) {
         setTestResults((prev) => ({
           ...prev,
           [id]: `Fetched ${models.length} models: ${models.slice(0, 5).join(', ')}${models.length > 5 ? '...' : ''}`,
         }))
       } else {
-        setTestResults((prev) => ({ ...prev, [id]: res.message ?? 'No models found' }))
+        setTestResults((prev) => ({ ...prev, [id]: 'No models found' }))
       }
     } catch (e) {
       setTestResults((prev) => ({ ...prev, [id]: String(e) }))
@@ -151,10 +164,10 @@ export function GatewayChannelPage() {
   }
 
   const handleToggleStatus = async (ch: GatewayChannel) => {
-    if (!client) return
+    if (!source) return
     const newStatus = ch.status === 1 ? 2 : 1
     try {
-      await client.updateChannel({ id: ch.id, status: newStatus })
+      await source.update({ id: ch.id, status: newStatus })
       setChannels((prev) =>
         prev.map((c) => (c.id === ch.id ? { ...c, status: newStatus } : c))
       )
@@ -166,9 +179,9 @@ export function GatewayChannelPage() {
   // ==================== Batch operations ====================
 
   const handleBatchDelete = async () => {
-    if (!client || selectedIds.size === 0) return
+    if (!source || selectedIds.size === 0) return
     try {
-      await client.batchDeleteChannels(Array.from(selectedIds))
+      await source.batchDelete(Array.from(selectedIds))
       setSelectedIds(new Set())
       await load(page)
     } catch (e) {
@@ -177,9 +190,9 @@ export function GatewayChannelPage() {
   }
 
   const handleBatchEnable = async () => {
-    if (!client || selectedIds.size === 0) return
+    if (!source?.batchEnable || selectedIds.size === 0) return
     try {
-      await client.batchEnableChannels(Array.from(selectedIds))
+      await source.batchEnable(Array.from(selectedIds))
       setChannels((prev) =>
         prev.map((c) => (selectedIds.has(c.id) ? { ...c, status: 1 } : c))
       )
@@ -189,9 +202,9 @@ export function GatewayChannelPage() {
   }
 
   const handleBatchDisable = async () => {
-    if (!client || selectedIds.size === 0) return
+    if (!source?.batchDisable || selectedIds.size === 0) return
     try {
-      await client.batchDisableChannels(Array.from(selectedIds))
+      await source.batchDisable(Array.from(selectedIds))
       setChannels((prev) =>
         prev.map((c) => (selectedIds.has(c.id) ? { ...c, status: 2 } : c))
       )
@@ -201,9 +214,9 @@ export function GatewayChannelPage() {
   }
 
   const handleBatchSetTag = async () => {
-    if (!client || selectedIds.size === 0 || !batchTagValue.trim()) return
+    if (!source?.batchSetTag || selectedIds.size === 0 || !batchTagValue.trim()) return
     try {
-      await client.batchSetChannelTag(Array.from(selectedIds), batchTagValue.trim())
+      await source.batchSetTag(Array.from(selectedIds), batchTagValue.trim())
       setChannels((prev) =>
         prev.map((c) => (selectedIds.has(c.id) ? { ...c, tag: batchTagValue.trim() } : c))
       )
@@ -217,9 +230,9 @@ export function GatewayChannelPage() {
   // ==================== Tag operations ====================
 
   const handleEnableByTag = async () => {
-    if (!client || !tagOpInput.trim()) return
+    if (!source?.enableByTag || !tagOpInput.trim()) return
     try {
-      await client.enableChannelsByTag(tagOpInput.trim())
+      await source.enableByTag(tagOpInput.trim())
       await load(page)
     } catch (e) {
       setError(String(e))
@@ -227,9 +240,9 @@ export function GatewayChannelPage() {
   }
 
   const handleDisableByTag = async () => {
-    if (!client || !tagOpInput.trim()) return
+    if (!source?.disableByTag || !tagOpInput.trim()) return
     try {
-      await client.disableChannelsByTag(tagOpInput.trim())
+      await source.disableByTag(tagOpInput.trim())
       await load(page)
     } catch (e) {
       setError(String(e))
@@ -237,9 +250,9 @@ export function GatewayChannelPage() {
   }
 
   const handleEditTag = async () => {
-    if (!client || !tagOpOldTag.trim() || !tagOpNewTag.trim()) return
+    if (!source?.editTag || !tagOpOldTag.trim() || !tagOpNewTag.trim()) return
     try {
-      await client.editChannelTag(tagOpOldTag.trim(), tagOpNewTag.trim())
+      await source.editTag(tagOpOldTag.trim(), tagOpNewTag.trim())
       await load(page)
       setTagOpOldTag('')
       setTagOpNewTag('')
@@ -251,12 +264,12 @@ export function GatewayChannelPage() {
   // ==================== Save (create/edit) ====================
 
   const handleSave = async () => {
-    if (!client || !editing) return
+    if (!source || !editing) return
     try {
       if (editing.id) {
-        await client.updateChannel(editing as GatewayChannel)
+        await source.update(editing as GatewayChannel)
       } else {
-        await client.createChannel(editing)
+        await source.create(editing)
       }
       setShowModal(false)
       setEditing(null)
@@ -267,9 +280,9 @@ export function GatewayChannelPage() {
   }
 
   const handleFixAbilities = async () => {
-    if (!client) return
+    if (!source?.fixAbilities) return
     try {
-      await client.fixChannelAbilities()
+      await source.fixAbilities()
       await load(page)
     } catch (e) {
       setError(String(e))
@@ -311,13 +324,18 @@ export function GatewayChannelPage() {
     setConfirmDelete(null)
   }
 
-  // ==================== Render: server not running ====================
+  // ==================== Render: source unavailable ====================
 
-  if (!serverStatus?.running) {
+  if (!source) {
     return (
       <div className="flex flex-col h-full items-center justify-center text-muted-foreground gap-2">
         <AlertCircle className="h-8 w-8" />
-        <p>{t('gateway.status.stopped')}</p>
+        <p>
+          {isReseller
+            ? t('gateway.hubNotConfigured', '请先在「设置」中配置 Reseller Hub URL 与管理员 Token')
+            : t('gateway.status.stopped')
+          }
+        </p>
       </div>
     )
   }
@@ -333,13 +351,15 @@ export function GatewayChannelPage() {
           {t('gateway.channels')}
         </h2>
         <div className="flex gap-2">
-          <button
-            onClick={handleFixAbilities}
-            title="Fix Abilities"
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm text-muted-foreground"
-          >
-            Fix Abilities
-          </button>
+          {caps?.fixAbilities && (
+            <button
+              onClick={handleFixAbilities}
+              title="Fix Abilities"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm text-muted-foreground"
+            >
+              Fix Abilities
+            </button>
+          )}
           <button
             onClick={() => load(page)}
             disabled={loading}
@@ -409,18 +429,23 @@ export function GatewayChannelPage() {
           >
             {t('gateway.batchDelete', 'Batch Delete')}
           </button>
-          <button
-            onClick={handleBatchEnable}
-            className="px-2.5 py-1 rounded hover:bg-green-900/30 text-green-400 text-xs font-medium"
-          >
-            {t('gateway.batchEnable', 'Batch Enable')}
-          </button>
-          <button
-            onClick={handleBatchDisable}
-            className="px-2.5 py-1 rounded hover:bg-muted text-muted-foreground text-xs font-medium"
-          >
-            {t('gateway.batchDisable', 'Batch Disable')}
-          </button>
+          {caps?.batchEnableDisable && (
+            <>
+              <button
+                onClick={handleBatchEnable}
+                className="px-2.5 py-1 rounded hover:bg-green-900/30 text-green-400 text-xs font-medium"
+              >
+                {t('gateway.batchEnable', 'Batch Enable')}
+              </button>
+              <button
+                onClick={handleBatchDisable}
+                className="px-2.5 py-1 rounded hover:bg-muted text-muted-foreground text-xs font-medium"
+              >
+                {t('gateway.batchDisable', 'Batch Disable')}
+              </button>
+            </>
+          )}
+          {caps?.batchSetTag && (
           <div className="relative">
             <button
               onClick={() => setShowBatchTagInput((prev) => !prev)}
@@ -449,6 +474,7 @@ export function GatewayChannelPage() {
               </div>
             )}
           </div>
+          )}
         </div>
       )}
 
@@ -532,13 +558,15 @@ export function GatewayChannelPage() {
                     >
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => handleCopy(ch.id)}
-                      title="Copy"
-                      className="p-1 hover:text-indigo-400"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
+                    {caps?.copy && (
+                      <button
+                        onClick={() => handleCopy(ch.id)}
+                        title="Copy"
+                        className="p-1 hover:text-indigo-400"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleTest(ch.id)}
                       title="Test"
@@ -546,13 +574,15 @@ export function GatewayChannelPage() {
                     >
                       <TestTube className="h-4 w-4" />
                     </button>
-                    <button
-                      onClick={() => handleFetchModels(ch.id)}
-                      title="Fetch Models"
-                      className="p-1 hover:text-yellow-400"
-                    >
-                      <Download className="h-4 w-4" />
-                    </button>
+                    {caps?.fetchModels && (
+                      <button
+                        onClick={() => handleFetchModels(ch.id)}
+                        title="Fetch Models"
+                        className="p-1 hover:text-yellow-400"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={() => setConfirmDelete(ch.id)}
                       title="Delete"
@@ -576,7 +606,9 @@ export function GatewayChannelPage() {
         onPageChange={(p) => { setPage(p); setSelectedIds(new Set()) }}
       />
 
-      {/* Tag Operations Panel */}
+      {/* Tag Operations Panel — hidden when the data source doesn't expose
+          tag bulk endpoints (e.g. Reseller Hub doesn't bind these yet). */}
+      {caps?.tagOperations && (
       <div className="rounded-lg border border-border overflow-hidden">
         <button
           onClick={() => setShowTagOps((prev) => !prev)}
@@ -648,6 +680,7 @@ export function GatewayChannelPage() {
           </div>
         )}
       </div>
+      )}
 
       {/* Delete Confirm Modal */}
       <ConfirmModal

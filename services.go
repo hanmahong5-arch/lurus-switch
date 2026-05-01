@@ -22,6 +22,7 @@ import (
 	"lurus-switch/internal/promoter"
 	"lurus-switch/internal/promptlib"
 	"lurus-switch/internal/proxy"
+	"lurus-switch/internal/redemption"
 	"lurus-switch/internal/relay"
 	"lurus-switch/internal/serverctl"
 	"lurus-switch/internal/snapshot"
@@ -71,6 +72,13 @@ type services struct {
 	agentStore     *agent.Store
 	agentConfigMgr *agent.ConfigManager
 	agentInstMgr   *agent.InstanceManager
+
+	// EndUser activation lifecycle (S-Xc.4 / S-Xc.5). redemptionStore is
+	// the persistent activation file; redeemer issues the redemption HTTP
+	// call; heartbeat is started lazily on activation and at startup.
+	redemptionStore *redemption.Store
+	redeemer        *redemption.Redeemer
+	heartbeat       *redemption.Heartbeat
 }
 
 // newServices constructs all service dependencies. Initialization failures for
@@ -144,6 +152,11 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("agent config manager: %v", err))
 	}
 
+	redemptionStr, err := redemption.NewStore()
+	if err != nil {
+		warnings = append(warnings, fmt.Sprintf("redemption store: %v", err))
+	}
+
 	svc := &services{
 		store:       store,
 		validator:   validator.NewValidator(),
@@ -173,6 +186,8 @@ func newServices(appDataDir, version string) (*services, []string) {
 			}
 			return nil
 		}(),
+		redemptionStore: redemptionStr,
+		redeemer:        redemption.NewRedeemer(version),
 	}
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {

@@ -16,12 +16,30 @@ type AppSettings struct {
 	EditorFontSize      int    `json:"editorFontSize"`      // 10-24
 	StartupPage         string `json:"startupPage"`         // "home" | "tools" | "gateway" etc.
 	OnboardingCompleted bool   `json:"onboardingCompleted"` // true after setup wizard completes
-	AppMode             string `json:"appMode"`             // "user" | "promoter"
+	AppMode             string `json:"appMode"`             // "" | "personal" | "reseller" | "enduser" (legacy: "user"|"promoter" auto-migrated)
 	UserLevel           string `json:"userLevel"`           // "beginner" | "regular" | "power"
+
+	// LockedHubURL is set by white-label EndUser builds. When present and AppMode
+	// is "enduser", the mode is pinned and the user cannot change it via UI.
+	LockedHubURL string `json:"lockedHubUrl,omitempty"`
+
+	// Reseller mode configuration. Populated by ResellerSetupWizard (S-Xb.1)
+	// after a Hub instance is provisioned and an admin token is obtained.
+	// HubURL is also referenced by Personal mode (defaults to hub.lurus.cn)
+	// and EndUser mode (always equals LockedHubURL).
+	Reseller ResellerConfig `json:"reseller,omitempty"`
 
 	// OIDC authentication settings (Zitadel).
 	AuthClientID string `json:"authClientId,omitempty"`
 	AuthIssuer   string `json:"authIssuer,omitempty"` // default: "https://auth.lurus.cn"
+}
+
+// ResellerConfig holds the per-Reseller Hub deployment context.
+type ResellerConfig struct {
+	HubURL      string `json:"hubUrl,omitempty"`      // root URL, e.g. "https://hub.acme.example"
+	AdminToken  string `json:"adminToken,omitempty"`  // Hub-issued root/admin access token
+	TenantSlug  string `json:"tenantSlug,omitempty"`  // multi-tenant slug for V2 endpoints
+	DisplayName string `json:"displayName,omitempty"` // shown in UI ("Acme Corp")
 }
 
 // settingsPath returns the path to app-settings.json
@@ -48,7 +66,9 @@ func settingsPath() (string, error) {
 	return filepath.Join(dir, "app-settings.json"), nil
 }
 
-// DefaultAppSettings returns factory defaults
+// DefaultAppSettings returns factory defaults. AppMode defaults to ModeUnset
+// so the first-launch wizard prompts for selection; existing v0.1.0 users who
+// already have a saved config will be auto-migrated by LoadAppSettings.
 func DefaultAppSettings() *AppSettings {
 	return &AppSettings{
 		Theme:          "dark",
@@ -56,7 +76,7 @@ func DefaultAppSettings() *AppSettings {
 		AutoUpdate:     true,
 		EditorFontSize: 13,
 		StartupPage:    "home",
-		AppMode:        "user",
+		AppMode:        string(ModeUnset),
 		UserLevel:      "beginner",
 	}
 }
@@ -89,9 +109,14 @@ func LoadAppSettings() (*AppSettings, error) {
 		s.EditorFontSize = 24
 	}
 
-	// Validate app mode
-	if s.AppMode != "user" && s.AppMode != "promoter" {
-		s.AppMode = "user"
+	// Migrate + validate app mode: legacy "user"/"promoter" map to
+	// personal/reseller respectively; unrecognized values fall back to unset
+	// so the first-launch wizard prompts the user to pick.
+	resolved, ok := normalizeMode(s.AppMode)
+	s.AppMode = string(resolved)
+	if !ok {
+		fmt.Fprintf(os.Stderr, "warning: unknown appMode %q in settings, defaulting to %q\n", resolved, ModeUnset)
+		s.AppMode = string(ModeUnset)
 	}
 
 	// Validate user level
@@ -102,10 +127,33 @@ func LoadAppSettings() (*AppSettings, error) {
 	return s, nil
 }
 
-// SaveAppSettings persists app settings to disk
+// SaveAppSettings persists app settings to disk. Mode is normalized via the
+// same migration path as LoadAppSettings, so callers may pass legacy values.
+// Once the EndUser lock is engaged (mode=enduser AND lockedHubUrl set), this
+// function refuses to write back a different mode — protects against UI bugs
+// or malicious deeplinks unlocking a white-label package.
 func SaveAppSettings(s *AppSettings) error {
 	if s == nil {
 		return fmt.Errorf("settings must not be nil")
+	}
+
+	resolved, ok := normalizeMode(s.AppMode)
+	if !ok {
+		return fmt.Errorf("invalid appMode: %q", s.AppMode)
+	}
+	s.AppMode = string(resolved)
+
+	// If a previous run wrote a locked EndUser config to disk, refuse changes
+	// that would break the lock. Reading from disk first means we trust the
+	// FS-side state, not whatever the caller passed in.
+	if existing, err := LoadAppSettings(); err == nil && IsModeLocked(existing) {
+		if AppMode(s.AppMode) != ModeEndUser {
+			return fmt.Errorf("cannot change app mode while white-label lock is active")
+		}
+		// Preserve the locked URL — caller cannot blank it out.
+		if s.LockedHubURL == "" {
+			s.LockedHubURL = existing.LockedHubURL
+		}
 	}
 
 	p, err := settingsPath()
