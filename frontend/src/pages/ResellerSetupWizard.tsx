@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, ServerCog, Check, AlertTriangle, ArrowRight, ArrowLeft } from 'lucide-react'
+import { Loader2, ServerCog, Check, AlertTriangle, ArrowRight, ArrowLeft, LogOut } from 'lucide-react'
 import {
   ListResellerDeployKinds,
   TestHubConnection,
   ProvisionResellerHub,
+  SetAppMode,
 } from '../../wailsjs/go/main/App'
+import { useConfigStore } from '../stores/configStore'
+import { useDirtyGuard } from '../hooks/useDirtyGuard'
 
 // The Wails-generated type for ListResellerDeployKinds is `main.resellerKindEntry`
 // (unexported in Go → no clean export from models.ts). Mirror the shape locally.
@@ -27,10 +30,12 @@ interface Props {
 export function ResellerSetupWizard({ onComplete }: Props) {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language?.startsWith('zh') ?? true
+  const setAppModeLocal = useConfigStore((s) => s.setAppMode)
 
   const [kinds, setKinds] = useState<DeployKindEntry[]>([])
   const [pickedKind, setPickedKind] = useState<string>('manual')
   const [step, setStep] = useState<Step>('pick')
+  const [switchingMode, setSwitchingMode] = useState(false)
 
   // Manual entry form
   const [hubURL, setHubURL] = useState('')
@@ -47,6 +52,17 @@ export function ResellerSetupWizard({ onComplete }: Props) {
   const [provisioning, setProvisioning] = useState(false)
   const [provisionError, setProvisionError] = useState('')
 
+  // Mark wizard dirty if any field has input and we haven't reached 'done'.
+  // Note: Reseller wizard is a gate (replaces the shell), so today the only
+  // path that triggers the discard prompt is the Switch-mode button — but
+  // the registration also future-proofs us for any in-shell back integration.
+  const hasInput =
+    hubURL.trim() !== '' ||
+    adminToken.trim() !== '' ||
+    tenantSlug.trim() !== '' ||
+    displayName.trim() !== ''
+  useDirtyGuard('reseller-setup-wizard', hasInput && step !== 'done')
+
   useEffect(() => {
     ListResellerDeployKinds()
       .then((rows) => setKinds(rows as unknown as DeployKindEntry[]))
@@ -54,6 +70,43 @@ export function ResellerSetupWizard({ onComplete }: Props) {
         { kind: 'manual', implemented: true, labelZh: '手动接入', labelEn: 'Manual', descriptionZh: '', descriptionEn: '' },
       ]))
   }, [])
+
+  // ESC steps backwards in the flow (manual←test, pick←manual). On 'pick'
+  // it does nothing; users wanting out should use the "Switch mode" link.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return
+      if (step === 'manual') setStep('pick')
+      else if (step === 'test') setStep('manual')
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [step])
+
+  // Escape hatch: drop back to Personal mode. The user can re-pick Reseller
+  // later from Settings → Mode without losing any data they already entered
+  // here (the form state is local, not persisted).
+  const handleSwitchMode = async () => {
+    if (switchingMode) return
+    const ok = window.confirm(
+      t(
+        'reseller.setup.switchModeConfirm',
+        '切换到 Personal 模式将放弃当前向导中未保存的输入，确定继续？',
+      ),
+    )
+    if (!ok) return
+    setSwitchingMode(true)
+    try {
+      await SetAppMode('personal')
+      setAppModeLocal('personal')
+      // Do NOT call onComplete — the parent's mode check will re-route on
+      // the next render because appMode is no longer 'reseller'.
+    } catch (e) {
+      window.alert(String(e))
+    } finally {
+      setSwitchingMode(false)
+    }
+  }
 
   const labelOf = (k: DeployKindEntry) => isZh ? k.labelZh : k.labelEn
   const descOf = (k: DeployKindEntry) => isZh ? k.descriptionZh : k.descriptionEn
@@ -108,14 +161,29 @@ export function ResellerSetupWizard({ onComplete }: Props) {
   return (
     <div className="h-screen flex flex-col items-center justify-center bg-background text-foreground p-6">
       <div className="w-full max-w-2xl">
-        <header className="flex items-center gap-3 mb-6">
-          <ServerCog className="h-7 w-7 text-purple-400" />
-          <div>
-            <h1 className="text-2xl font-semibold">{t('reseller.setup.title', '配置 Reseller Hub')}</h1>
-            <p className="text-sm text-muted-foreground">
-              {t('reseller.setup.subtitle', '为你的经销商业务接入或部署一台 lurus-newhub')}
-            </p>
+        <header className="flex items-start justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3">
+            <ServerCog className="h-7 w-7 text-purple-400" />
+            <div>
+              <h1 className="text-2xl font-semibold">{t('reseller.setup.title', '配置 Reseller Hub')}</h1>
+              <p className="text-sm text-muted-foreground">
+                {t('reseller.setup.subtitle', '为你的经销商业务接入或部署一台 lurus-newhub')}
+              </p>
+            </div>
           </div>
+          <button
+            onClick={handleSwitchMode}
+            disabled={switchingMode}
+            className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-muted disabled:opacity-50"
+            title={t('reseller.setup.switchModeHint', '切回 Personal 模式（不影响已填写的连接信息）')}
+          >
+            {switchingMode ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <LogOut className="h-3.5 w-3.5" />
+            )}
+            {t('reseller.setup.switchMode', '切换模式')}
+          </button>
         </header>
 
         {/* Step indicator */}

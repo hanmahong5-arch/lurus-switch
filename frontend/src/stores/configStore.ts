@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { useNavHistoryStore } from './navHistoryStore'
+import { confirmIfDirty } from '../lib/dirtyGuard'
 
 // AppMode — three-mode dispatch (see ADR-020).
 // 'unset' is the bootstrap state shown to users on first launch.
@@ -136,10 +138,14 @@ interface ConfigState {
 
   activeTool: ActiveTool
   setActiveTool: (tool: ActiveTool) => void
+  // Silent variant — updates state without pushing to nav history.
+  // Used by back/forward to avoid clobbering the entry we just navigated to.
+  setActiveToolSilent: (tool: ActiveTool) => void
 
   // Sub-tab state per page, persisted across navigation
   subTabState: Record<string, string>
   setSubTab: (page: ActiveTool, tab: string) => void
+  setSubTabSilent: (page: ActiveTool, tab: string) => void
   getSubTab: (page: ActiveTool, defaultTab: string) => string
 
   // Legacy compat: last active tool config tab
@@ -173,10 +179,25 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
   setUserLevel: (level) => set({ userLevel: level }),
 
   activeTool: 'home',
-  setActiveTool: (tool) => set({ activeTool: tool }),
+  setActiveTool: (tool) => {
+    if (get().activeTool !== tool && !confirmIfDirty()) return
+    set({ activeTool: tool })
+    const subTab = get().subTabState[tool]
+    useNavHistoryStore.getState().push({ tool, subTab })
+  },
+  setActiveToolSilent: (tool) => set({ activeTool: tool }),
 
   subTabState: {},
-  setSubTab: (page, tab) =>
+  setSubTab: (page, tab) => {
+    if (get().subTabState[page] !== tab && !confirmIfDirty()) return
+    set((state) => ({
+      subTabState: { ...state.subTabState, [page]: tab },
+    }))
+    if (get().activeTool === page) {
+      useNavHistoryStore.getState().push({ tool: page, subTab: tab })
+    }
+  },
+  setSubTabSilent: (page, tab) =>
     set((state) => ({
       subTabState: { ...state.subTabState, [page]: tab },
     })),

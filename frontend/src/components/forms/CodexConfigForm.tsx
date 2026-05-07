@@ -6,9 +6,9 @@ import {
   GenerateCodexConfig,
   ValidateCodexConfig,
 } from '../../../wailsjs/go/main/App'
-import { SwitchField } from './SwitchField'
-import { SelectField } from './SelectField'
+import { BareToggle } from './SwitchField'
 import { TagInput } from './TagInput'
+import { FieldRow } from './FieldRow'
 import { ValidationPanel } from '../ValidationPanel'
 import { PresetSelector } from '../PresetSelector'
 import { EndpointPresetPicker } from './EndpointPresetPicker'
@@ -51,6 +51,10 @@ const SANDBOX_TYPE_OPTIONS = [
   { value: 'docker', label: 'Docker' },
 ]
 
+const inputCls =
+  'w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary'
+const monoInputCls = inputCls + ' font-mono'
+
 export function CodexConfigForm({ initialContent, onChange, onValidation }: CodexConfigFormProps) {
   const [cfg, setCfg] = useState<config.CodexConfig | null>(null)
   const [validation, setValidation] = useState<validator.ValidationResult | null>(null)
@@ -59,9 +63,6 @@ export function CodexConfigForm({ initialContent, onChange, onValidation }: Code
 
   useEffect(() => {
     GetDefaultCodexConfig().then((defaults) => {
-      // TOML can't be merged on frontend — just use defaults and overlay
-      // known scalar fields that appear commonly in TOML content
-      // The backend GenerateCodexConfig will produce correct TOML from the struct
       setCfg(defaults)
     }).catch(() => {
       setCfg({} as config.CodexConfig)
@@ -178,232 +179,138 @@ export function CodexConfigForm({ initialContent, onChange, onValidation }: Code
     validation?.errors?.find((e) => e.field === field)?.message
 
   return (
-    <div className="space-y-5 p-4">
-      {/* Presets */}
+    <div className="space-y-4 p-4">
       <PresetSelector tool="codex" onApply={(c) => {
         const typed = c as config.CodexConfig
         setCfg(typed)
         syncOutput(typed)
       }} />
 
-      <hr className="border-border" />
-
-      {/* Core */}
-      <section id="codex-section-core" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Core</h3>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Model</label>
-          <select
-            value={cfg.model || ''}
-            onChange={(e) => update({ model: e.target.value })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            {MODEL_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
+      <Section id="codex-section-core" titleZh="核心设置" titleEn="Core">
+        <FieldRow metaKey="codex.model" value={cfg.model} errorMessage={fieldError('model')}>
+          <select value={cfg.model || ''} onChange={(e) => update({ model: e.target.value })} className={inputCls}>
+            {MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          {fieldError('model') && <p className="text-xs text-red-400">{fieldError('model')}</p>}
-        </div>
+        </FieldRow>
+        <FieldRow metaKey="codex.apiKey" value={cfg.apiKey} errorMessage={fieldError('apiKey')}>
+          <input type="password" value={cfg.apiKey || ''} onChange={(e) => update({ apiKey: e.target.value })}
+            placeholder="sk-..." className={monoInputCls} />
+        </FieldRow>
+        <FieldRow metaKey="codex.approvalMode" value={cfg.approvalMode} errorMessage={fieldError('approvalMode')}>
+          <select value={cfg.approvalMode || 'on-failure'} onChange={(e) => update({ approvalMode: e.target.value })} className={inputCls}>
+            {APPROVAL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </FieldRow>
+      </Section>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">API Key</label>
-          <input
-            type="password"
-            value={cfg.apiKey || ''}
-            onChange={(e) => update({ apiKey: e.target.value })}
-            placeholder="sk-..."
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-          />
-          {fieldError('apiKey') && <p className="text-xs text-red-400">{fieldError('apiKey')}</p>}
-        </div>
-
-        <SelectField
-          label="Approval Mode"
-          value={cfg.approvalMode || 'on-failure'}
-          options={APPROVAL_OPTIONS}
-          onChange={(v) => update({ approvalMode: v })}
-        />
-        {fieldError('approvalMode') && <p className="text-xs text-red-400">{fieldError('approvalMode')}</p>}
-      </section>
-
-      <hr className="border-border" />
-
-      {/* Provider */}
-      <section id="codex-section-provider" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Provider</h3>
-
-        <SelectField
-          label="Provider Type"
-          value={cfg.provider?.type || 'openai'}
-          options={PROVIDER_OPTIONS}
-          onChange={(v) => updateProvider({ type: v })}
-        />
-
+      <Section id="codex-section-provider" titleZh="服务商" titleEn="Provider">
+        <FieldRow metaKey="codex.provider.type" value={cfg.provider?.type}>
+          <select value={cfg.provider?.type || 'openai'} onChange={(e) => updateProvider({ type: e.target.value })} className={inputCls}>
+            {PROVIDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </FieldRow>
         {(cfg.provider?.type === 'custom' || cfg.provider?.type === 'azure') && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Base URL</label>
-            <input
-              type="url"
-              value={cfg.provider?.baseUrl || ''}
-              onChange={(e) => updateProvider({ baseUrl: e.target.value })}
-              placeholder="https://proxy.example.com/v1"
-              className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-            />
-            <EndpointPresetPicker
-              localURL={localGatewayURL}
-              value={cfg.provider?.baseUrl || ''}
-              onChange={(url) => updateProvider({ baseUrl: url })}
-            />
-            {fieldError('provider.baseUrl') && <p className="text-xs text-red-400">{fieldError('provider.baseUrl')}</p>}
-          </div>
+          <FieldRow metaKey="codex.provider.baseUrl" value={cfg.provider?.baseUrl} errorMessage={fieldError('provider.baseUrl')}>
+            <div className="space-y-1">
+              <input type="url" value={cfg.provider?.baseUrl || ''} onChange={(e) => updateProvider({ baseUrl: e.target.value })}
+                placeholder="https://proxy.example.com/v1" className={monoInputCls} />
+              <EndpointPresetPicker localURL={localGatewayURL} value={cfg.provider?.baseUrl || ''} onChange={(url) => updateProvider({ baseUrl: url })} />
+            </div>
+          </FieldRow>
         )}
-
         {cfg.provider?.type === 'azure' && (
           <>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Azure Deployment</label>
-              <input
-                type="text"
-                value={cfg.provider?.azureDeployment || ''}
-                onChange={(e) => updateProvider({ azureDeployment: e.target.value })}
-                placeholder="my-gpt4o-deployment"
-                className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-muted-foreground">Azure API Version</label>
-              <input
-                type="text"
-                value={cfg.provider?.azureApiVersion || ''}
-                onChange={(e) => updateProvider({ azureApiVersion: e.target.value })}
-                placeholder="2024-02-01"
-                className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-              />
-            </div>
+            <FieldRow metaKey="codex.provider.azureDeployment" value={cfg.provider?.azureDeployment}>
+              <input type="text" value={cfg.provider?.azureDeployment || ''} onChange={(e) => updateProvider({ azureDeployment: e.target.value })}
+                placeholder="my-gpt4o-deployment" className={monoInputCls} />
+            </FieldRow>
+            <FieldRow metaKey="codex.provider.azureApiVersion" value={cfg.provider?.azureApiVersion}>
+              <input type="text" value={cfg.provider?.azureApiVersion || ''} onChange={(e) => updateProvider({ azureApiVersion: e.target.value })}
+                placeholder="2024-02-01" className={monoInputCls} />
+            </FieldRow>
           </>
         )}
-      </section>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* Security */}
-      <section id="codex-section-security" className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Security</h3>
-
-        <SelectField
-          label="Network Access"
-          value={cfg.security?.networkAccess || 'full'}
-          options={NETWORK_OPTIONS}
-          onChange={(v) => updateSecurity({ networkAccess: v })}
-        />
-
-        <SwitchField
-          label="Command Execution"
-          description="Allow shell command execution"
-          checked={cfg.security?.commandExecution?.enabled ?? true}
-          onChange={(v) => updateCommandExec({ enabled: v })}
-        />
-
+      <Section id="codex-section-security" titleZh="安全" titleEn="Security">
+        <FieldRow metaKey="codex.security.networkAccess" value={cfg.security?.networkAccess}>
+          <select value={cfg.security?.networkAccess || 'full'} onChange={(e) => updateSecurity({ networkAccess: e.target.value })} className={inputCls}>
+            {NETWORK_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </FieldRow>
+        <FieldRow metaKey="codex.security.commandExecution.enabled" value={cfg.security?.commandExecution?.enabled ?? true} layout="inline">
+          <BareToggle checked={cfg.security?.commandExecution?.enabled ?? true} onChange={(v) => updateCommandExec({ enabled: v })} />
+        </FieldRow>
         {cfg.security?.commandExecution?.enabled && (
           <>
-            <TagInput
-              label="Allowed Commands"
-              values={cfg.security?.commandExecution?.allowedCommands || []}
-              onChange={(v) => updateCommandExec({ allowedCommands: v })}
-              placeholder="e.g. git *"
-            />
-            <TagInput
-              label="Denied Commands"
-              values={cfg.security?.commandExecution?.deniedCommands || []}
-              onChange={(v) => updateCommandExec({ deniedCommands: v })}
-              placeholder="e.g. rm -rf *"
-            />
+            <FieldRow metaKey="codex.security.commandExecution.allowedCommands" value={cfg.security?.commandExecution?.allowedCommands || []}>
+              <TagInput label="" values={cfg.security?.commandExecution?.allowedCommands || []}
+                onChange={(v) => updateCommandExec({ allowedCommands: v })} placeholder="e.g. git *" />
+            </FieldRow>
+            <FieldRow metaKey="codex.security.commandExecution.deniedCommands" value={cfg.security?.commandExecution?.deniedCommands || []}>
+              <TagInput label="" values={cfg.security?.commandExecution?.deniedCommands || []}
+                onChange={(v) => updateCommandExec({ deniedCommands: v })} placeholder="e.g. rm -rf *" />
+            </FieldRow>
           </>
         )}
+        <FieldRow metaKey="codex.security.fileAccess.allowedDirs" value={cfg.security?.fileAccess?.allowedDirs || []}>
+          <TagInput label="" values={cfg.security?.fileAccess?.allowedDirs || []}
+            onChange={(v) => updateFileAccess({ allowedDirs: v })} placeholder="e.g. /home/user/projects" />
+        </FieldRow>
+        <FieldRow metaKey="codex.security.fileAccess.readOnlyDirs" value={cfg.security?.fileAccess?.readOnlyDirs || []}>
+          <TagInput label="" values={cfg.security?.fileAccess?.readOnlyDirs || []}
+            onChange={(v) => updateFileAccess({ readOnlyDirs: v })} placeholder="e.g. /etc" />
+        </FieldRow>
+        <FieldRow metaKey="codex.security.fileAccess.deniedPatterns" value={cfg.security?.fileAccess?.deniedPatterns || []}>
+          <TagInput label="" values={cfg.security?.fileAccess?.deniedPatterns || []}
+            onChange={(v) => updateFileAccess({ deniedPatterns: v })} placeholder="e.g. *.env" />
+        </FieldRow>
+      </Section>
 
-        <TagInput
-          label="Allowed Directories"
-          values={cfg.security?.fileAccess?.allowedDirs || []}
-          onChange={(v) => updateFileAccess({ allowedDirs: v })}
-          placeholder="e.g. /home/user/projects"
-        />
-        <TagInput
-          label="Read-Only Directories"
-          values={cfg.security?.fileAccess?.readOnlyDirs || []}
-          onChange={(v) => updateFileAccess({ readOnlyDirs: v })}
-          placeholder="e.g. /etc"
-        />
-        <TagInput
-          label="Denied Patterns"
-          values={cfg.security?.fileAccess?.deniedPatterns || []}
-          onChange={(v) => updateFileAccess({ deniedPatterns: v })}
-          placeholder="e.g. *.env"
-        />
-      </section>
+      <Section id="codex-section-mcp" titleZh="MCP" titleEn="MCP">
+        <FieldRow metaKey="codex.mcp.enabled" value={cfg.mcp?.enabled ?? false} layout="inline">
+          <BareToggle checked={cfg.mcp?.enabled ?? false} onChange={(v) => updateMCP({ enabled: v })} />
+        </FieldRow>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* MCP */}
-      <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">MCP</h3>
-        <SwitchField
-          label="Enable MCP"
-          description="Model Context Protocol server support"
-          checked={cfg.mcp?.enabled ?? false}
-          onChange={(v) => updateMCP({ enabled: v })}
-        />
-      </section>
-
-      <hr className="border-border" />
-
-      {/* History */}
-      <section className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">History</h3>
-        <SwitchField
-          label="Enable History"
-          description="Save conversation history to file"
-          checked={cfg.history?.enabled ?? true}
-          onChange={(v) => updateHistory({ enabled: v })}
-        />
+      <Section id="codex-section-history" titleZh="历史" titleEn="History">
+        <FieldRow metaKey="codex.history.enabled" value={cfg.history?.enabled ?? true} layout="inline">
+          <BareToggle checked={cfg.history?.enabled ?? true} onChange={(v) => updateHistory({ enabled: v })} />
+        </FieldRow>
         {cfg.history?.enabled && (
-          <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Max Entries</label>
-            <input
-              type="number"
-              min={1}
-              max={10000}
-              value={cfg.history?.maxEntries || 1000}
-              onChange={(e) => updateHistory({ maxEntries: parseInt(e.target.value) || 1000 })}
-              className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            {fieldError('history.maxEntries') && <p className="text-xs text-red-400">{fieldError('history.maxEntries')}</p>}
-          </div>
+          <FieldRow metaKey="codex.history.maxEntries" value={cfg.history?.maxEntries} errorMessage={fieldError('history.maxEntries')}>
+            <input type="number" min={1} max={10000} value={cfg.history?.maxEntries || 1000}
+              onChange={(e) => updateHistory({ maxEntries: parseInt(e.target.value) || 1000 })} className={inputCls} />
+          </FieldRow>
         )}
-      </section>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* Sandbox */}
-      <section id="codex-section-sandbox" className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sandbox</h3>
-        <SwitchField
-          label="Enable Sandbox"
-          checked={cfg.sandbox?.enabled ?? false}
-          onChange={(v) => updateSandbox({ enabled: v })}
-        />
+      <Section id="codex-section-sandbox" titleZh="沙箱" titleEn="Sandbox">
+        <FieldRow metaKey="codex.sandbox.enabled" value={cfg.sandbox?.enabled ?? false} layout="inline">
+          <BareToggle checked={cfg.sandbox?.enabled ?? false} onChange={(v) => updateSandbox({ enabled: v })} />
+        </FieldRow>
         {cfg.sandbox?.enabled && (
-          <SelectField
-            label="Sandbox Type"
-            value={cfg.sandbox?.type || 'none'}
-            options={SANDBOX_TYPE_OPTIONS}
-            onChange={(v) => updateSandbox({ type: v })}
-          />
+          <FieldRow metaKey="codex.sandbox.type" value={cfg.sandbox?.type} errorMessage={fieldError('sandbox.type')}>
+            <select value={cfg.sandbox?.type || 'none'} onChange={(e) => updateSandbox({ type: e.target.value })} className={inputCls}>
+              {SANDBOX_TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </FieldRow>
         )}
-        {fieldError('sandbox.type') && <p className="text-xs text-red-400">{fieldError('sandbox.type')}</p>}
-      </section>
+      </Section>
 
       <ValidationPanel result={validation} showSuccess />
     </div>
+  )
+}
+
+function Section({ id, titleZh, titleEn, children }: { id: string; titleZh: string; titleEn: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="rounded-lg border border-border/60 bg-card/40 p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-2">
+        <span className="text-foreground">{titleZh}</span>
+        <span className="text-[10px] text-muted-foreground/70 font-normal">{titleEn}</span>
+      </h3>
+      <div className="space-y-0">{children}</div>
+    </section>
   )
 }

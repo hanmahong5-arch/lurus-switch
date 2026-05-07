@@ -32,7 +32,8 @@
       "code": "Redemption code",
       "submit": "Activate",
       "deviceLabel": "Device fingerprint",
-      "deviceNote": "The redemption code is bound to this device. Switching devices requires re-activation."
+      "deviceNote": "The redemption code is bound to this device. Switching devices requires re-activation.",
+      "help": "No code? Contact the reseller who gave you this installer."
     },
     "error": {
       "invalidInput": "Invalid input — please check the code format.",
@@ -60,10 +61,22 @@
       "resetConfirm": "Reset activation? Local credentials will be wiped and the next launch will ask for a new code.",
       "stale": "Hub connection issue",
       "staleHint": "We've been unable to reach the Hub for a while. Service is still usable, but please check your network.",
-      "retry": "Retry now"
+      "retry": "Retry now",
+      "configure": "Configure",
+      "install": "Install",
+      "openTools": "Open Tools page"
     }
   },
   "nav": {
+    "back": "Back (Alt+←)",
+    "forward": "Forward (Alt+→)",
+    "breadcrumb": "Breadcrumb",
+    "section": {
+      "overview": "Overview",
+      "configure": "Configure",
+      "work": "Work",
+      "reseller": "Reseller"
+    },
     "home": "Home",
     "agents": "Agents",
     "tools": "Tools",
@@ -87,6 +100,47 @@
     "switchHub": "Switch Gateway",
     "packager": "White-label Packager"
   },
+  "common": {
+    "unsavedChangesConfirm": "You have unsaved changes on this page. Leave anyway?",
+    "back": "Back",
+    "next": "Next",
+    "dismiss": "Dismiss",
+    "refresh": "Refresh"
+  },
+  "header": {
+    "langToggle": "Toggle language",
+    "langToggleHint": "Switch to Chinese / 切换到中文",
+    "themeToggle": "Toggle theme",
+    "themeToggleHint": "Theme (click to cycle): dark → light → auto"
+  },
+  "reseller": {
+    "setup": {
+      "title": "Configure Reseller Hub",
+      "subtitle": "Connect to or deploy a lurus-newhub instance for your reseller business",
+      "pickKind": "Pick a deployment method",
+      "manualTitle": "Enter Hub connection info",
+      "manualHint": "In lurus-newhub console go to My Account → API Tokens and create a root-role access token.",
+      "verifyTitle": "Verify and save",
+      "displayName": "Display name (optional)",
+      "tenantSlug": "Tenant Slug (optional, V2 multi-tenant)",
+      "testConnection": "Test connection",
+      "save": "Save",
+      "doneTitle": "Hub is ready",
+      "doneDesc": "You can now configure channels, issue redemption codes, and view logs in Gateway Admin.",
+      "enter": "Enter Reseller console",
+      "switchMode": "Switch mode",
+      "switchModeHint": "Switch back to Personal mode (your filled-in connection info is preserved)",
+      "switchModeConfirm": "Switching to Personal mode discards the wizard input you haven't saved. Continue?",
+      "comingSoon": "coming soon",
+      "adminToken": "Admin Token *",
+      "step": {
+        "pick": "Pick",
+        "manual": "Manual",
+        "test": "Test",
+        "done": "Done"
+      }
+    }
+  },
   "packager": {
     "title": "White-label Packager",
     "subtitle": "Bake your Hub coordinates + branding into a distributable EndUser binary.",
@@ -103,6 +157,14 @@
   "home": {
     "title": "Home",
     "subtitle": "AI development environment at a glance",
+    "intent": {
+      "title": "What do you want to do?",
+      "titleEn": "What do you want to do?"
+    },
+    "runtime": {
+      "title": "Live Runtime Status",
+      "titleEn": "Live runtime status"
+    },
     "healthScore": "Health Score",
     "envHealthy": "Environment is healthy!",
     "envNeedsWork": "Some items need attention",
@@ -276,6 +338,7 @@
     "modeSwitchConfirm": "Switch to {{mode}}?",
     "modeSwitchUserBody": "Gateway management and promoter features will be hidden. You can switch back anytime in Settings.",
     "modeSwitchPromoterBody": "Gateway management and promoter features will appear, for running a local gateway and managing referrals.",
+    "modeLockedHint": "Locked by white-label package",
     "userLevel": "Interface Complexity",
     "userLevelDesc": "Controls how much detail is shown in the interface",
     "level": {
@@ -580,7 +643,10 @@
     "memoryAlloc": "Memory",
     "uptime": "Uptime",
     "requestsTotal": "Total Requests",
-    "requestsPerSec": "Requests/sec"
+    "requestsPerSec": "Requests/sec",
+    "exportCSV": "Export CSV",
+    "hubNotConfigured": "Configure the Reseller Hub URL and admin token in Settings first.",
+    "issuedBanner": "Just issued {{n}} redemption codes"
   },
   "promoter": {
     "title": "Promoter Hub",
@@ -1182,6 +1248,7 @@
     "navigate": "Navigate",
     "execute": "Execute",
     "categories": {
+      "recent": "Recently visited",
       "install": "Install",
       "action": "Actions",
       "navigate": "Navigate",
@@ -1201,6 +1268,12 @@
       "connectAll": "Connect All Tools to Gateway",
       "fixAll": "Fix All Issues",
       "diagnostics": "Run Diagnostics",
+      "auditRepo": "Audit a repository (CVE-2026-21852 defense)",
+      "bashGuard": "Bash-Guard: block dangerous shell commands",
+      "budgetWall": "Budget Wall: hard cap on token spend",
+      "featureTour": "Show feature tour (Bash-Guard / Budget / Repo Audit / live activity)",
+      "navBack": "Go Back",
+      "navForward": "Go Forward",
       "goHome": "Go to Home",
       "goTools": "Go to Tools",
       "goGateway": "Go to Gateway",

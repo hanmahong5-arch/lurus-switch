@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, KeyRound, Check, AlertTriangle, Shield } from 'lucide-react'
-import { ActivateRedemption, GetDeviceFingerprint } from '../../wailsjs/go/main/App'
+import { ActivateRedemption, GetDeviceFingerprint, SetAppMode } from '../../wailsjs/go/main/App'
 
 interface Props {
   hubURL?: string
@@ -124,7 +124,24 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
           {t('enduser.activate.submit', '激活')}
         </button>
 
-        <div className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-[11px] text-muted-foreground/80">
+        <div
+          className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-[11px] text-muted-foreground/80"
+          onClick={async (e) => {
+            // Dev-only escape hatch: Shift+Click on the fingerprint row drops
+            // the app back to Personal mode. The white-label premise forbids
+            // an in-product mode switch in production builds, hence the
+            // import.meta.env.DEV gate.
+            if (!import.meta.env.DEV || !e.shiftKey) return
+            if (!window.confirm('[DEV] Switch back to Personal mode?')) return
+            try {
+              await SetAppMode('personal')
+              window.location.reload()
+            } catch (err) {
+              window.alert(String(err))
+            }
+          }}
+          title={import.meta.env.DEV ? 'Shift+Click → switch to Personal (dev only)' : undefined}
+        >
           <Shield className="h-3.5 w-3.5" />
           <span>
             {t('enduser.activate.deviceLabel', '设备指纹')}:{' '}
@@ -135,6 +152,13 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
           {t(
             'enduser.activate.deviceNote',
             '激活码与本机指纹绑定，更换设备需重新申请。',
+          )}
+        </p>
+
+        <p className="mt-4 text-[11px] text-muted-foreground/60 leading-relaxed">
+          {t(
+            'enduser.activate.help',
+            '没有激活码？请联系销售给您安装包的经销商。',
           )}
         </p>
       </div>

@@ -32,7 +32,8 @@
       "code": "激活码",
       "submit": "激活",
       "deviceLabel": "设备指纹",
-      "deviceNote": "激活码与本机指纹绑定，更换设备需重新申请。"
+      "deviceNote": "激活码与本机指纹绑定，更换设备需重新申请。",
+      "help": "没有激活码？请联系销售给您安装包的经销商。"
     },
     "error": {
       "invalidInput": "输入有误，请检查激活码格式。",
@@ -60,10 +61,22 @@
       "resetConfirm": "确定要重置激活状态吗？此操作会清除本地激活信息，下次启动需要重新输入激活码。",
       "stale": "Hub 连接异常",
       "staleHint": "已经一段时间没有联系到 Hub，服务暂时仍可用，但请检查网络。",
-      "retry": "立即重试"
+      "retry": "立即重试",
+      "configure": "配置",
+      "install": "安装",
+      "openTools": "打开工具页"
     }
   },
   "nav": {
+    "back": "返回 (Alt+←)",
+    "forward": "前进 (Alt+→)",
+    "breadcrumb": "面包屑导航",
+    "section": {
+      "overview": "总览",
+      "configure": "配置",
+      "work": "工作",
+      "reseller": "经销"
+    },
     "home": "首页",
     "agents": "助理",
     "tools": "工具",
@@ -87,6 +100,47 @@
     "switchHub": "Switch 网关",
     "packager": "白标打包"
   },
+  "common": {
+    "unsavedChangesConfirm": "当前页面有未保存的改动，离开会丢失。是否继续？",
+    "back": "上一步",
+    "next": "下一步",
+    "dismiss": "关闭",
+    "refresh": "刷新"
+  },
+  "header": {
+    "langToggle": "切换语言",
+    "langToggleHint": "Switch to English / 切换到英文",
+    "themeToggle": "切换主题",
+    "themeToggleHint": "主题（点击循环）：暗色 → 亮色 → 跟随系统"
+  },
+  "reseller": {
+    "setup": {
+      "title": "配置 Reseller Hub",
+      "subtitle": "为你的经销商业务接入或部署一台 lurus-newhub",
+      "pickKind": "选择部署方式",
+      "manualTitle": "填写 Hub 连接信息",
+      "manualHint": "在 lurus-newhub 控制台「我的账户 → API 令牌」页面创建一个 root 角色的访问令牌。",
+      "verifyTitle": "验证连接并保存",
+      "displayName": "展示名（可选）",
+      "tenantSlug": "Tenant Slug（V2 多租户可选）",
+      "testConnection": "测试连接",
+      "save": "保存配置",
+      "doneTitle": "Hub 已就绪",
+      "doneDesc": "你现在可以在「Gateway 管理」页配置 channel、生成激活码、查看日志。",
+      "enter": "进入 Reseller 控制台",
+      "switchMode": "切换模式",
+      "switchModeHint": "切回 Personal 模式（不影响已填写的连接信息）",
+      "switchModeConfirm": "切换到 Personal 模式将放弃当前向导中未保存的输入，确定继续？",
+      "comingSoon": "即将上线",
+      "adminToken": "Admin Token *",
+      "step": {
+        "pick": "选择",
+        "manual": "填写",
+        "test": "验证",
+        "done": "完成"
+      }
+    }
+  },
   "packager": {
     "title": "白标打包",
     "subtitle": "把你的 Hub 接入参数 + 品牌打成一个 EndUser 安装包。",
@@ -103,6 +157,14 @@
   "home": {
     "title": "首页",
     "subtitle": "AI 开发环境一览",
+    "intent": {
+      "title": "你想做什么？",
+      "titleEn": "What do you want to do?"
+    },
+    "runtime": {
+      "title": "实时连接状态",
+      "titleEn": "Live runtime status"
+    },
     "healthScore": "健康评分",
     "envHealthy": "环境状态良好!",
     "envNeedsWork": "部分项目需要处理",
@@ -276,6 +338,7 @@
     "modeSwitchConfirm": "切换到{{mode}}？",
     "modeSwitchUserBody": "网关管理和推广功能将隐藏，您可以随时在设置中切换回来。",
     "modeSwitchPromoterBody": "将显示网关管理和推广功能，用于运行本地网关和管理推荐用户。",
+    "modeLockedHint": "已被白标包锁定",
     "userLevel": "界面复杂度",
     "userLevelDesc": "控制界面显示的细节程度",
     "level": {
@@ -580,7 +643,10 @@
     "memoryAlloc": "内存占用",
     "uptime": "运行时间",
     "requestsTotal": "总请求数",
-    "requestsPerSec": "请求/秒"
+    "requestsPerSec": "请求/秒",
+    "exportCSV": "导出 CSV",
+    "hubNotConfigured": "请先在「设置」中配置 Reseller Hub URL 与管理员 Token",
+    "issuedBanner": "刚刚生成 {{n}} 条激活码"
   },
   "promoter": {
     "title": "推广管理",
@@ -1182,6 +1248,7 @@
     "navigate": "导航",
     "execute": "执行",
     "categories": {
+      "recent": "最近访问",
       "install": "安装",
       "action": "操作",
       "navigate": "导航",
@@ -1201,6 +1268,12 @@
       "connectAll": "全部接入网关",
       "fixAll": "一键修复所有问题",
       "diagnostics": "环境诊断",
+      "auditRepo": "审计仓库（CVE-2026-21852 防护）",
+      "bashGuard": "Bash-Guard：拦截危险 shell 命令",
+      "budgetWall": "Budget Wall：花费硬上限",
+      "featureTour": "重看功能指引（Bash-Guard / Budget / 仓库审计 / 实时活动）",
+      "navBack": "返回上一页",
+      "navForward": "前进到下一页",
       "goHome": "前往首页",
       "goTools": "前往工具",
       "goGateway": "前往网关",

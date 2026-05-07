@@ -37,7 +37,7 @@ export function TagInput({ label, values, onChange, placeholder, className }: Ta
 
   return (
     <div className={cn('space-y-1', className)}>
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      {label && <label className="text-xs font-medium text-muted-foreground">{label}</label>}
       <div className="min-h-[32px] flex flex-wrap gap-1 p-1.5 bg-muted/30 border border-border rounded-md focus-within:ring-1 focus-within:ring-primary">
         {values.map((tag, i) => (
           <span

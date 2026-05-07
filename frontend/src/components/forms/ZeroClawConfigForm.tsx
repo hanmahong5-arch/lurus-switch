@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { BareToggle } from './SwitchField'
+import { FieldRow } from './FieldRow'
 
 interface ZeroClawConfig {
   provider_type: string
@@ -32,6 +34,9 @@ const MEMORY_OPTIONS = [
   { value: 'sqlite', label: 'SQLite (local)' },
   { value: 'memory', label: 'In-Memory' },
 ]
+
+const inputCls = 'w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary'
+const monoInputCls = inputCls + ' font-mono'
 
 function toToml(cfg: ZeroClawConfig): string {
   return [
@@ -79,10 +84,7 @@ interface ZeroClawConfigFormProps {
 }
 
 export function ZeroClawConfigForm({ initialContent, onChange }: ZeroClawConfigFormProps) {
-  const [cfg, setCfg] = useState<ZeroClawConfig>(() => ({
-    ...DEFAULT_CONFIG,
-    ...parseToml(initialContent),
-  }))
+  const [cfg, setCfg] = useState<ZeroClawConfig>(() => ({ ...DEFAULT_CONFIG, ...parseToml(initialContent) }))
 
   useEffect(() => {
     setCfg({ ...DEFAULT_CONFIG, ...parseToml(initialContent) })
@@ -97,123 +99,66 @@ export function ZeroClawConfigForm({ initialContent, onChange }: ZeroClawConfigF
   }
 
   return (
-    <div className="space-y-5 p-4">
-      {/* Provider */}
-      <section id="zeroclaw-section-provider" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Provider</h3>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Provider Type</label>
-          <select
-            value={cfg.provider_type}
-            onChange={(e) => update({ provider_type: e.target.value })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            {PROVIDER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
+    <div className="space-y-4 p-4">
+      <Section id="zeroclaw-section-provider" titleZh="服务商" titleEn="Provider">
+        <FieldRow metaKey="zeroclaw.provider.type" value={cfg.provider_type}>
+          <select value={cfg.provider_type} onChange={(e) => update({ provider_type: e.target.value })} className={inputCls}>
+            {PROVIDER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">API Key</label>
-          <input
-            type="password"
-            value={cfg.provider_api_key}
+        </FieldRow>
+        <FieldRow metaKey="zeroclaw.provider.apiKey" value={cfg.provider_api_key}>
+          <input type="password" value={cfg.provider_api_key}
             onChange={(e) => update({ provider_api_key: e.target.value })}
-            placeholder="sk-ant-..."
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Model</label>
-          <input
-            type="text"
-            value={cfg.provider_model}
+            placeholder="sk-ant-..." className={monoInputCls} />
+        </FieldRow>
+        <FieldRow metaKey="zeroclaw.provider.model" value={cfg.provider_model}>
+          <input type="text" value={cfg.provider_model}
             onChange={(e) => update({ provider_model: e.target.value })}
-            placeholder="claude-sonnet-4-20250514"
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-          />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Base URL (optional)</label>
-          <input
-            type="url"
-            value={cfg.provider_base_url}
+            placeholder="claude-sonnet-4-20250514" className={monoInputCls} />
+        </FieldRow>
+        <FieldRow metaKey="zeroclaw.provider.baseUrl" value={cfg.provider_base_url}>
+          <input type="url" value={cfg.provider_base_url}
             onChange={(e) => update({ provider_base_url: e.target.value })}
-            placeholder="https://proxy.example.com"
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
-          />
-        </div>
-      </section>
+            placeholder="https://proxy.example.com" className={monoInputCls} />
+        </FieldRow>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* Gateway */}
-      <section id="zeroclaw-section-gateway" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Gateway</h3>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Port</label>
-          <input
-            type="number"
-            min={1024}
-            max={65535}
-            value={cfg.gateway_port}
+      <Section id="zeroclaw-section-gateway" titleZh="网关" titleEn="Gateway">
+        <FieldRow metaKey="zeroclaw.gateway.port" value={cfg.gateway_port}>
+          <input type="number" min={1024} max={65535} value={cfg.gateway_port}
             onChange={(e) => update({ gateway_port: parseInt(e.target.value) || DEFAULT_CONFIG.gateway_port })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-          />
-        </div>
-      </section>
+            className={inputCls} />
+        </FieldRow>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* Memory */}
-      <section id="zeroclaw-section-memory" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Memory</h3>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Backend</label>
-          <select
-            value={cfg.memory_backend}
-            onChange={(e) => update({ memory_backend: e.target.value })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
-          >
-            {MEMORY_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
+      <Section id="zeroclaw-section-memory" titleZh="记忆" titleEn="Memory">
+        <FieldRow metaKey="zeroclaw.memory.backend" value={cfg.memory_backend}>
+          <select value={cfg.memory_backend} onChange={(e) => update({ memory_backend: e.target.value })} className={inputCls}>
+            {MEMORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-        </div>
-      </section>
+        </FieldRow>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* Security */}
-      <section id="zeroclaw-section-security" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Security</h3>
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={cfg.security_sandbox}
-            onChange={(e) => update({ security_sandbox: e.target.checked })}
-            className="rounded"
-          />
-          <span className="text-xs font-medium">Enable Sandbox</span>
-        </label>
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={cfg.security_allow_exec}
-            onChange={(e) => update({ security_allow_exec: e.target.checked })}
-            className="rounded"
-          />
-          <span className="text-xs font-medium">Allow Command Execution</span>
-        </label>
-      </section>
+      <Section id="zeroclaw-section-security" titleZh="安全" titleEn="Security">
+        <FieldRow metaKey="zeroclaw.security.sandbox" value={cfg.security_sandbox} layout="inline">
+          <BareToggle checked={cfg.security_sandbox} onChange={(v) => update({ security_sandbox: v })} />
+        </FieldRow>
+        <FieldRow metaKey="zeroclaw.security.allowExec" value={cfg.security_allow_exec} layout="inline">
+          <BareToggle checked={cfg.security_allow_exec} onChange={(v) => update({ security_allow_exec: v })} />
+        </FieldRow>
+      </Section>
     </div>
+  )
+}
+
+function Section({ id, titleZh, titleEn, children }: { id: string; titleZh: string; titleEn: string; children: React.ReactNode }) {
+  return (
+    <section id={id} className="rounded-lg border border-border/60 bg-card/40 p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-2">
+        <span className="text-foreground">{titleZh}</span>
+        <span className="text-[10px] text-muted-foreground/70 font-normal">{titleEn}</span>
+      </h3>
+      <div className="space-y-0">{children}</div>
+    </section>
   )
 }

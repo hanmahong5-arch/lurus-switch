@@ -3,14 +3,21 @@ import * as Dialog from '@radix-ui/react-dialog'
 import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import {
   Search, Download, Play, Square, Link2, Wrench, Activity,
-  Home, Settings, Briefcase, CreditCard, Radio, Terminal,
-  Loader2,
+  Home, Settings, Briefcase, CreditCard, Radio, Terminal, Wallet,
+  Loader2, ArrowLeft, ArrowRight, Clock, ShieldAlert,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { TOOL_ORDER, toolMeta } from '../lib/toolMeta'
 import { useCommandPaletteStore } from '../stores/commandPaletteStore'
-import { useConfigStore } from '../stores/configStore'
+import { useConfigStore, type ActiveTool } from '../stores/configStore'
+import { useNavHistoryStore } from '../stores/navHistoryStore'
+import { useRepoAuditStore } from '../stores/repoAuditStore'
+import { useBashGuardStore } from '../stores/bashGuardStore'
+import { useBudgetStore } from '../stores/budgetStore'
+import { useFeatureTourStore } from '../stores/featureTourStore'
+import { goBack, goForward } from '../lib/navigation'
+import { toolLabel, subTabLabel } from '../lib/navLabels'
 import { useHomeStore } from '../stores/homeStore'
 import { useToastStore } from '../stores/toastStore'
 import {
@@ -20,7 +27,7 @@ import {
   LaunchTool,
 } from '../../wailsjs/go/main/App'
 
-type Category = 'install' | 'action' | 'navigate' | 'launch'
+type Category = 'recent' | 'install' | 'action' | 'navigate' | 'launch'
 
 interface Command {
   id: string
@@ -29,9 +36,14 @@ interface Command {
   category: Category
   icon: typeof Search
   action: () => void | Promise<void>
+  // Pre-rendered label that bypasses t(labelKey). Used for recent-history
+  // commands whose labels are computed at runtime from nav state.
+  rawLabel?: string
 }
 
-const CATEGORY_ORDER: Category[] = ['install', 'action', 'navigate', 'launch']
+const CATEGORY_ORDER: Category[] = ['recent', 'install', 'action', 'navigate', 'launch']
+
+const RECENT_LIMIT = 5
 
 export function CommandPalette() {
   const { t } = useTranslation()
@@ -42,6 +54,13 @@ export function CommandPalette() {
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const setActiveTool = useConfigStore((s) => s.setActiveTool)
+  const setSubTab = useConfigStore((s) => s.setSubTab)
+  const historyEntries = useNavHistoryStore((s) => s.entries)
+  const historyIndex = useNavHistoryStore((s) => s.index)
+  const openRepoAudit = useRepoAuditStore((s) => s.setOpen)
+  const openBashGuard = useBashGuardStore((s) => s.setOpen)
+  const openBudget = useBudgetStore((s) => s.setOpen)
+  const openFeatureTour = useFeatureTourStore((s) => s.setOpen)
   const toast = useToastStore((s) => s.addToast)
 
   const refreshTools = useCallback(async () => {
@@ -53,7 +72,42 @@ export function CommandPalette() {
     } catch { /* non-critical */ }
   }, [])
 
+  // Recently visited pages, walking backwards from the current history
+  // index, deduped, capped at RECENT_LIMIT. Excludes the entry the user
+  // is currently on so the palette doesn't suggest "go to where you are".
+  const recentCommands = useMemo<Command[]>(() => {
+    if (historyIndex < 0) return []
+    const seen = new Set<string>()
+    const out: Command[] = []
+    for (let i = historyIndex - 1; i >= 0 && out.length < RECENT_LIMIT; i--) {
+      const entry = historyEntries[i]
+      if (!entry) continue
+      const key = `${entry.tool}::${entry.subTab ?? ''}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      const tlabel = toolLabel(t, entry.tool)
+      const sub = entry.subTab ? subTabLabel(t, entry.tool, entry.subTab) : null
+      const display = sub ? `${tlabel} › ${sub}` : tlabel
+      const tool = entry.tool as ActiveTool
+      const subTab = entry.subTab
+      out.push({
+        id: `recent-${key}`,
+        labelKey: '',
+        rawLabel: display,
+        keywords: ['recent', tool, sub ?? '', tlabel.toLowerCase()],
+        category: 'recent',
+        icon: Clock,
+        action: () => {
+          if (subTab) setSubTab(tool, subTab)
+          setActiveTool(tool)
+        },
+      })
+    }
+    return out
+  }, [historyEntries, historyIndex, t, setActiveTool, setSubTab])
+
   const commands = useMemo<Command[]>(() => [
+    ...recentCommands,
     // Install
     ...TOOL_ORDER.map((name) => ({
       id: `install-${name}`,
@@ -110,7 +164,43 @@ export function CommandPalette() {
       keywords: ['diagnostics', 'health', 'check', 'environment', 'score'], category: 'action', icon: Activity,
       action: () => { setActiveTool('home') },
     },
+    {
+      id: 'audit-repo', labelKey: 'commandPalette.commands.auditRepo',
+      keywords: ['audit', 'repo', 'security', 'cve', 'untrusted', '审计', '仓库', '安全'],
+      category: 'action', icon: ShieldAlert,
+      action: () => { openRepoAudit(true) },
+    },
+    {
+      id: 'bash-guard', labelKey: 'commandPalette.commands.bashGuard',
+      keywords: ['bash', 'guard', 'rm', 'protect', 'security', 'hook', '防护', '拦截', '危险'],
+      category: 'action', icon: ShieldAlert,
+      action: () => { openBashGuard(true) },
+    },
+    {
+      id: 'budget-wall', labelKey: 'commandPalette.commands.budgetWall',
+      keywords: ['budget', 'spend', 'cap', 'token', 'limit', 'cost', '预算', '上限', '花费', '限额'],
+      category: 'action', icon: Wallet,
+      action: () => { openBudget(true) },
+    },
+    {
+      id: 'feature-tour', labelKey: 'commandPalette.commands.featureTour',
+      keywords: ['tour', 'help', 'welcome', 'intro', 'onboarding', '功能', '指引', '介绍', '欢迎'],
+      category: 'action', icon: Activity,
+      action: () => { openFeatureTour(true) },
+    },
     // Navigate
+    {
+      id: 'nav-back', labelKey: 'commandPalette.commands.navBack',
+      keywords: ['back', 'previous', 'undo', '后退', '上一页', '返回'],
+      category: 'navigate', icon: ArrowLeft,
+      action: () => { goBack() },
+    },
+    {
+      id: 'nav-forward', labelKey: 'commandPalette.commands.navForward',
+      keywords: ['forward', 'next', 'redo', '前进', '下一页'],
+      category: 'navigate', icon: ArrowRight,
+      action: () => { goForward() },
+    },
     { id: 'go-home', labelKey: 'commandPalette.commands.goHome', keywords: ['home', 'dashboard'], category: 'navigate', icon: Home, action: () => setActiveTool('home') },
     { id: 'go-tools', labelKey: 'commandPalette.commands.goTools', keywords: ['tools', 'config'], category: 'navigate', icon: Wrench, action: () => setActiveTool('tools') },
     { id: 'go-gateway', labelKey: 'commandPalette.commands.goGateway', keywords: ['gateway', 'server'], category: 'navigate', icon: Radio, action: () => setActiveTool('gateway') },
@@ -129,13 +219,13 @@ export function CommandPalette() {
         toast('success', `${toolMeta[name].label} launched`)
       },
     })),
-  ], [t, toast, setActiveTool, refreshTools])
+  ], [t, toast, setActiveTool, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour])
 
   const filtered = useMemo(() => {
     if (!query.trim()) return commands
     const q = query.toLowerCase()
     return commands.filter((cmd) => {
-      const label = t(cmd.labelKey).toLowerCase()
+      const label = (cmd.rawLabel ?? t(cmd.labelKey)).toLowerCase()
       return label.includes(q) || cmd.keywords.some((kw) => kw.includes(q))
     })
   }, [commands, query, t])
@@ -257,7 +347,7 @@ export function CommandPalette() {
                         onMouseEnter={() => setActiveIndex(flatIdx)}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
-                        <span className="flex-1 truncate">{t(cmd.labelKey)}</span>
+                        <span className="flex-1 truncate">{cmd.rawLabel ?? t(cmd.labelKey)}</span>
                       </button>
                     )
                   })}

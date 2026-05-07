@@ -6,20 +6,17 @@ import {
   GenerateClaudeConfig,
   ValidateClaudeConfig,
 } from '../../../wailsjs/go/main/App'
-import { SwitchField } from './SwitchField'
-import { SelectField } from './SelectField'
+import { BareToggle } from './SwitchField'
 import { TagInput } from './TagInput'
+import { FieldRow } from './FieldRow'
 import { ValidationPanel } from '../ValidationPanel'
 import { PresetSelector } from '../PresetSelector'
 import { EndpointPresetPicker } from './EndpointPresetPicker'
 import { useGatewayStore } from '../../stores/gatewayStore'
 
 interface ClaudeConfigFormProps {
-  /** Current raw JSON content from disk (used to initialise form state). */
   initialContent: string
-  /** Called with newly generated JSON whenever the form changes. */
   onChange: (json: string) => void
-  /** Expose current validation result to parent. */
   onValidation: (result: validator.ValidationResult | null) => void
 }
 
@@ -37,13 +34,16 @@ const SANDBOX_OPTIONS = [
   { value: 'wsl', label: 'WSL' },
 ]
 
+const inputCls =
+  'w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary'
+const monoInputCls = inputCls + ' font-mono'
+
 export function ClaudeConfigForm({ initialContent, onChange, onValidation }: ClaudeConfigFormProps) {
   const [cfg, setCfg] = useState<config.ClaudeConfig | null>(null)
   const [validation, setValidation] = useState<validator.ValidationResult | null>(null)
   const gwStatus = useGatewayStore((s) => s.status)
   const localGatewayURL = gwStatus?.running ? `http://localhost:${gwStatus.port}/v1` : null
 
-  // Parse initial JSON → form state
   useEffect(() => {
     let parsed: Partial<config.ClaudeConfig> = {}
     try {
@@ -58,7 +58,6 @@ export function ClaudeConfigForm({ initialContent, onChange, onValidation }: Cla
     })
   }, [initialContent])
 
-  // Validate + regenerate JSON on every cfg change
   const syncOutput = useCallback(async (next: config.ClaudeConfig) => {
     try {
       const [json, result] = await Promise.all([
@@ -121,221 +120,267 @@ export function ClaudeConfigForm({ initialContent, onChange, onValidation }: Cla
     validation?.errors?.find((e) => e.field === field)?.message
 
   return (
-    <div className="space-y-5 p-4">
-      {/* Presets */}
+    <div className="space-y-4 p-4">
       <PresetSelector tool="claude" onApply={(c) => {
         const typed = c as config.ClaudeConfig
         setCfg(typed)
         syncOutput(typed)
       }} />
 
-      <hr className="border-border" />
-
-      {/* Core */}
-      <section id="claude-section-core" className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Core</h3>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Model</label>
+      <Section id="claude-section-core" titleZh="核心设置" titleEn="Core">
+        <FieldRow metaKey="claude.model" value={cfg.model} errorMessage={fieldError('model')}>
           <select
             value={cfg.model || ''}
             onChange={(e) => update({ model: e.target.value })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputCls}
           >
             {MODEL_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
-          {fieldError('model') && (
-            <p className="text-xs text-red-400">{fieldError('model')}</p>
-          )}
-        </div>
+        </FieldRow>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">API Key</label>
+        <FieldRow metaKey="claude.apiKey" value={cfg.apiKey} errorMessage={fieldError('apiKey')}>
           <input
             type="password"
             value={cfg.apiKey || ''}
             onChange={(e) => update({ apiKey: e.target.value })}
             placeholder="sk-ant-..."
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+            className={monoInputCls}
           />
-          {fieldError('apiKey') && (
-            <p className="text-xs text-red-400">{fieldError('apiKey')}</p>
-          )}
-        </div>
+        </FieldRow>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Max Tokens</label>
+        <FieldRow metaKey="claude.maxTokens" value={cfg.maxTokens} errorMessage={fieldError('maxTokens')}>
           <input
             type="number"
             min={0}
             max={200000}
             value={cfg.maxTokens || 0}
             onChange={(e) => update({ maxTokens: parseInt(e.target.value) || 0 })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputCls}
           />
-          {fieldError('maxTokens') && (
-            <p className="text-xs text-red-400">{fieldError('maxTokens')}</p>
-          )}
-        </div>
+        </FieldRow>
 
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Custom Instructions</label>
+        <FieldRow metaKey="claude.customInstructions" value={cfg.customInstructions}>
           <textarea
             value={cfg.customInstructions || ''}
             onChange={(e) => update({ customInstructions: e.target.value })}
             placeholder="Instructions applied to all conversations..."
             rows={3}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-y"
+            className={inputCls + ' resize-y'}
           />
-        </div>
-      </section>
+        </FieldRow>
+      </Section>
 
-      <hr className="border-border" />
+      <Section id="claude-section-permissions" titleZh="权限" titleEn="Permissions">
+        <FieldRow
+          metaKey="claude.permissions.allowBash"
+          value={cfg.permissions?.allowBash ?? true}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.permissions?.allowBash ?? true}
+            onChange={(v) => updatePermissions({ allowBash: v })}
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.permissions.allowRead"
+          value={cfg.permissions?.allowRead ?? true}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.permissions?.allowRead ?? true}
+            onChange={(v) => updatePermissions({ allowRead: v })}
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.permissions.allowWrite"
+          value={cfg.permissions?.allowWrite ?? true}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.permissions?.allowWrite ?? true}
+            onChange={(v) => updatePermissions({ allowWrite: v })}
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.permissions.allowWebFetch"
+          value={cfg.permissions?.allowWebFetch ?? false}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.permissions?.allowWebFetch ?? false}
+            onChange={(v) => updatePermissions({ allowWebFetch: v })}
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.permissions.trustedDirectories"
+          value={cfg.permissions?.trustedDirectories || []}
+        >
+          <TagInput
+            label=""
+            values={cfg.permissions?.trustedDirectories || []}
+            onChange={(v) => updatePermissions({ trustedDirectories: v })}
+            placeholder="e.g. /home/user/projects"
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.permissions.allowedBashCommands"
+          value={cfg.permissions?.allowedBashCommands || []}
+        >
+          <TagInput
+            label=""
+            values={cfg.permissions?.allowedBashCommands || []}
+            onChange={(v) => updatePermissions({ allowedBashCommands: v })}
+            placeholder="e.g. git *"
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.permissions.deniedBashCommands"
+          value={cfg.permissions?.deniedBashCommands || []}
+        >
+          <TagInput
+            label=""
+            values={cfg.permissions?.deniedBashCommands || []}
+            onChange={(v) => updatePermissions({ deniedBashCommands: v })}
+            placeholder="e.g. rm -rf *"
+          />
+        </FieldRow>
+      </Section>
 
-      {/* Permissions */}
-      <section id="claude-section-permissions" className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Permissions</h3>
-        <SwitchField
-          label="Allow Bash"
-          description="Permit shell command execution"
-          checked={cfg.permissions?.allowBash ?? true}
-          onChange={(v) => updatePermissions({ allowBash: v })}
-        />
-        <SwitchField
-          label="Allow Read"
-          description="Permit file read operations"
-          checked={cfg.permissions?.allowRead ?? true}
-          onChange={(v) => updatePermissions({ allowRead: v })}
-        />
-        <SwitchField
-          label="Allow Write"
-          description="Permit file write operations"
-          checked={cfg.permissions?.allowWrite ?? true}
-          onChange={(v) => updatePermissions({ allowWrite: v })}
-        />
-        <SwitchField
-          label="Allow Web Fetch"
-          description="Permit outbound HTTP requests"
-          checked={cfg.permissions?.allowWebFetch ?? false}
-          onChange={(v) => updatePermissions({ allowWebFetch: v })}
-        />
-        <TagInput
-          label="Trusted Directories"
-          values={cfg.permissions?.trustedDirectories || []}
-          onChange={(v) => updatePermissions({ trustedDirectories: v })}
-          placeholder="e.g. /home/user/projects"
-        />
-        <TagInput
-          label="Allowed Bash Commands"
-          values={cfg.permissions?.allowedBashCommands || []}
-          onChange={(v) => updatePermissions({ allowedBashCommands: v })}
-          placeholder="e.g. git *"
-        />
-        <TagInput
-          label="Denied Bash Commands"
-          values={cfg.permissions?.deniedBashCommands || []}
-          onChange={(v) => updatePermissions({ deniedBashCommands: v })}
-          placeholder="e.g. rm -rf *"
-        />
-      </section>
-
-      <hr className="border-border" />
-
-      {/* Sandbox */}
-      <section id="claude-section-sandbox" className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Sandbox</h3>
-        <SwitchField
-          label="Enable Sandbox"
-          checked={cfg.sandbox?.enabled ?? false}
-          onChange={(v) => updateSandbox({ enabled: v })}
-        />
+      <Section id="claude-section-sandbox" titleZh="沙箱" titleEn="Sandbox">
+        <FieldRow
+          metaKey="claude.sandbox.enabled"
+          value={cfg.sandbox?.enabled ?? false}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.sandbox?.enabled ?? false}
+            onChange={(v) => updateSandbox({ enabled: v })}
+          />
+        </FieldRow>
         {cfg.sandbox?.enabled && (
           <>
-            <SelectField
-              label="Sandbox Type"
-              value={cfg.sandbox?.type || 'none'}
-              options={SANDBOX_OPTIONS}
-              onChange={(v) => updateSandbox({ type: v })}
-            />
-            {fieldError('sandbox.type') && (
-              <p className="text-xs text-red-400">{fieldError('sandbox.type')}</p>
-            )}
+            <FieldRow
+              metaKey="claude.sandbox.type"
+              value={cfg.sandbox?.type}
+              errorMessage={fieldError('sandbox.type')}
+            >
+              <select
+                value={cfg.sandbox?.type || 'none'}
+                onChange={(e) => updateSandbox({ type: e.target.value })}
+                className={inputCls}
+              >
+                {SANDBOX_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </FieldRow>
             {cfg.sandbox?.type === 'docker' && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted-foreground">Docker Image</label>
+              <FieldRow metaKey="claude.sandbox.dockerImage" value={cfg.sandbox?.dockerImage}>
                 <input
                   type="text"
                   value={cfg.sandbox?.dockerImage || ''}
                   onChange={(e) => updateSandbox({ dockerImage: e.target.value })}
                   placeholder="e.g. ubuntu:22.04"
-                  className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+                  className={monoInputCls}
                 />
-              </div>
+              </FieldRow>
             )}
           </>
         )}
-      </section>
+      </Section>
 
-      <hr className="border-border" />
-
-      {/* Advanced */}
-      <section id="claude-section-advanced" className="space-y-2">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Advanced</h3>
-        <SwitchField
-          label="Verbose Logging"
-          checked={cfg.advanced?.verbose ?? false}
-          onChange={(v) => updateAdvanced({ verbose: v })}
-        />
-        <SwitchField
-          label="Disable Telemetry"
-          checked={cfg.advanced?.disableTelemetry ?? false}
-          onChange={(v) => updateAdvanced({ disableTelemetry: v })}
-        />
-        <SwitchField
-          label="Experimental Features"
-          checked={cfg.advanced?.experimentalFeatures ?? false}
-          onChange={(v) => updateAdvanced({ experimentalFeatures: v })}
-        />
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">API Endpoint</label>
-          <input
-            type="url"
-            value={cfg.advanced?.apiEndpoint || ''}
-            onChange={(e) => updateAdvanced({ apiEndpoint: e.target.value })}
-            placeholder="https://proxy.example.com"
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
+      <Section id="claude-section-advanced" titleZh="高级设置" titleEn="Advanced">
+        <FieldRow
+          metaKey="claude.advanced.verbose"
+          value={cfg.advanced?.verbose ?? false}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.advanced?.verbose ?? false}
+            onChange={(v) => updateAdvanced({ verbose: v })}
           />
-          <EndpointPresetPicker
-            localURL={localGatewayURL}
-            value={cfg.advanced?.apiEndpoint || ''}
-            onChange={(url) => updateAdvanced({ apiEndpoint: url })}
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.advanced.disableTelemetry"
+          value={cfg.advanced?.disableTelemetry ?? false}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.advanced?.disableTelemetry ?? false}
+            onChange={(v) => updateAdvanced({ disableTelemetry: v })}
           />
-          {fieldError('advanced.apiEndpoint') && (
-            <p className="text-xs text-red-400">{fieldError('advanced.apiEndpoint')}</p>
-          )}
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-xs font-medium text-muted-foreground">Timeout (seconds)</label>
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.advanced.experimentalFeatures"
+          value={cfg.advanced?.experimentalFeatures ?? false}
+          layout="inline"
+        >
+          <BareToggle
+            checked={cfg.advanced?.experimentalFeatures ?? false}
+            onChange={(v) => updateAdvanced({ experimentalFeatures: v })}
+          />
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.advanced.apiEndpoint"
+          value={cfg.advanced?.apiEndpoint}
+          errorMessage={fieldError('advanced.apiEndpoint')}
+        >
+          <div className="space-y-1">
+            <input
+              type="url"
+              value={cfg.advanced?.apiEndpoint || ''}
+              onChange={(e) => updateAdvanced({ apiEndpoint: e.target.value })}
+              placeholder="https://proxy.example.com"
+              className={monoInputCls}
+            />
+            <EndpointPresetPicker
+              localURL={localGatewayURL}
+              value={cfg.advanced?.apiEndpoint || ''}
+              onChange={(url) => updateAdvanced({ apiEndpoint: url })}
+            />
+          </div>
+        </FieldRow>
+        <FieldRow
+          metaKey="claude.advanced.timeout"
+          value={cfg.advanced?.timeout}
+          errorMessage={fieldError('advanced.timeout')}
+        >
           <input
             type="number"
             min={0}
             max={3600}
             value={cfg.advanced?.timeout || 0}
             onChange={(e) => updateAdvanced({ timeout: parseInt(e.target.value) || 0 })}
-            className="w-full px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+            className={inputCls}
           />
-          {fieldError('advanced.timeout') && (
-            <p className="text-xs text-red-400">{fieldError('advanced.timeout')}</p>
-          )}
-        </div>
-      </section>
+        </FieldRow>
+      </Section>
 
-      {/* Validation summary */}
       <ValidationPanel result={validation} showSuccess />
     </div>
+  )
+}
+
+function Section({
+  id,
+  titleZh,
+  titleEn,
+  children,
+}: {
+  id: string
+  titleZh: string
+  titleEn: string
+  children: React.ReactNode
+}) {
+  return (
+    <section id={id} className="rounded-lg border border-border/60 bg-card/40 p-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider mb-1 flex items-center gap-2">
+        <span className="text-foreground">{titleZh}</span>
+        <span className="text-[10px] text-muted-foreground/70 font-normal">{titleEn}</span>
+      </h3>
+      <div className="space-y-0">{children}</div>
+    </section>
   )
 }

@@ -17,6 +17,8 @@ import { DepTreePanel } from '../components/DepTreePanel'
 import { HealthScoreGauge } from '../components/HealthScoreGauge'
 import { QuickActions } from '../components/QuickActions'
 import { OptimizationPanel } from '../components/OptimizationPanel'
+import { HomeIntentPanel } from '../components/HomeIntentPanel'
+import { RuntimeStatusPanel } from '../components/RuntimeStatusPanel'
 import { ModelPicker, type Model } from '../components/ModelPicker'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
 import type { gy } from '../../wailsjs/go/models'
@@ -453,6 +455,12 @@ export function HomePage() {
             {t('dashboard.refresh')}
           </button>
         </div>
+
+        {/* Intent panel — verb-first entry points */}
+        <HomeIntentPanel />
+
+        {/* Live runtime status — endpoint reachability + process state */}
+        <RuntimeStatusPanel />
 
         {/* Section A: Health Score Gauge */}
         <HealthScoreGauge

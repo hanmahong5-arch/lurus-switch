@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import './style.css'
 import { Sidebar, RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES, ENDUSER_VISIBLE_PAGES } from './components/Sidebar'
+import { PageHeader } from './components/PageHeader'
 import { StatusBar } from './components/StatusBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ToastContainer } from './components/Toast'
@@ -9,6 +10,15 @@ import { ConnectionBanner } from './components/ConnectionBanner'
 import { SetupWizard } from './components/SetupWizard'
 import { CommandPalette } from './components/CommandPalette'
 import { DeepLinkImportModal } from './components/DeepLinkImportModal'
+import { RepoAuditModal } from './components/RepoAuditModal'
+import { useRepoAuditStore } from './stores/repoAuditStore'
+import { BashGuardModal } from './components/BashGuardModal'
+import { useBashGuardStore } from './stores/bashGuardStore'
+import { BudgetModal } from './components/BudgetModal'
+import { useBudgetStore } from './stores/budgetStore'
+import { ActivityPane } from './components/ActivityPane'
+import { FeatureTourModal } from './components/FeatureTourModal'
+import { useFeatureTourStore } from './stores/featureTourStore'
 import { HomePage } from './pages/HomePage'
 import { AgentsPage } from './pages/AgentsPage'
 import { NewToolsPage } from './pages/NewToolsPage'
@@ -63,11 +73,20 @@ function App() {
   const { setUserInfo } = useBillingStore()
   const { proxySettings } = useDashboardStore()
   const setGwStatus = useSwitchStore((s) => s.setStatus)
+  const openFeatureTour = useFeatureTourStore((s) => s.setOpen)
 
   useEffect(() => {
     GetAppSettings()
       .then((s) => {
         setShowWizard(!s.onboardingCompleted)
+        // Show the feature tour automatically after the user has finished
+        // initial setup but before they've seen the tour. Skipped if
+        // setup wizard is still pending — we don't want to stack two
+        // modals on first run.
+        if (s.onboardingCompleted && !(s as any).featureTourSeen) {
+          // Defer briefly so the main shell paints first.
+          setTimeout(() => openFeatureTour(true), 500)
+        }
 
         // Resolve app mode (auto-migrate legacy 'user'/'promoter' values).
         const resolved = migrateLegacyAppMode(s.appMode)
@@ -116,6 +135,17 @@ function App() {
         } else if (s.theme) {
           root.classList.toggle('dark', s.theme === 'dark')
         }
+
+        // White-label branding: when a signed sidecar has populated brand
+        // fields on disk, apply them now so the EndUser sees the
+        // distributor's identity, not stock Lurus. Persisted to a CSS
+        // variable so any component can read it via `var(--brand-color)`.
+        const brandColor = (s as any).brandPrimaryColor
+        if (typeof brandColor === 'string' && brandColor) {
+          root.style.setProperty('--brand-color', brandColor)
+        }
+        // Brand name + logo + support contact are picked up by Sidebar /
+        // EndUserMainPage via the same GetAppSettings call.
 
         // Navigate to saved startup page (with legacy migration)
         if (s.startupPage && VALID_STARTUP_PAGES.has(s.startupPage)) {
@@ -187,16 +217,44 @@ function App() {
     return () => { if (unsub) unsub() }
   }, [appMode])
 
-  // Loading state while checking onboarding status
+  // Loading state while checking onboarding status. We surface which
+  // step is still pending so users see *what* Switch is doing during
+  // the boot serial-load (GetAppSettings → mode resolve → reseller /
+  // enduser gate checks). Empty spinner felt like the app was stuck.
   if (
     showWizard === null ||
     bootMode === null ||
     needsResellerSetup === null ||
     endUserState === null
   ) {
+    const steps = [
+      { done: showWizard !== null, zh: '读取应用配置', en: 'Reading app settings' },
+      { done: bootMode !== null, zh: '解析运行模式', en: 'Resolving app mode' },
+      { done: needsResellerSetup !== null, zh: '检查 Reseller Hub', en: 'Checking Reseller Hub' },
+      { done: endUserState !== null, zh: '检查 EndUser 激活', en: 'Checking EndUser activation' },
+    ]
     return (
       <div className="h-screen flex items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        <div className="text-center space-y-4 max-w-xs">
+          <div className="inline-flex items-center justify-center h-14 w-14 rounded-full bg-primary/10 border border-primary/30">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+          <div>
+            <h1 className="text-base font-semibold">Lurus Switch</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">本地 AI 网关 · Local AI Gateway</p>
+          </div>
+          <ul className="space-y-1 text-xs text-left">
+            {steps.map((s, i) => (
+              <li key={i} className="flex items-center gap-2">
+                <span className={`inline-block h-1.5 w-1.5 rounded-full ${s.done ? 'bg-emerald-400' : 'bg-muted-foreground/40 animate-pulse'}`} />
+                <span className={s.done ? 'text-muted-foreground line-through opacity-60' : 'text-foreground'}>
+                  {s.zh}
+                  <span className="ml-1.5 text-[10px] text-muted-foreground/60">{s.en}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     )
   }
@@ -288,17 +346,51 @@ function App() {
       <ToastContainer />
       <CommandPalette />
       <DeepLinkImportModal />
+      <RepoAuditMount />
+      <BashGuardMount />
+      <BudgetMount />
+      <FeatureTourMount />
+      <ActivityPane />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-hidden">
-          <ErrorBoundary>
-            {renderPage()}
-          </ErrorBoundary>
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <PageHeader />
+          <div className="flex-1 overflow-hidden">
+            <ErrorBoundary>
+              {renderPage()}
+            </ErrorBoundary>
+          </div>
         </main>
       </div>
       <StatusBar />
     </div>
   )
+}
+
+// Tiny mount wrapper so we can subscribe to the audit store without
+// re-rendering the whole App tree on open/close transitions.
+function RepoAuditMount() {
+  const open = useRepoAuditStore((s) => s.open)
+  const setOpen = useRepoAuditStore((s) => s.setOpen)
+  return <RepoAuditModal open={open} onClose={() => setOpen(false)} />
+}
+
+function BashGuardMount() {
+  const open = useBashGuardStore((s) => s.open)
+  const setOpen = useBashGuardStore((s) => s.setOpen)
+  return <BashGuardModal open={open} onClose={() => setOpen(false)} />
+}
+
+function BudgetMount() {
+  const open = useBudgetStore((s) => s.open)
+  const setOpen = useBudgetStore((s) => s.setOpen)
+  return <BudgetModal open={open} onClose={() => setOpen(false)} />
+}
+
+function FeatureTourMount() {
+  const open = useFeatureTourStore((s) => s.open)
+  const setOpen = useFeatureTourStore((s) => s.setOpen)
+  return <FeatureTourModal open={open} onClose={() => setOpen(false)} />
 }
 
 export default App
