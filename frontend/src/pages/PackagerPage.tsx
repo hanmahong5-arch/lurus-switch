@@ -1,19 +1,17 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  AlertTriangle,
-  Box,
-  Check,
-  Copy,
-  Image as ImageIcon,
-  Loader2,
-  Package,
+  AlertTriangle, Box, Check, Copy, Image as ImageIcon, Loader2, Package,
+  ShieldAlert, FolderOpen, Archive, History, X, RefreshCw,
 } from 'lucide-react'
 import {
-  BuildWhiteLabelPackage,
-  PreviewWhiteLabelLogo,
+  BuildWhiteLabelPackage, PreviewWhiteLabelLogo,
+  WhiteLabelPreflight, OpenWhiteLabelOutputDir, ZipWhiteLabelOutputDir,
+  ListWhiteLabelBuilds,
 } from '../../wailsjs/go/main/App'
 import type { main } from '../../wailsjs/go/models'
+import { useDirtyGuard } from '../hooks/useDirtyGuard'
+import { useToastStore } from '../stores/toastStore'
 
 // PackagerPage — Reseller-only. Collects branding inputs and runs the
 // white-label packager, showing the resulting binary path + sha256 for
@@ -23,7 +21,9 @@ import type { main } from '../../wailsjs/go/models'
 // records in SQLite — defer until we have a packager_profiles table
 // and can show it on this same page without scope creep).
 export function PackagerPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const isZh = i18n.language?.startsWith('zh') ?? true
+  const toast = useToastStore((s) => s.addToast)
   const [brandName, setBrandName] = useState('')
   const [hubURL, setHubURL] = useState('')
   const [tenantSlug, setTenantSlug] = useState('')
@@ -35,6 +35,29 @@ export function PackagerPage() {
   const [result, setResult] = useState<main.WhiteLabelOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState<'binary' | 'sidecar' | null>(null)
+
+  // Preflight + post-build extras (audit polish).
+  const [preflight, setPreflight] = useState<main.PreflightReport | null>(null)
+  const [preflighting, setPreflighting] = useState(false)
+  const [zipping, setZipping] = useState(false)
+  const [history, setHistory] = useState<main.BuildHistoryEntry[]>([])
+  const refreshHistory = async () => {
+    try {
+      const rows = await ListWhiteLabelBuilds(10)
+      setHistory(rows ?? [])
+    } catch { /* non-fatal */ }
+  }
+  useEffect(() => { refreshHistory() }, [])
+
+  // Dirty when the operator has filled anything but hasn't yet seen a
+  // successful build — leaving early would discard the inputs.
+  const hasInput =
+    brandName.trim() !== '' ||
+    hubURL.trim() !== '' ||
+    tenantSlug.trim() !== '' ||
+    supportContact.trim() !== '' ||
+    logoBase64 !== ''
+  useDirtyGuard('packager-page', hasInput && !result)
 
   const onLogoFile = async (file: File | null) => {
     if (!file) {
@@ -80,10 +103,49 @@ export function PackagerPage() {
         logoBase64,
       })
       setResult(res)
+      refreshHistory()
     } catch (e) {
       setError(String(e))
     } finally {
       setBuilding(false)
+    }
+  }
+
+  const handlePreflight = async () => {
+    if (!hubURL.trim()) {
+      toast('error', isZh ? '先填 Hub URL' : 'Fill Hub URL first')
+      return
+    }
+    setPreflighting(true)
+    try {
+      const r = await WhiteLabelPreflight(hubURL.trim(), tenantSlug.trim())
+      setPreflight(r)
+    } catch (e) {
+      toast('error', String(e))
+    } finally {
+      setPreflighting(false)
+    }
+  }
+
+  const handleOpenOutputDir = async () => {
+    if (!result?.outputDir) return
+    try {
+      await OpenWhiteLabelOutputDir(result.outputDir)
+    } catch (e) {
+      toast('error', String(e))
+    }
+  }
+
+  const handleZip = async () => {
+    if (!result?.outputDir) return
+    setZipping(true)
+    try {
+      const zipPath = await ZipWhiteLabelOutputDir(result.outputDir)
+      toast('success', isZh ? `ZIP 已生成：${zipPath}` : `ZIP ready: ${zipPath}`)
+    } catch (e) {
+      toast('error', String(e))
+    } finally {
+      setZipping(false)
     }
   }
 
@@ -215,15 +277,54 @@ export function PackagerPage() {
           </div>
         )}
 
-        <button
-          onClick={handleBuild}
-          disabled={!canBuild || building}
-          className="px-5 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white text-sm
-                     disabled:opacity-40 inline-flex items-center gap-2"
-        >
-          {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-          {t('packager.build', '生成白标包')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handlePreflight}
+            disabled={!hubURL.trim() || preflighting}
+            className="px-3 py-1.5 rounded border border-border hover:bg-muted text-sm disabled:opacity-40 inline-flex items-center gap-1.5"
+            title={isZh ? '在打包前先 ping 一下 Hub 的 redeem / heartbeat 端点' : 'Ping the Hub redeem/heartbeat endpoints before building'}
+          >
+            {preflighting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldAlert className="h-3.5 w-3.5" />}
+            {isZh ? 'Hub 预检' : 'Hub preflight'}
+          </button>
+          <button
+            onClick={handleBuild}
+            disabled={!canBuild || building}
+            className="px-5 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white text-sm
+                       disabled:opacity-40 inline-flex items-center gap-2"
+          >
+            {building ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
+            {t('packager.build', '生成白标包')}
+          </button>
+        </div>
+
+        {preflight && (
+          <section className={`rounded-lg border p-3 space-y-1.5 text-xs ${preflight.ok ? 'border-emerald-500/30 bg-emerald-500/10' : 'border-amber-500/30 bg-amber-500/10'}`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-semibold">
+                {preflight.ok
+                  ? <><Check className="h-4 w-4 text-emerald-400" /> {isZh ? 'Hub 全部检查通过' : 'All Hub checks passed'}</>
+                  : <><AlertTriangle className="h-4 w-4 text-amber-400" /> {isZh ? '部分检查未通过' : 'Some checks failed'}</>}
+              </div>
+              <button onClick={() => setPreflight(null)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {preflight.checks?.map((c) => (
+              <div key={c.id} className="flex items-start gap-2">
+                <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${c.pass ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                <div className="flex-1 min-w-0">
+                  <div>{isZh ? c.titleZh : c.titleEn}</div>
+                  {(c.detailZh || c.detailEn) && (
+                    <div className="text-[10px] text-muted-foreground/80 font-mono break-all">
+                      {isZh ? (c.detailZh || c.detailEn) : (c.detailEn || c.detailZh)}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
 
         {result && (
           <section className="rounded-lg border border-emerald-500/30 bg-emerald-950/10 p-5 space-y-3">
@@ -255,6 +356,66 @@ export function PackagerPage() {
                 ))}
               </div>
             )}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={handleOpenOutputDir}
+                className="px-3 py-1.5 rounded border border-border hover:bg-muted text-xs inline-flex items-center gap-1.5"
+              >
+                <FolderOpen className="h-3.5 w-3.5" />
+                {isZh ? '在资源管理器中打开' : 'Open in Explorer'}
+              </button>
+              <button
+                onClick={handleZip}
+                disabled={zipping}
+                className="px-3 py-1.5 rounded border border-border hover:bg-muted text-xs inline-flex items-center gap-1.5 disabled:opacity-50"
+              >
+                {zipping ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Archive className="h-3.5 w-3.5" />}
+                {isZh ? '打 ZIP（一文件分发）' : 'Bundle as ZIP'}
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Build history */}
+        {history.length > 0 && (
+          <section className="rounded-lg border border-border bg-card/40 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <History className="h-3.5 w-3.5" />
+                {isZh ? '最近构建' : 'Recent builds'}
+                <span className="text-[10px] text-muted-foreground/60 font-normal">{history.length}</span>
+              </h3>
+              <button onClick={refreshHistory} className="text-muted-foreground hover:text-foreground" title={isZh ? '刷新' : 'Refresh'}>
+                <RefreshCw className="h-3 w-3" />
+              </button>
+            </div>
+            <div className="space-y-1">
+              {history.map((h, i) => (
+                <div key={i} className="rounded border border-border/40 px-2.5 py-1.5 text-[11px] flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium truncate">{h.brandName}</span>
+                      <span className="text-[10px] text-muted-foreground/70 tabular-nums">
+                        {h.builtAt ? new Date(h.builtAt).toLocaleString() : '—'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground font-mono break-all truncate">{h.binaryPath}</div>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const dir = h.binaryPath.replace(/[\\/][^\\/]+$/, '')
+                        await OpenWhiteLabelOutputDir(dir)
+                      } catch (e) { toast('error', String(e)) }
+                    }}
+                    className="shrink-0 px-2 py-1 rounded border border-border hover:bg-muted text-[10px] inline-flex items-center gap-1"
+                  >
+                    <FolderOpen className="h-3 w-3" />
+                    {isZh ? '打开' : 'Open'}
+                  </button>
+                </div>
+              ))}
+            </div>
           </section>
         )}
       </div>

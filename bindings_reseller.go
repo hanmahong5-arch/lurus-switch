@@ -90,6 +90,7 @@ func (a *App) TestHubConnection(hubURL, token string) (string, error) {
 	if token == "" {
 		return "", errors.New("管理员 Token 必填")
 	}
+	op := a.activityBus.Op("hub-test", "测试 Hub 连接", "Testing Hub connection")
 
 	c, err := admin.New(admin.Config{
 		BaseURL: hubURL,
@@ -97,6 +98,7 @@ func (a *App) TestHubConnection(hubURL, token string) (string, error) {
 		Timeout: hubConnectionCheckTimeout,
 	})
 	if err != nil {
+		op.Error(err.Error())
 		return "", fmt.Errorf("Hub URL 校验失败：%w", err)
 	}
 
@@ -106,12 +108,15 @@ func (a *App) TestHubConnection(hubURL, token string) (string, error) {
 	page, err := c.ListChannels(ctx, &admin.ListOpts{Page: 1, PageSize: 1})
 	if err != nil {
 		if admin.IsUnauthorized(err) {
+			op.Error("token unauthorized or expired")
 			return "", fmt.Errorf("Token 无权限或已过期：%w", err)
 		}
+		op.Error(err.Error())
 		return "", fmt.Errorf("无法连接到 Hub：%w", err)
 	}
 
-	// Minimal success surface — return a human note the wizard can show.
+	op.Done(fmt.Sprintf("当前 Hub 共 %d 个 channel", page.Total),
+		fmt.Sprintf("%d channels on hub", page.Total))
 	return fmt.Sprintf("连接成功 · 当前 Hub 共 %d 个 channel", page.Total), nil
 }
 
@@ -122,19 +127,24 @@ func (a *App) TestHubConnection(hubURL, token string) (string, error) {
 // without redeploying. This means re-running the wizard with the same
 // answers is safe — no double-provision risk.
 func (a *App) ProvisionResellerHub(kindRaw, displayName, hubURL, adminToken, tenantSlug string) (*deploy.Result, error) {
+	op := a.activityBus.Op("provision-hub", "部署 Reseller Hub", "Provisioning Reseller Hub")
+
 	kind, err := deploy.ParseKind(kindRaw)
 	if err != nil {
+		op.Error(err.Error())
 		return nil, err
 	}
 
 	provider, err := deploy.New(kind)
 	if err != nil {
+		op.Error(err.Error())
 		return nil, err
 	}
 
 	// Short-circuit: same coordinates already saved → return existing.
 	if existing, err := appconfig.LoadAppSettings(); err == nil {
 		if existing.Reseller.HubURL == hubURL && existing.Reseller.AdminToken == adminToken {
+			op.Done("已是当前配置，跳过部署", "Already current — skipped redeploy")
 			return &deploy.Result{
 				Kind:        kind,
 				HubURL:      existing.Reseller.HubURL,
@@ -146,6 +156,7 @@ func (a *App) ProvisionResellerHub(kindRaw, displayName, hubURL, adminToken, ten
 		}
 	}
 
+	op.Progress("调用 Provider 部署", "Calling provider", 30, 2, 1)
 	res, err := provider.Provision(a.hubCtx(), deploy.Inputs{
 		Kind:        kind,
 		DisplayName: displayName,
@@ -156,12 +167,16 @@ func (a *App) ProvisionResellerHub(kindRaw, displayName, hubURL, adminToken, ten
 		},
 	})
 	if err != nil {
+		op.Error(err.Error())
 		return nil, err
 	}
 
+	op.Progress("写入本地配置", "Persisting config", 80, 2, 2)
 	if err := persistResellerConfig(res); err != nil {
+		op.Error(err.Error())
 		return nil, fmt.Errorf("save reseller config: %w", err)
 	}
+	op.Done("Hub 已就绪", "Hub provisioned")
 	return res, nil
 }
 

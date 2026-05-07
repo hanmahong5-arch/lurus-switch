@@ -27,9 +27,14 @@ func (a *App) StartGateway() error {
 	if a.gatewaySrv == nil {
 		return fmt.Errorf("gateway not initialized")
 	}
-	// Sync upstream config from proxy settings before starting.
+	op := a.activityBus.Op("gateway-start", "启动本地网关", "Starting local gateway")
 	a.syncGatewayUpstream()
-	return a.gatewaySrv.Start(a.ctx)
+	if err := a.gatewaySrv.Start(a.ctx); err != nil {
+		op.Error(err.Error())
+		return err
+	}
+	op.Done("网关已启动", "Gateway started")
+	return nil
 }
 
 // StopGateway stops the local API gateway.
@@ -37,7 +42,13 @@ func (a *App) StopGateway() error {
 	if a.gatewaySrv == nil {
 		return fmt.Errorf("gateway not initialized")
 	}
-	return a.gatewaySrv.Stop()
+	op := a.activityBus.Op("gateway-stop", "停止本地网关", "Stopping local gateway")
+	if err := a.gatewaySrv.Stop(); err != nil {
+		op.Error(err.Error())
+		return err
+	}
+	op.Done("网关已停止", "Gateway stopped")
+	return nil
 }
 
 // GetGatewayConfig returns the current gateway configuration.

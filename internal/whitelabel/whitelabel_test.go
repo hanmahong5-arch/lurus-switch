@@ -1,15 +1,20 @@
 package whitelabel
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"image"
+	"image/color"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/tc-hib/winres"
 )
 
 // TestProfile_SignVerify_RoundTrip locks in the contract that Sign output
@@ -245,4 +250,243 @@ func TestLoader_RejectsTamperedSidecar(t *testing.T) {
 func sha256Bytes(s string) []byte {
 	h := sha256.Sum256([]byte(s))
 	return h[:]
+}
+
+// TestTryReplaceIcon_MissingIcon hard-fails fast when the operator points
+// at a non-existent icon — without this guard the real failure surfaces
+// later from inside winres with a confusing message.
+func TestTryReplaceIcon_MissingIcon(t *testing.T) {
+	tmp := t.TempDir()
+	exe := filepath.Join(tmp, "fake.exe")
+	if err := os.WriteFile(exe, []byte("STUB"), 0o644); err != nil {
+		t.Fatalf("seed exe: %v", err)
+	}
+	_, err := tryReplaceIcon(exe, filepath.Join(tmp, "nope.ico"))
+	if err == nil {
+		t.Fatal("expected error for missing icon, got nil")
+	}
+	if !strings.Contains(err.Error(), "not found") {
+		t.Errorf("expected 'not found' in error, got %q", err)
+	}
+}
+
+// TestTryReplaceIcon_NonPEBase verifies the "skip with note" path the
+// caller relies on: when the base binary isn't a PE (dev machine running
+// a non-Windows base, or a stub used in another test), the build still
+// produces a working sidecar and the operator gets a clear note.
+func TestTryReplaceIcon_NonPEBase(t *testing.T) {
+	tmp := t.TempDir()
+	exe := filepath.Join(tmp, "not-a-pe.exe")
+	if err := os.WriteFile(exe, []byte("definitely not a PE"), 0o644); err != nil {
+		t.Fatalf("seed exe: %v", err)
+	}
+	icoPath := writeTestICO(t, filepath.Join(tmp, "brand.ico"))
+
+	note, err := tryReplaceIcon(exe, icoPath)
+	if err != nil {
+		t.Fatalf("expected nil error on non-PE skip, got %v", err)
+	}
+	if note == "" || !strings.Contains(note, "skipped") {
+		t.Errorf("expected skip note, got %q", note)
+	}
+}
+
+// TestBuild_IconReplacementSurfacedAsNote checks the wiring from BuildOpts
+// through Build() to BuildResult.Notes — operators rely on Notes to learn
+// when icon replacement was a no-op so they can act on it.
+func TestBuild_IconReplacementSurfacedAsNote(t *testing.T) {
+	tmp := t.TempDir()
+	base := filepath.Join(tmp, "switch.exe")
+	if err := os.WriteFile(base, []byte("STUB"), 0o644); err != nil {
+		t.Fatalf("seed base: %v", err)
+	}
+	icoPath := writeTestICO(t, filepath.Join(tmp, "brand.ico"))
+
+	res, err := Build(BuildOpts{
+		Profile:        Profile{BrandName: "Acme", HubURL: "https://h"},
+		HMACKey:        sha256Bytes("k"),
+		BaseBinaryPath: base,
+		OutputDir:      filepath.Join(tmp, "out"),
+		IconPath:       icoPath,
+	})
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	if len(res.Notes) == 0 {
+		t.Fatal("expected a note about icon replacement skip on stub binary, got none")
+	}
+	found := false
+	for _, n := range res.Notes {
+		if strings.Contains(n, "skipped") || strings.Contains(n, "replacement") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("notes did not mention icon outcome: %v", res.Notes)
+	}
+}
+
+// TestTryReplaceIcon_PatchesPEInPlace is the positive integration test:
+// synthesize a real PE with a known starter icon, run tryReplaceIcon, and
+// verify the result still parses as a PE and the GROUP_ICON entry now has
+// the dimensions of the replacement icon.
+//
+// We use a real PE fixture from the test binary itself — Go test binaries
+// on Windows are valid PEs, so we can copy the test exe, seed it with a
+// starter icon via winres, then exercise the replace path.
+func TestTryReplaceIcon_PatchesPEInPlace(t *testing.T) {
+	self, err := os.Executable()
+	if err != nil {
+		t.Skipf("os.Executable unavailable: %v", err)
+	}
+	if !looksLikePE(t, self) {
+		t.Skip("test binary is not a PE on this host")
+	}
+
+	tmp := t.TempDir()
+	target := filepath.Join(tmp, "fixture.exe")
+	if err := copyFile(self, target); err != nil {
+		t.Fatalf("copy test binary: %v", err)
+	}
+
+	// Seed: add an initial 16x16 icon to the copied PE so tryReplaceIcon
+	// has something to replace. If the copied binary already has a .rsrc
+	// section we extend it; otherwise we get ErrNoResources and skip
+	// (Go test binaries on Windows commonly have no resources, in which
+	// case the positive path can't be exercised here — that gap is fine
+	// because the negative tests above already cover the wiring).
+	if err := seedIconResource(target, 16); err != nil {
+		if errors.Is(err, winres.ErrNoResources) {
+			t.Skip("test PE has no .rsrc section; positive patch path is exercised by real wails-built binaries in production")
+		}
+		t.Fatalf("seed icon: %v", err)
+	}
+
+	// Now build a 32x32 replacement icon and patch.
+	icoPath := writeTestICOAtSize(t, filepath.Join(tmp, "brand32.ico"), 32)
+	note, err := tryReplaceIcon(target, icoPath)
+	if err != nil {
+		t.Fatalf("tryReplaceIcon: %v", err)
+	}
+	if note != "" {
+		t.Fatalf("expected clean replacement, got note %q", note)
+	}
+
+	// Verify the patched file is still a parseable PE with a GROUP_ICON
+	// of size 32 (proves the replacement actually happened).
+	patched, err := os.Open(target)
+	if err != nil {
+		t.Fatalf("reopen patched: %v", err)
+	}
+	defer patched.Close()
+	rs, err := winres.LoadFromEXE(patched)
+	if err != nil {
+		t.Fatalf("LoadFromEXE on patched: %v", err)
+	}
+	var sawIcon bool
+	rs.WalkType(winres.RT_GROUP_ICON, func(resID winres.Identifier, _ uint16, data []byte) bool {
+		// First 6 bytes are the GROUP_ICONDIR header; entries follow at
+		// offset 6 with Width/Height as the first two bytes.
+		if len(data) < 8 {
+			return true
+		}
+		// Width is the byte at offset 6.
+		w := data[6]
+		// 0 in PE icon dirs means 256 — for 32 we expect a literal 32.
+		if w == 32 {
+			sawIcon = true
+		}
+		return true
+	})
+	if !sawIcon {
+		t.Errorf("expected RT_GROUP_ICON with width 32 in patched PE, none found")
+	}
+}
+
+// writeTestICO emits a minimal valid .ico with one 32x32 image and
+// returns the path written. Used by tests that need a real .ico file
+// without committing a binary fixture.
+func writeTestICO(t *testing.T, path string) string {
+	t.Helper()
+	return writeTestICOAtSize(t, path, 32)
+}
+
+func writeTestICOAtSize(t *testing.T, path string, size int) string {
+	t.Helper()
+	img := image.NewNRGBA(image.Rect(0, 0, size, size))
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			img.Set(x, y, color.NRGBA{R: 0x9c, G: 0x33, B: 0xea, A: 0xff})
+		}
+	}
+	icon, err := winres.NewIconFromImages([]image.Image{img})
+	if err != nil {
+		t.Fatalf("build test icon: %v", err)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatalf("create test icon file: %v", err)
+	}
+	defer f.Close()
+	if err := icon.SaveICO(f); err != nil {
+		t.Fatalf("write test icon: %v", err)
+	}
+	return path
+}
+
+// looksLikePE returns true when path is a parseable Windows PE. Used to
+// gate the positive-path test on hosts where the test binary happens to
+// be a different format.
+func looksLikePE(t *testing.T, path string) bool {
+	t.Helper()
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	_, err = winres.IsSignedEXE(f)
+	return err == nil
+}
+
+// seedIconResource adds a starter icon to an existing PE by reading its
+// resource set, adding a fresh RT_GROUP_ICON, and writing the result back
+// over the file. Returns ErrNoResources if the PE has no .rsrc section
+// to extend, since adding a brand new section is not supported by the
+// underlying library.
+func seedIconResource(target string, size int) error {
+	src, err := os.Open(target)
+	if err != nil {
+		return err
+	}
+	rs, err := winres.LoadFromEXE(src)
+	src.Close()
+	if err != nil {
+		return err
+	}
+
+	img := image.NewNRGBA(image.Rect(0, 0, size, size))
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			img.Set(x, y, color.NRGBA{R: 0x10, G: 0x10, B: 0x10, A: 0xff})
+		}
+	}
+	icon, err := winres.NewIconFromImages([]image.Image{img})
+	if err != nil {
+		return err
+	}
+	if err := rs.SetIcon(winres.RT_ICON, icon); err != nil {
+		return err
+	}
+
+	src, err = os.Open(target)
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	var buf bytes.Buffer
+	if err := rs.WriteToEXE(&buf, src); err != nil {
+		return err
+	}
+	return os.WriteFile(target, buf.Bytes(), 0o644)
 }

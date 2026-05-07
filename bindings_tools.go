@@ -25,11 +25,16 @@ func (a *App) DetectAllTools() (map[string]*installer.ToolStatus, error) {
 // Emits "tool:install:progress" events ({tool, percent}) during download
 // and a "tool:install:done" event ({tool, success}) on completion.
 func (a *App) InstallTool(name string) (*installer.InstallResult, error) {
-	// Attach progress callback so the frontend can show a live progress bar.
+	// Activity bus — drives the live "what is Switch doing" panel. The
+	// existing tool:install:progress events are kept for back-compat with
+	// the per-tool progress bar in the Tools card.
+	op := a.activityBus.Op("install-"+name, "安装 "+name, "Installing "+name)
+
 	a.instMgr.SetProgressCallback(name, func(_, _ int64, pct int) {
 		wailsRuntime.EventsEmit(a.ctx, "tool:install:progress", map[string]any{
 			"tool": name, "percent": pct,
 		})
+		op.Progress("下载中…", "Downloading…", pct, 0, 0)
 	})
 	defer a.instMgr.SetProgressCallback(name, nil) // clean up after install
 
@@ -38,6 +43,13 @@ func (a *App) InstallTool(name string) (*installer.InstallResult, error) {
 		"tool":    name,
 		"success": err == nil && result != nil && result.Success,
 	})
+	if err != nil {
+		op.Error(err.Error())
+	} else if result != nil && !result.Success {
+		op.Error(result.Message)
+	} else {
+		op.Done("已安装", "Installed")
+	}
 
 	if a.tracker != nil && err == nil {
 		if tErr := a.tracker.Record(analytics.Event{
@@ -60,8 +72,10 @@ func (a *App) GetToolDownloadManifest() (*toolmanifest.Manifest, error) {
 // so the frontend can display live progress bars.
 func (a *App) InstallAllTools() []installer.InstallResult {
 	toolOrder := []string{"claude", "codex", "gemini", "picoclaw", "nullclaw", "zeroclaw", "openclaw"}
+	parent := a.activityBus.Op("install-all", "安装所有 CLI 工具", "Installing all CLI tools")
 	var results []installer.InstallResult
-	for _, name := range toolOrder {
+	for i, name := range toolOrder {
+		parent.Progress("正在装 "+name, "Installing "+name, (i*100)/len(toolOrder), len(toolOrder), i+1)
 		result, err := a.InstallTool(name)
 		if err != nil {
 			results = append(results, installer.InstallResult{
@@ -73,12 +87,22 @@ func (a *App) InstallAllTools() []installer.InstallResult {
 		}
 		results = append(results, *result)
 	}
+	parent.Done(fmt.Sprintf("%d/%d 安装完成", len(results), len(toolOrder)),
+		fmt.Sprintf("%d/%d installed", len(results), len(toolOrder)))
 	return results
 }
 
 // UpdateTool updates a specific CLI tool to the latest version
 func (a *App) UpdateTool(name string) (*installer.InstallResult, error) {
+	op := a.activityBus.Op("update-"+name, "更新 "+name, "Updating "+name)
 	result, err := a.instMgr.UpdateTool(a.ctx, name)
+	if err != nil {
+		op.Error(err.Error())
+	} else if result != nil && !result.Success {
+		op.Error(result.Message)
+	} else {
+		op.Done("已更新", "Updated")
+	}
 	if a.tracker != nil && err == nil {
 		if tErr := a.tracker.Record(analytics.Event{
 			Tool: name, Action: "update", Success: result != nil && result.Success,
@@ -91,12 +115,23 @@ func (a *App) UpdateTool(name string) (*installer.InstallResult, error) {
 
 // UpdateAllTools updates all CLI tools to the latest versions
 func (a *App) UpdateAllTools() []installer.InstallResult {
-	return a.instMgr.UpdateAll(a.ctx)
+	op := a.activityBus.Op("update-all", "更新所有工具", "Updating all tools")
+	results := a.instMgr.UpdateAll(a.ctx)
+	op.Done(fmt.Sprintf("%d 项已处理", len(results)), fmt.Sprintf("%d items processed", len(results)))
+	return results
 }
 
 // UninstallTool uninstalls a specific CLI tool by name
 func (a *App) UninstallTool(name string) (*installer.InstallResult, error) {
+	op := a.activityBus.Op("uninstall-"+name, "卸载 "+name, "Uninstalling "+name)
 	result, err := a.instMgr.UninstallTool(a.ctx, name)
+	if err != nil {
+		op.Error(err.Error())
+	} else if result != nil && !result.Success {
+		op.Error(result.Message)
+	} else {
+		op.Done("已卸载", "Uninstalled")
+	}
 	if a.tracker != nil && err == nil {
 		if tErr := a.tracker.Record(analytics.Event{
 			Tool: name, Action: "uninstall", Success: result != nil && result.Success,
@@ -109,7 +144,10 @@ func (a *App) UninstallTool(name string) (*installer.InstallResult, error) {
 
 // UninstallAllTools uninstalls all CLI tools
 func (a *App) UninstallAllTools() []installer.InstallResult {
-	return a.instMgr.UninstallAll(a.ctx)
+	op := a.activityBus.Op("uninstall-all", "卸载所有工具", "Uninstalling all tools")
+	results := a.instMgr.UninstallAll(a.ctx)
+	op.Done(fmt.Sprintf("%d 项已处理", len(results)), fmt.Sprintf("%d items processed", len(results)))
+	return results
 }
 
 // ============================

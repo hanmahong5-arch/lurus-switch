@@ -9,6 +9,7 @@ import (
 	"lurus-switch/internal/appreg"
 	"lurus-switch/internal/auth"
 	"lurus-switch/internal/billing"
+	"lurus-switch/internal/budget"
 	"lurus-switch/internal/config"
 	"lurus-switch/internal/db"
 	"lurus-switch/internal/docmgr"
@@ -66,6 +67,7 @@ type services struct {
 	appRegistry *appreg.Registry
 	meterStore  *metering.Store
 	gatewaySrv  *gateway.Server
+	budgetGuard *budget.Guard // active spend wall, wired into gateway
 
 	// Agent fleet management (v3 龙虾管理员).
 	database       *db.DB
@@ -192,6 +194,19 @@ func newServices(appDataDir, version string) (*services, []string) {
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {
 		svc.gatewaySrv = gateway.NewServer(appDataDir, appReg, meterStr)
+		// Active Budget Wall — persisted config alongside other gateway
+		// state. The guard delegates "today's tokens" to meterStore so
+		// daily limits track all traffic, not just this process's session.
+		guard, gErr := budget.New(
+			fmt.Sprintf("%s/budget.json", appDataDir),
+			func() metering.DailySummary { return meterStr.TodaySummary() },
+		)
+		if gErr == nil {
+			svc.budgetGuard = guard
+			svc.gatewaySrv.SetBudgetGuard(guard)
+		} else {
+			warnings = append(warnings, fmt.Sprintf("budget guard init failed: %v", gErr))
+		}
 	}
 	svc.promoterSvc = promoter.NewService(svc.ensureBillingClient)
 	return svc, warnings

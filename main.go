@@ -4,12 +4,14 @@ import (
 	"context"
 	"embed"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 
+	"lurus-switch/internal/bashguard"
 	"lurus-switch/internal/deeplink"
 )
 
@@ -17,6 +19,21 @@ import (
 var assets embed.FS
 
 func main() {
+	// CLI fast-path: when invoked as the Bash-Guard hook (Claude Code's
+	// PreToolUse), read JSON from stdin, evaluate, and exit BEFORE the
+	// Wails GUI initialises. This is what lets the same lurus-switch.exe
+	// double as the hook executable so the user doesn't need a separate
+	// binary on PATH.
+	if len(os.Args) > 1 && os.Args[1] == "--bashguard" {
+		eng, err := bashguard.NewEngine(bashguard.DefaultRules())
+		if err != nil {
+			os.Stderr.WriteString("[lurus-bashguard] init: " + err.Error() + "\n")
+			os.Exit(0) // fail-open
+		}
+		logPath := filepath.Join(appDataBaseDir(), "bashguard-blocks.jsonl")
+		os.Exit(bashguard.HandleStdin(os.Stdin, os.Stderr, logPath, eng))
+	}
+
 	app := NewApp()
 
 	// Deep-link single-instance guard.

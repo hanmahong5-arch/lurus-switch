@@ -36,8 +36,48 @@ import {promoter} from '../models';
 import {deploy} from '../models';
 import {toolconfig} from '../models';
 import {validator} from '../models';
+import {repoaudit} from '../models';
+import {bashguard} from '../models';
+import {budget} from '../models';
+import {toolruntime} from '../models';
 
 export function ActivateRedemption(arg1:string):Promise<main.ActivationStatus>;
+
+export function AuditRepo(arg1:string):Promise<repoaudit.AuditReport>;
+
+export function PickRepoAndAudit():Promise<repoaudit.AuditReport>;
+
+export function QuarantineFile(arg1:string):Promise<string>;
+
+export function BashGuardListRules():Promise<Array<bashguard.Rule>>;
+
+export function BashGuardTestCommand(arg1:string):Promise<bashguard.MatchResult>;
+
+export function BashGuardClaudeStatus():Promise<bashguard.HookInstallStatus>;
+
+export function BashGuardInstallClaude():Promise<void>;
+
+export function BashGuardUninstallClaude():Promise<void>;
+
+export function BashGuardRecentBlocks(arg1:number):Promise<Array<bashguard.BlockEntry>>;
+
+export function BudgetGetConfig():Promise<budget.Config>;
+
+export function BudgetSetConfig(arg1:budget.Config):Promise<void>;
+
+export function BudgetGetStatus():Promise<budget.Status>;
+
+export function BudgetResetSession():Promise<void>;
+
+export function GetToolRuntimes():Promise<Array<toolruntime.ToolRuntime>>;
+
+export function WhiteLabelPreflight(arg1:string,arg2:string):Promise<main.PreflightReport>;
+
+export function OpenWhiteLabelOutputDir(arg1:string):Promise<void>;
+
+export function ZipWhiteLabelOutputDir(arg1:string):Promise<string>;
+
+export function ListWhiteLabelBuilds(arg1:number):Promise<Array<main.BuildHistoryEntry>>;
 
 export function AddToPath(arg1:string):Promise<void>;
 

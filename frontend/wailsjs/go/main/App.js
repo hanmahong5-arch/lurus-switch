@@ -6,6 +6,78 @@ export function ActivateRedemption(arg1) {
   return window['go']['main']['App']['ActivateRedemption'](arg1);
 }
 
+export function AuditRepo(arg1) {
+  return window['go']['main']['App']['AuditRepo'](arg1);
+}
+
+export function PickRepoAndAudit() {
+  return window['go']['main']['App']['PickRepoAndAudit']();
+}
+
+export function QuarantineFile(arg1) {
+  return window['go']['main']['App']['QuarantineFile'](arg1);
+}
+
+export function BashGuardListRules() {
+  return window['go']['main']['App']['BashGuardListRules']();
+}
+
+export function BashGuardTestCommand(arg1) {
+  return window['go']['main']['App']['BashGuardTestCommand'](arg1);
+}
+
+export function BashGuardClaudeStatus() {
+  return window['go']['main']['App']['BashGuardClaudeStatus']();
+}
+
+export function BashGuardInstallClaude() {
+  return window['go']['main']['App']['BashGuardInstallClaude']();
+}
+
+export function BashGuardUninstallClaude() {
+  return window['go']['main']['App']['BashGuardUninstallClaude']();
+}
+
+export function BashGuardRecentBlocks(arg1) {
+  return window['go']['main']['App']['BashGuardRecentBlocks'](arg1);
+}
+
+export function BudgetGetConfig() {
+  return window['go']['main']['App']['BudgetGetConfig']();
+}
+
+export function BudgetSetConfig(arg1) {
+  return window['go']['main']['App']['BudgetSetConfig'](arg1);
+}
+
+export function BudgetGetStatus() {
+  return window['go']['main']['App']['BudgetGetStatus']();
+}
+
+export function BudgetResetSession() {
+  return window['go']['main']['App']['BudgetResetSession']();
+}
+
+export function GetToolRuntimes() {
+  return window['go']['main']['App']['GetToolRuntimes']();
+}
+
+export function WhiteLabelPreflight(arg1, arg2) {
+  return window['go']['main']['App']['WhiteLabelPreflight'](arg1, arg2);
+}
+
+export function OpenWhiteLabelOutputDir(arg1) {
+  return window['go']['main']['App']['OpenWhiteLabelOutputDir'](arg1);
+}
+
+export function ZipWhiteLabelOutputDir(arg1) {
+  return window['go']['main']['App']['ZipWhiteLabelOutputDir'](arg1);
+}
+
+export function ListWhiteLabelBuilds(arg1) {
+  return window['go']['main']['App']['ListWhiteLabelBuilds'](arg1);
+}
+
 export function AddToPath(arg1) {
   return window['go']['main']['App']['AddToPath'](arg1);
 }

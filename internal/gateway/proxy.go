@@ -58,6 +58,20 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Active Budget Wall — bail out *before* paying upstream tokens
+	// when the user-configured spend cap is already reached.
+	s.mu.Lock()
+	guard := s.guard
+	s.mu.Unlock()
+	if guard != nil {
+		if v := guard.Check(); !v.Allowed {
+			writeOpenAIError(w, http.StatusTooManyRequests, "spend_cap_reached",
+				fmt.Sprintf("Lurus Switch budget wall: %s. Raise the limit or click 'reset session' in the Budget panel.", v.Reason))
+			s.recordError(meta, model, v.Reason)
+			return
+		}
+	}
+
 	// Normalize base URL: strip /v1 to prevent path duplication.
 	normalizedURL := NormalizeChannelBaseURL(upstreamURL)
 
@@ -201,6 +215,15 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 		Timestamp:  time.Now(),
 	}
 	s.meter.Record(rec)
+
+	// Feed the budget guard so its session counter stays in sync. The
+	// daily counter delegates to the metering store, so no double-counting.
+	s.mu.Lock()
+	guard := s.guard
+	s.mu.Unlock()
+	if guard != nil {
+		guard.RecordUsage(usage.PromptTokens, usage.CompletionTokens)
+	}
 }
 
 func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {

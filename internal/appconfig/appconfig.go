@@ -16,12 +16,22 @@ type AppSettings struct {
 	EditorFontSize      int    `json:"editorFontSize"`      // 10-24
 	StartupPage         string `json:"startupPage"`         // "home" | "tools" | "gateway" etc.
 	OnboardingCompleted bool   `json:"onboardingCompleted"` // true after setup wizard completes
+	FeatureTourSeen     bool   `json:"featureTourSeen"`     // true after the post-setup feature tour has been shown at least once
 	AppMode             string `json:"appMode"`             // "" | "personal" | "reseller" | "enduser" (legacy: "user"|"promoter" auto-migrated)
 	UserLevel           string `json:"userLevel"`           // "beginner" | "regular" | "power"
 
 	// LockedHubURL is set by white-label EndUser builds. When present and AppMode
 	// is "enduser", the mode is pinned and the user cannot change it via UI.
 	LockedHubURL string `json:"lockedHubUrl,omitempty"`
+
+	// White-label branding fields. Populated by applyWhiteLabelSidecar at
+	// startup from the signed sidecar. Frontend reads them via GetAppSettings
+	// and applies them to the sidebar logo / accent color / support link.
+	// All are empty for non-white-label installs.
+	BrandName        string `json:"brandName,omitempty"`
+	BrandLogoBase64  string `json:"brandLogoBase64,omitempty"`
+	BrandPrimaryColor string `json:"brandPrimaryColor,omitempty"`
+	BrandSupportContact string `json:"brandSupportContact,omitempty"`
 
 	// Reseller mode configuration. Populated by ResellerSetupWizard (S-Xb.1)
 	// after a Hub instance is provisioned and an admin token is obtained.

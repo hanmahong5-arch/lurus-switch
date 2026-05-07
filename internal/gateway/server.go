@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"lurus-switch/internal/appreg"
+	"lurus-switch/internal/budget"
 	"lurus-switch/internal/metering"
 )
 
@@ -41,6 +42,7 @@ type Server struct {
 	registry *appreg.Registry
 	meter    *metering.Store
 	fallback *FallbackChain // cascade through backup upstreams on failure
+	guard    *budget.Guard  // optional spend wall — nil = disabled
 
 	// Crash recovery callback (optional, set via SetCrashCallback).
 	onCrash CrashCallback
@@ -62,6 +64,15 @@ func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Sto
 	s.cfg = s.loadConfig()
 	s.fallback.SetEntries(s.cfg.Fallbacks)
 	return s
+}
+
+// SetBudgetGuard wires the optional spend-wall into the gateway. Pass
+// nil to disable. Safe to call after Start; the next request picks up
+// the change.
+func (s *Server) SetBudgetGuard(g *budget.Guard) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.guard = g
 }
 
 // SetCrashCallback registers a callback invoked when the gateway crashes and auto-restarts.
@@ -272,6 +283,13 @@ func (s *Server) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/v1/completions", s.withAuth(s.handleProxy))
 	mux.HandleFunc("/v1/embeddings", s.withAuth(s.handleProxy))
 	mux.HandleFunc("/v1/models", s.withAuth(s.handleProxy))
+
+	// Anthropic Messages API → translate to OpenAI then forward. Lets
+	// Claude Code talk to any OpenAI-compatible upstream (DeepSeek,
+	// Groq, Ollama, OpenRouter…) while still going through the Switch
+	// gateway so Bash-Guard / Budget Wall / Activity Pane all engage.
+	mux.HandleFunc("/v1/messages", s.withAuth(s.handleAnthropicMessages))
+
 	mux.HandleFunc("/v1/", s.withAuth(s.handleProxy)) // catch-all for other v1 endpoints
 
 	// Health and control endpoints (no auth).

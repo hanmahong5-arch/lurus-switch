@@ -116,6 +116,7 @@ func (a *App) FetchModelCatalog() (*modelcatalog.Catalog, error) {
 	if a.catalogMgr == nil {
 		return modelcatalog.DefaultCatalog(), nil
 	}
+	op := a.activityBus.Op("fetch-models", "拉取模型目录", "Fetching model catalog")
 	apiBase := ""
 	apiKey := ""
 	if a.proxyMgr != nil {
@@ -123,7 +124,15 @@ func (a *App) FetchModelCatalog() (*modelcatalog.Catalog, error) {
 		apiBase = s.APIEndpoint
 		apiKey = s.BuildToolAPIKey()
 	}
-	return a.catalogMgr.Fetch(a.ctx, apiBase, apiKey)
+	cat, err := a.catalogMgr.Fetch(a.ctx, apiBase, apiKey)
+	if err != nil {
+		op.Error(err.Error())
+	} else if cat != nil {
+		op.Done(fmt.Sprintf("收到 %d 个模型", len(cat.Models)), fmt.Sprintf("Received %d models", len(cat.Models)))
+	} else {
+		op.Done("", "")
+	}
+	return cat, err
 }
 
 // QuickSetup performs one-click configuration: saves the model, applies endpoint+key+model

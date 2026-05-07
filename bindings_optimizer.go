@@ -154,9 +154,12 @@ func (a *App) ApplyOptimization(id string) *optimizer.FixResult {
 // ApplyAllOptimizations iterates all auto-fixable optimizations and applies each.
 func (a *App) ApplyAllOptimizations() []optimizer.FixResult {
 	analysis := a.AnalyzeOptimizations()
+	op := a.activityBus.Op("apply-all-optimizations", "一键修复所有问题", "Apply all optimizations")
 	var results []optimizer.FixResult
 
-	for _, opt := range analysis.Optimizations {
+	total := len(analysis.Optimizations)
+	for i, opt := range analysis.Optimizations {
+		op.Progress(opt.ID, opt.ID, (i*100)/max(total, 1), total, i+1)
 		if !opt.AutoFixable {
 			results = append(results, optimizer.FixResult{
 				ID:     opt.ID,
@@ -169,5 +172,6 @@ func (a *App) ApplyAllOptimizations() []optimizer.FixResult {
 		results = append(results, *result)
 	}
 
+	op.Done(fmt.Sprintf("已处理 %d 项", len(results)), fmt.Sprintf("Processed %d items", len(results)))
 	return results
 }

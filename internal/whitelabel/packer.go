@@ -13,6 +13,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/tc-hib/winres"
 )
 
 // SidecarFilename is the standard name the EndUser binary looks for next
@@ -54,9 +56,11 @@ type BuildOpts struct {
 	// OutputDir is where the result goes. Created if missing.
 	OutputDir string
 
-	// IconPath is an optional .ico file to embed (Windows only). When
-	// empty or rcedit isn't available, the original icon is preserved
-	// and a note is added to BuildResult.Notes.
+	// IconPath is an optional .ico file to embed. When empty, the base
+	// binary's original icon is preserved. When set, every RT_GROUP_ICON
+	// resource in the PE is replaced with the new icon (pure-Go patch via
+	// github.com/tc-hib/winres — works on any Windows-targeted PE, not
+	// just Wails builds).
 	IconPath string
 }
 
@@ -117,9 +121,10 @@ func Build(opts BuildOpts) (*BuildResult, error) {
 		return nil, fmt.Errorf("copy base binary: %w", err)
 	}
 
-	// Icon replacement — best effort. rcedit is the Windows-side tool
-	// the build pipeline expects. When it isn't present (non-Windows
-	// host, dev machine without it installed), we skip and document.
+	// Icon replacement — best effort. The new icon is patched into the PE
+	// .rsrc section in pure Go. Failures are surfaced to the operator as
+	// notes rather than aborting the whole build, because a missing icon
+	// is cosmetic; the binary still runs and the sidecar still validates.
 	if opts.IconPath != "" {
 		note, err := tryReplaceIcon(binaryPath, opts.IconPath)
 		if err != nil {
@@ -215,16 +220,127 @@ func fileSHA256(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// tryReplaceIcon is the rcedit shim. Returns ("", nil) on success, a
-// note string on intentional skip, or an error on failure.
+// tryReplaceIcon patches the .rsrc section of targetExe so every existing
+// RT_GROUP_ICON entry points to the images from iconPath. Pure Go — no
+// rcedit / ResourceHacker / cgo dependency.
 //
-// Currently a stub: rcedit integration depends on shipping rcedit-x64.exe
-// alongside Switch and is deferred to a follow-up sprint where we can
-// test on a real Windows host with the tool installed. The stub returns
-// a note so the BuildResult surfaces the deferral to the operator.
-func tryReplaceIcon(_, iconPath string) (string, error) {
+// Returns ("", nil) on a successful patch, a non-empty note for an
+// intentional skip (e.g. the base PE has no icon resources to replace),
+// or an error when the patch was attempted but failed.
+//
+// The base binary is preserved on failure: the rewrite is staged in a
+// temp file and only renamed over targetExe once the new PE is fully
+// written. A pre-flight signature check on targetExe means signed bases
+// surface a clear error rather than producing an exe with an invalid
+// signature trailer (Authenticode signing of white-label builds is a
+// post-build step the Reseller workflow handles separately).
+func tryReplaceIcon(targetExe, iconPath string) (string, error) {
 	if _, err := os.Stat(iconPath); err != nil {
 		return "", fmt.Errorf("icon %q not found: %w", iconPath, err)
 	}
-	return "icon replacement deferred: rcedit integration not yet wired (tracked in S-Xc.1 follow-up)", nil
+
+	// Refuse to touch a signed binary. Patching strips/invalidates the
+	// Authenticode trailer; better to fail loudly than ship a broken sig.
+	exeFile, err := os.Open(targetExe)
+	if err != nil {
+		return "", fmt.Errorf("open target exe: %w", err)
+	}
+	signed, sigErr := winres.IsSignedEXE(exeFile)
+	if sigErr != nil {
+		exeFile.Close()
+		// Likely "not a PE" — caller probably handed us a non-Windows
+		// base on a non-Windows host. Skip with a note rather than fail
+		// the whole build; the binary still runs, just with the original
+		// icon.
+		return "base binary is not a Windows PE — icon replacement skipped", nil
+	}
+	if signed {
+		exeFile.Close()
+		return "", errors.New("base binary is Authenticode-signed; sign the white-label exe AFTER building, not before")
+	}
+
+	// Load the existing resource set so we can see which RT_GROUP_ICON
+	// resIDs the base actually uses (Wails uses ID(3); other toolchains
+	// may differ). Replacing in place — same resIDs, same languages —
+	// keeps any code that resolves icons by ID still working.
+	if _, err := exeFile.Seek(0, io.SeekStart); err != nil {
+		exeFile.Close()
+		return "", fmt.Errorf("rewind exe: %w", err)
+	}
+	rs, err := winres.LoadFromEXE(exeFile)
+	exeFile.Close()
+	if err != nil {
+		if errors.Is(err, winres.ErrNoResources) {
+			// No .rsrc section at all — there's nothing to replace and
+			// adding a fresh resource section here would be a much
+			// bigger surgery. Skip with a note.
+			return "base binary has no resource section — icon replacement skipped", nil
+		}
+		return "", fmt.Errorf("read base resources: %w", err)
+	}
+
+	// Load the new icon images.
+	icoFile, err := os.Open(iconPath)
+	if err != nil {
+		return "", fmt.Errorf("open icon: %w", err)
+	}
+	newIcon, err := winres.LoadICO(icoFile)
+	icoFile.Close()
+	if err != nil {
+		return "", fmt.Errorf("parse %q as ICO: %w", iconPath, err)
+	}
+
+	// Collect every RT_GROUP_ICON identifier in the base. Replacing them
+	// in a separate pass after collection avoids mutating the map while
+	// Walk is iterating.
+	var groupIDs []winres.Identifier
+	rs.WalkType(winres.RT_GROUP_ICON, func(resID winres.Identifier, _ uint16, _ []byte) bool {
+		groupIDs = append(groupIDs, resID)
+		return true
+	})
+	if len(groupIDs) == 0 {
+		return "base binary has no RT_GROUP_ICON entries — icon replacement skipped", nil
+	}
+	for _, id := range groupIDs {
+		if err := rs.SetIcon(id, newIcon); err != nil {
+			return "", fmt.Errorf("set icon for resID %v: %w", id, err)
+		}
+	}
+
+	// Stream the patched PE through a temp file. Atomic rename means a
+	// crash mid-write doesn't corrupt the binary the build already
+	// produced.
+	src, err := os.Open(targetExe)
+	if err != nil {
+		return "", fmt.Errorf("reopen target exe: %w", err)
+	}
+	tmp := targetExe + ".rsrc.tmp"
+	dst, err := os.Create(tmp)
+	if err != nil {
+		_ = src.Close()
+		return "", fmt.Errorf("create temp exe: %w", err)
+	}
+	if err := rs.WriteToEXE(dst, src); err != nil {
+		_ = dst.Close()
+		_ = src.Close()
+		_ = os.Remove(tmp)
+		return "", fmt.Errorf("patch exe: %w", err)
+	}
+	if err := dst.Close(); err != nil {
+		_ = src.Close()
+		_ = os.Remove(tmp)
+		return "", fmt.Errorf("close temp exe: %w", err)
+	}
+	// Close the source before rename — Windows won't let us replace a
+	// file with an open read handle.
+	if err := src.Close(); err != nil {
+		_ = os.Remove(tmp)
+		return "", fmt.Errorf("close source exe: %w", err)
+	}
+	if err := os.Rename(tmp, targetExe); err != nil {
+		_ = os.Remove(tmp)
+		return "", fmt.Errorf("swap patched exe: %w", err)
+	}
+
+	return "", nil
 }

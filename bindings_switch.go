@@ -98,9 +98,24 @@ func (a *App) AutoConfigureToolsForGateway() []ToolConfigResult {
 		return []ToolConfigResult{{Tool: "*", Success: false, Message: "services not initialized"}}
 	}
 
+	op := a.activityBus.Op("connect-all", "把所有工具接入本地网关", "Connecting all tools to gateway")
 	gwURL := a.gatewayBaseURL()
 	statuses, _ := a.instMgr.DetectAll(a.ctx)
 	var results []ToolConfigResult
+
+	installed := []string{}
+	for _, tool := range managedTools {
+		if s, ok := statuses[tool]; ok && s.Installed {
+			installed = append(installed, tool)
+		}
+	}
+	for i, tool := range installed {
+		op.Progress("配置 "+tool, "Configuring "+tool, (i*100)/max(len(installed), 1), len(installed), i+1)
+		_ = i
+	}
+	defer func() {
+		op.Done(fmt.Sprintf("已配置 %d 个工具", len(results)), fmt.Sprintf("%d tools configured", len(results)))
+	}()
 
 	for _, tool := range managedTools {
 		status, ok := statuses[tool]
@@ -170,9 +185,11 @@ func (a *App) AutoConfigureToolForGateway(tool string) (*ToolConfigResult, error
 //
 // Returns a comprehensive result.
 func (a *App) FullSetupForGateway() *FullSetupResult {
+	op := a.activityBus.Op("full-setup", "一键完成网关接入", "Full gateway setup")
 	result := &FullSetupResult{}
 
 	// Step 1: Start gateway if not running.
+	op.Progress("启动本地网关", "Starting local gateway", 10, 3, 1)
 	if a.gatewaySrv != nil {
 		st := a.gatewaySrv.Status()
 		if !st.Running {
@@ -188,6 +205,7 @@ func (a *App) FullSetupForGateway() *FullSetupResult {
 	result.GatewayURL = a.gatewayBaseURL()
 
 	// Step 2: Snapshot all installed tool configs before overwriting.
+	op.Progress("快照备份当前配置", "Snapshotting current configs", 40, 3, 2)
 	if a.snapshotStr != nil {
 		statuses, _ := a.instMgr.DetectAll(a.ctx)
 		for _, tool := range managedTools {
@@ -206,7 +224,14 @@ func (a *App) FullSetupForGateway() *FullSetupResult {
 	}
 
 	// Step 3: Auto-configure all installed tools.
+	op.Progress("把工具接入网关", "Pointing tools at gateway", 70, 3, 3)
 	result.ConfigResults = a.AutoConfigureToolsForGateway()
+	if len(result.Errors) > 0 {
+		op.Error(fmt.Sprintf("%d errors during setup", len(result.Errors)))
+	} else {
+		op.Done(fmt.Sprintf("已配置 %d 个工具，备份 %d 份", len(result.ConfigResults), result.SnapshotsTaken),
+			fmt.Sprintf("Configured %d tools, %d snapshots", len(result.ConfigResults), result.SnapshotsTaken))
+	}
 	return result
 }
 
