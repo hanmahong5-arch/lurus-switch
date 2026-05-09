@@ -79,17 +79,15 @@ export function ActivityPane() {
     return () => clearInterval(t)
   }, [])
 
+  const dismissAll = useCallback(() => setEvents(new Map()), [])
+
   const list = [...events.values()].sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
   )
   const active = list.filter((e) => e.phase === 'start' || e.phase === 'progress')
   const settled = list.filter((e) => e.phase === 'done' || e.phase === 'error')
 
-  // Hide entirely when nothing has happened — don't burn screen real estate
-  // on an empty panel.
   if (list.length === 0) return null
-
-  const dismissAll = useCallback(() => setEvents(new Map()), [])
 
   return (
     <div className="fixed bottom-7 right-3 z-40 w-80 max-w-[calc(100vw-1.5rem)]">

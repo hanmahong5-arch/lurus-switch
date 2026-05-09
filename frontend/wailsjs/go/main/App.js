@@ -6,78 +6,6 @@ export function ActivateRedemption(arg1) {
   return window['go']['main']['App']['ActivateRedemption'](arg1);
 }
 
-export function AuditRepo(arg1) {
-  return window['go']['main']['App']['AuditRepo'](arg1);
-}
-
-export function PickRepoAndAudit() {
-  return window['go']['main']['App']['PickRepoAndAudit']();
-}
-
-export function QuarantineFile(arg1) {
-  return window['go']['main']['App']['QuarantineFile'](arg1);
-}
-
-export function BashGuardListRules() {
-  return window['go']['main']['App']['BashGuardListRules']();
-}
-
-export function BashGuardTestCommand(arg1) {
-  return window['go']['main']['App']['BashGuardTestCommand'](arg1);
-}
-
-export function BashGuardClaudeStatus() {
-  return window['go']['main']['App']['BashGuardClaudeStatus']();
-}
-
-export function BashGuardInstallClaude() {
-  return window['go']['main']['App']['BashGuardInstallClaude']();
-}
-
-export function BashGuardUninstallClaude() {
-  return window['go']['main']['App']['BashGuardUninstallClaude']();
-}
-
-export function BashGuardRecentBlocks(arg1) {
-  return window['go']['main']['App']['BashGuardRecentBlocks'](arg1);
-}
-
-export function BudgetGetConfig() {
-  return window['go']['main']['App']['BudgetGetConfig']();
-}
-
-export function BudgetSetConfig(arg1) {
-  return window['go']['main']['App']['BudgetSetConfig'](arg1);
-}
-
-export function BudgetGetStatus() {
-  return window['go']['main']['App']['BudgetGetStatus']();
-}
-
-export function BudgetResetSession() {
-  return window['go']['main']['App']['BudgetResetSession']();
-}
-
-export function GetToolRuntimes() {
-  return window['go']['main']['App']['GetToolRuntimes']();
-}
-
-export function WhiteLabelPreflight(arg1, arg2) {
-  return window['go']['main']['App']['WhiteLabelPreflight'](arg1, arg2);
-}
-
-export function OpenWhiteLabelOutputDir(arg1) {
-  return window['go']['main']['App']['OpenWhiteLabelOutputDir'](arg1);
-}
-
-export function ZipWhiteLabelOutputDir(arg1) {
-  return window['go']['main']['App']['ZipWhiteLabelOutputDir'](arg1);
-}
-
-export function ListWhiteLabelBuilds(arg1) {
-  return window['go']['main']['App']['ListWhiteLabelBuilds'](arg1);
-}
-
 export function AddToPath(arg1) {
   return window['go']['main']['App']['AddToPath'](arg1);
 }
@@ -122,6 +50,10 @@ export function ApplySelfUpdate() {
   return window['go']['main']['App']['ApplySelfUpdate']();
 }
 
+export function AuditRepo(arg1) {
+  return window['go']['main']['App']['AuditRepo'](arg1);
+}
+
 export function AutoConfigureToolForGateway(arg1) {
   return window['go']['main']['App']['AutoConfigureToolForGateway'](arg1);
 }
@@ -132,6 +64,30 @@ export function AutoConfigureToolsForGateway() {
 
 export function AutoFixToolConfig(arg1) {
   return window['go']['main']['App']['AutoFixToolConfig'](arg1);
+}
+
+export function BashGuardClaudeStatus() {
+  return window['go']['main']['App']['BashGuardClaudeStatus']();
+}
+
+export function BashGuardInstallClaude() {
+  return window['go']['main']['App']['BashGuardInstallClaude']();
+}
+
+export function BashGuardListRules() {
+  return window['go']['main']['App']['BashGuardListRules']();
+}
+
+export function BashGuardRecentBlocks(arg1) {
+  return window['go']['main']['App']['BashGuardRecentBlocks'](arg1);
+}
+
+export function BashGuardTestCommand(arg1) {
+  return window['go']['main']['App']['BashGuardTestCommand'](arg1);
+}
+
+export function BashGuardUninstallClaude() {
+  return window['go']['main']['App']['BashGuardUninstallClaude']();
 }
 
 export function BillingCancelSubscription(arg1) {
@@ -184,6 +140,22 @@ export function BillingSubscribe(arg1, arg2) {
 
 export function BillingValidateToken(arg1, arg2) {
   return window['go']['main']['App']['BillingValidateToken'](arg1, arg2);
+}
+
+export function BudgetGetConfig() {
+  return window['go']['main']['App']['BudgetGetConfig']();
+}
+
+export function BudgetGetStatus() {
+  return window['go']['main']['App']['BudgetGetStatus']();
+}
+
+export function BudgetResetSession() {
+  return window['go']['main']['App']['BudgetResetSession']();
+}
+
+export function BudgetSetConfig(arg1) {
+  return window['go']['main']['App']['BudgetSetConfig'](arg1);
 }
 
 export function BuildWhiteLabelPackage(arg1) {
@@ -666,6 +638,10 @@ export function GetToolRelayMapping() {
   return window['go']['main']['App']['GetToolRelayMapping']();
 }
 
+export function GetToolRuntimes() {
+  return window['go']['main']['App']['GetToolRuntimes']();
+}
+
 export function GetUsageInsights(arg1) {
   return window['go']['main']['App']['GetUsageInsights'](arg1);
 }
@@ -878,6 +854,10 @@ export function ListToolSnapshots(arg1) {
   return window['go']['main']['App']['ListToolSnapshots'](arg1);
 }
 
+export function ListWhiteLabelBuilds(arg1) {
+  return window['go']['main']['App']['ListWhiteLabelBuilds'](arg1);
+}
+
 export function ListZeroClawConfigs() {
   return window['go']['main']['App']['ListZeroClawConfigs']();
 }
@@ -938,8 +918,16 @@ export function OpenToolConfigDir(arg1) {
   return window['go']['main']['App']['OpenToolConfigDir'](arg1);
 }
 
+export function OpenWhiteLabelOutputDir(arg1) {
+  return window['go']['main']['App']['OpenWhiteLabelOutputDir'](arg1);
+}
+
 export function PackageClaudeConfig(arg1) {
   return window['go']['main']['App']['PackageClaudeConfig'](arg1);
+}
+
+export function PickRepoAndAudit() {
+  return window['go']['main']['App']['PickRepoAndAudit']();
 }
 
 export function PingEndpoint(arg1) {
@@ -968,6 +956,10 @@ export function PromoterGetShareLink() {
 
 export function ProvisionResellerHub(arg1, arg2, arg3, arg4, arg5) {
   return window['go']['main']['App']['ProvisionResellerHub'](arg1, arg2, arg3, arg4, arg5);
+}
+
+export function QuarantineFile(arg1) {
+  return window['go']['main']['App']['QuarantineFile'](arg1);
 }
 
 export function QuickSetup(arg1) {
@@ -1180,4 +1172,12 @@ export function ValidatePicoClawConfig(arg1) {
 
 export function ValidateZeroClawConfig(arg1) {
   return window['go']['main']['App']['ValidateZeroClawConfig'](arg1);
+}
+
+export function WhiteLabelPreflight(arg1, arg2) {
+  return window['go']['main']['App']['WhiteLabelPreflight'](arg1, arg2);
+}
+
+export function ZipWhiteLabelOutputDir(arg1) {
+  return window['go']['main']['App']['ZipWhiteLabelOutputDir'](arg1);
 }

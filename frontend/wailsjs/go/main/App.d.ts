@@ -4,7 +4,10 @@ import {main} from '../models';
 import {optimizer} from '../models';
 import {config} from '../models';
 import {mcp} from '../models';
+import {repoaudit} from '../models';
+import {bashguard} from '../models';
 import {billing} from '../models';
+import {budget} from '../models';
 import {toolhealth} from '../models';
 import {updater} from '../models';
 import {installer} from '../models';
@@ -27,6 +30,7 @@ import {appreg} from '../models';
 import {sysenv} from '../models';
 import {serverctl} from '../models';
 import {toolmanifest} from '../models';
+import {toolruntime} from '../models';
 import {analytics} from '../models';
 import {admin} from '../models';
 import {envmgr} from '../models';
@@ -36,48 +40,8 @@ import {promoter} from '../models';
 import {deploy} from '../models';
 import {toolconfig} from '../models';
 import {validator} from '../models';
-import {repoaudit} from '../models';
-import {bashguard} from '../models';
-import {budget} from '../models';
-import {toolruntime} from '../models';
 
 export function ActivateRedemption(arg1:string):Promise<main.ActivationStatus>;
-
-export function AuditRepo(arg1:string):Promise<repoaudit.AuditReport>;
-
-export function PickRepoAndAudit():Promise<repoaudit.AuditReport>;
-
-export function QuarantineFile(arg1:string):Promise<string>;
-
-export function BashGuardListRules():Promise<Array<bashguard.Rule>>;
-
-export function BashGuardTestCommand(arg1:string):Promise<bashguard.MatchResult>;
-
-export function BashGuardClaudeStatus():Promise<bashguard.HookInstallStatus>;
-
-export function BashGuardInstallClaude():Promise<void>;
-
-export function BashGuardUninstallClaude():Promise<void>;
-
-export function BashGuardRecentBlocks(arg1:number):Promise<Array<bashguard.BlockEntry>>;
-
-export function BudgetGetConfig():Promise<budget.Config>;
-
-export function BudgetSetConfig(arg1:budget.Config):Promise<void>;
-
-export function BudgetGetStatus():Promise<budget.Status>;
-
-export function BudgetResetSession():Promise<void>;
-
-export function GetToolRuntimes():Promise<Array<toolruntime.ToolRuntime>>;
-
-export function WhiteLabelPreflight(arg1:string,arg2:string):Promise<main.PreflightReport>;
-
-export function OpenWhiteLabelOutputDir(arg1:string):Promise<void>;
-
-export function ZipWhiteLabelOutputDir(arg1:string):Promise<string>;
-
-export function ListWhiteLabelBuilds(arg1:number):Promise<Array<main.BuildHistoryEntry>>;
 
 export function AddToPath(arg1:string):Promise<void>;
 
@@ -101,11 +65,25 @@ export function ApplyRollback(arg1:string):Promise<void>;
 
 export function ApplySelfUpdate():Promise<void>;
 
+export function AuditRepo(arg1:string):Promise<repoaudit.AuditReport>;
+
 export function AutoConfigureToolForGateway(arg1:string):Promise<main.ToolConfigResult>;
 
 export function AutoConfigureToolsForGateway():Promise<Array<main.ToolConfigResult>>;
 
 export function AutoFixToolConfig(arg1:string):Promise<main.ToolConfigResult>;
+
+export function BashGuardClaudeStatus():Promise<bashguard.HookInstallStatus>;
+
+export function BashGuardInstallClaude():Promise<void>;
+
+export function BashGuardListRules():Promise<Array<bashguard.Rule>>;
+
+export function BashGuardRecentBlocks(arg1:number):Promise<Array<bashguard.BlockEntry>>;
+
+export function BashGuardTestCommand(arg1:string):Promise<bashguard.MatchResult>;
+
+export function BashGuardUninstallClaude():Promise<void>;
 
 export function BillingCancelSubscription(arg1:number):Promise<void>;
 
@@ -132,6 +110,14 @@ export function BillingRedeemCode(arg1:string):Promise<number>;
 export function BillingSubscribe(arg1:string,arg2:string):Promise<billing.PaymentResult>;
 
 export function BillingValidateToken(arg1:string,arg2:string):Promise<billing.IdentityOverview>;
+
+export function BudgetGetConfig():Promise<budget.Config>;
+
+export function BudgetGetStatus():Promise<budget.Status>;
+
+export function BudgetResetSession():Promise<void>;
+
+export function BudgetSetConfig(arg1:budget.Config):Promise<void>;
 
 export function BuildWhiteLabelPackage(arg1:main.WhiteLabelInputs):Promise<main.WhiteLabelOutput>;
 
@@ -373,6 +359,8 @@ export function GetToolOutput(arg1:string,arg2:number):Promise<Array<string>>;
 
 export function GetToolRelayMapping():Promise<relay.ToolRelayMapping>;
 
+export function GetToolRuntimes():Promise<Array<toolruntime.ToolRuntime>>;
+
 export function GetUsageInsights(arg1:string):Promise<main.UsageInsight>;
 
 export function GetUsageReport(arg1:number):Promise<analytics.UsageReport>;
@@ -479,6 +467,8 @@ export function ListResellerDeployKinds():Promise<Array<main.resellerKindEntry>>
 
 export function ListToolSnapshots(arg1:string):Promise<Array<main.ToolSnapshotInfo>>;
 
+export function ListWhiteLabelBuilds(arg1:number):Promise<Array<main.BuildHistoryEntry>>;
+
 export function ListZeroClawConfigs():Promise<Array<string>>;
 
 export function LoadClaudeConfig(arg1:string):Promise<config.ClaudeConfig>;
@@ -509,7 +499,11 @@ export function OpenServerAdminPanel():Promise<void>;
 
 export function OpenToolConfigDir(arg1:string):Promise<void>;
 
+export function OpenWhiteLabelOutputDir(arg1:string):Promise<void>;
+
 export function PackageClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
+
+export function PickRepoAndAudit():Promise<repoaudit.AuditReport>;
 
 export function PingEndpoint(arg1:string):Promise<number>;
 
@@ -524,6 +518,8 @@ export function PromoterGetInfo():Promise<promoter.PromoterInfo>;
 export function PromoterGetShareLink():Promise<string>;
 
 export function ProvisionResellerHub(arg1:string,arg2:string,arg3:string,arg4:string,arg5:string):Promise<deploy.Result>;
+
+export function QuarantineFile(arg1:string):Promise<string>;
 
 export function QuickSetup(arg1:string):Promise<Record<string, string>>;
 
@@ -630,3 +626,7 @@ export function ValidateOpenClawConfig(arg1:config.OpenClawConfig):Promise<valid
 export function ValidatePicoClawConfig(arg1:config.PicoClawConfig):Promise<validator.ValidationResult>;
 
 export function ValidateZeroClawConfig(arg1:config.ZeroClawConfig):Promise<validator.ValidationResult>;
+
+export function WhiteLabelPreflight(arg1:string,arg2:string):Promise<main.PreflightReport>;
+
+export function ZipWhiteLabelOutputDir(arg1:string):Promise<string>;

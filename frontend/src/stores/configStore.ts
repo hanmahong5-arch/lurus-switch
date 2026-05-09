@@ -26,7 +26,8 @@ export function migrateLegacyAppMode(raw: string | undefined | null): AppMode {
   }
 }
 
-// New consolidated navigation — 6 user-facing + 2 promoter-only
+// Top-level pages. Gateway swallows the old separate api-admin route — its
+// 11 admin sub-tabs live under gateway/* now.
 export type ActiveTool =
   | 'home'
   | 'agents'
@@ -36,15 +37,22 @@ export type ActiveTool =
   | 'account'
   | 'settings'
   | 'promotion'
-  | 'api-admin'
   | 'packager'
 
 // Sub-tab identifiers for each page
 export type ToolsSubTab = 'claude' | 'codex' | 'gemini' | 'picoclaw' | 'nullclaw' | 'zeroclaw' | 'openclaw' | 'mcp' | 'snapshots'
-export type GatewaySubTab = 'control' | 'usage' | 'apps' | 'relay'
+// Gateway page tabs — basic + admin + root sections (admin/root only show in
+// Reseller mode; root will gate further on user role once wired).
+export type GatewaySubTab =
+  // Basic — visible to all non-EndUser modes
+  | 'control' | 'usage' | 'apps' | 'relay'
+  // Admin — Reseller mode (newapi admin scope)
+  | 'dashboard' | 'channels' | 'tokens' | 'models' | 'users'
+  | 'redemptions' | 'logs' | 'subscriptions' | 'admin-settings'
+  // Root — Reseller mode (newapi root scope: option/oauth/performance/ratio)
+  | 'system'
 export type WorkspaceSubTab = 'prompts' | 'context' | 'process'
 export type AccountSubTab = 'connection' | 'billing'
-export type ApiAdminSubTab = 'server' | 'dashboard' | 'channels' | 'tokens' | 'models' | 'users' | 'redemptions' | 'logs' | 'subscriptions' | 'admin-settings' | 'system'
 
 // Legacy route values for backward compatibility (startupPage, etc.)
 type LegacyActiveTool =
@@ -85,29 +93,29 @@ export function migrateLegacyRoute(legacy: string): { tool: ActiveTool; subTab?:
     case 'documents':
       return { tool: 'workspace', subTab: 'context' }
     case 'admin':
-      return { tool: 'api-admin', subTab: 'system' }
+      return { tool: 'gateway', subTab: 'system' }
     case 'promoter-hub':
       return { tool: 'promotion' }
     case 'gateway-old':
-      return { tool: 'api-admin', subTab: 'server' }
+      return { tool: 'gateway', subTab: 'control' }
     case 'gateway-dashboard':
-      return { tool: 'api-admin', subTab: 'dashboard' }
+      return { tool: 'gateway', subTab: 'dashboard' }
     case 'gateway-channels':
-      return { tool: 'api-admin', subTab: 'channels' }
+      return { tool: 'gateway', subTab: 'channels' }
     case 'gateway-tokens':
-      return { tool: 'api-admin', subTab: 'tokens' }
+      return { tool: 'gateway', subTab: 'tokens' }
     case 'gateway-models':
-      return { tool: 'api-admin', subTab: 'models' }
+      return { tool: 'gateway', subTab: 'models' }
     case 'gateway-users':
-      return { tool: 'api-admin', subTab: 'users' }
+      return { tool: 'gateway', subTab: 'users' }
     case 'gateway-redemptions':
-      return { tool: 'api-admin', subTab: 'redemptions' }
+      return { tool: 'gateway', subTab: 'redemptions' }
     case 'gateway-logs':
-      return { tool: 'api-admin', subTab: 'logs' }
+      return { tool: 'gateway', subTab: 'logs' }
     case 'gateway-subscriptions':
-      return { tool: 'api-admin', subTab: 'subscriptions' }
+      return { tool: 'gateway', subTab: 'subscriptions' }
     case 'gateway-settings':
-      return { tool: 'api-admin', subTab: 'admin-settings' }
+      return { tool: 'gateway', subTab: 'admin-settings' }
     case 'settings':
       return { tool: 'settings' }
     default:

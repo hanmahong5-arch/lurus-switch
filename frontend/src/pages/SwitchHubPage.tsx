@@ -398,7 +398,9 @@ function ToolDiagRow({
 
 // --- Main Page ---
 
-export function SwitchHubPage() {
+export type SwitchHubSection = 'all' | 'control' | 'usage' | 'apps'
+
+export function SwitchHubPage({ section = 'all' }: { section?: SwitchHubSection } = {}) {
   const { t } = useTranslation()
   const {
     status, config, loading, starting, stopping,
@@ -934,6 +936,7 @@ export function SwitchHubPage() {
         )}
 
         {/* ── Gateway Status Card ── */}
+        {(section === 'all' || section === 'control') && (
         <div className={cn(
           'rounded-lg border p-5',
           running ? 'border-green-500/30 bg-green-500/5' : 'border-border bg-card'
@@ -1022,9 +1025,10 @@ export function SwitchHubPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Environment & Connect ── */}
-        {envCheck && (
+        {(section === 'all' || section === 'control') && envCheck && (
           <div className="rounded-lg border border-border bg-card p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1242,6 +1246,7 @@ export function SwitchHubPage() {
         )}
 
         {/* ── Gateway Settings ── */}
+        {(section === 'all' || section === 'control') && (
         <details className="group">
           <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground transition-colors list-none flex items-center gap-2">
             <span className="text-xs transition-transform group-open:rotate-90">&#9654;</span>
@@ -1280,8 +1285,10 @@ export function SwitchHubPage() {
             </div>
           )}
         </details>
+        )}
 
         {/* ── Connected Apps ── */}
+        {(section === 'all' || section === 'apps') && (
         <div>
           <button
             onClick={() => setShowApps(!showApps)}
@@ -1376,8 +1383,10 @@ export function SwitchHubPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Usage Analytics ── */}
+        {(section === 'all' || section === 'usage') && (
         <div>
           <button
             onClick={() => setShowUsage(!showUsage)}
@@ -1648,6 +1657,7 @@ export function SwitchHubPage() {
             </div>
           )}
         </div>
+        )}
 
         {/* ── Snapshot restore modal ── */}
         {snapshotTool && (

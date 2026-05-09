@@ -1278,6 +1278,84 @@ export namespace billing {
 
 }
 
+export namespace budget {
+	
+	export class Config {
+	    enabled: boolean;
+	    dailyTokens: number;
+	    sessionTokens: number;
+	    softWarnPct: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Config(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.dailyTokens = source["dailyTokens"];
+	        this.sessionTokens = source["sessionTokens"];
+	        this.softWarnPct = source["softWarnPct"];
+	    }
+	}
+	export class Status {
+	    enabled: boolean;
+	    dailyTokens: number;
+	    sessionTokens: number;
+	    dailyUsed: number;
+	    sessionUsed: number;
+	    dailyPct: number;
+	    sessionPct: number;
+	    // Go type: time
+	    sessionStart: any;
+	    softWarnPct: number;
+	    hitDaily: boolean;
+	    hitSession: boolean;
+	    warnDaily: boolean;
+	    warnSession: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.dailyTokens = source["dailyTokens"];
+	        this.sessionTokens = source["sessionTokens"];
+	        this.dailyUsed = source["dailyUsed"];
+	        this.sessionUsed = source["sessionUsed"];
+	        this.dailyPct = source["dailyPct"];
+	        this.sessionPct = source["sessionPct"];
+	        this.sessionStart = this.convertValues(source["sessionStart"], null);
+	        this.softWarnPct = source["softWarnPct"];
+	        this.hitDaily = source["hitDaily"];
+	        this.hitSession = source["hitSession"];
+	        this.warnDaily = source["warnDaily"];
+	        this.warnSession = source["warnSession"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace config {
 	
 	export class ClaudeAdvanced {
@@ -2631,6 +2709,45 @@ export namespace main {
 	        this.created = source["created"];
 	    }
 	}
+	export class BuildHistoryEntry {
+	    // Go type: time
+	    builtAt: any;
+	    brandName: string;
+	    hubUrl: string;
+	    binaryPath: string;
+	    sha256: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BuildHistoryEntry(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.builtAt = this.convertValues(source["builtAt"], null);
+	        this.brandName = source["brandName"];
+	        this.hubUrl = source["hubUrl"];
+	        this.binaryPath = source["binaryPath"];
+	        this.sha256 = source["sha256"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class RuntimeDiagnostic {
 	    id: string;
 	    name: string;
@@ -2800,6 +2917,60 @@ export namespace main {
 	        this.outputRatio = source["outputRatio"];
 	        this.costUSD = source["costUSD"];
 	    }
+	}
+	export class PreflightCheck {
+	    id: string;
+	    pass: boolean;
+	    titleZh: string;
+	    titleEn: string;
+	    detailZh?: string;
+	    detailEn?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PreflightCheck(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.pass = source["pass"];
+	        this.titleZh = source["titleZh"];
+	        this.titleEn = source["titleEn"];
+	        this.detailZh = source["detailZh"];
+	        this.detailEn = source["detailEn"];
+	    }
+	}
+	export class PreflightReport {
+	    ok: boolean;
+	    checks: PreflightCheck[];
+	
+	    static createFrom(source: any = {}) {
+	        return new PreflightReport(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.ok = source["ok"];
+	        this.checks = this.convertValues(source["checks"], PreflightCheck);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class RequestLogEntry {
 	    id: string;
@@ -2982,62 +3153,6 @@ export namespace main {
 	        this.binarySha256 = source["binarySha256"];
 	        this.sidecarSha256 = source["sidecarSha256"];
 	        this.notes = source["notes"];
-	    }
-	}
-	export class PreflightCheck {
-	    id: string;
-	    pass: boolean;
-	    titleZh: string;
-	    titleEn: string;
-	    detailZh?: string;
-	    detailEn?: string;
-
-	    static createFrom(source: any = {}) {
-	        return new PreflightCheck(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.id = source["id"];
-	        this.pass = source["pass"];
-	        this.titleZh = source["titleZh"];
-	        this.titleEn = source["titleEn"];
-	        this.detailZh = source["detailZh"];
-	        this.detailEn = source["detailEn"];
-	    }
-	}
-	export class PreflightReport {
-	    ok: boolean;
-	    checks: PreflightCheck[];
-
-	    static createFrom(source: any = {}) {
-	        return new PreflightReport(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.ok = source["ok"];
-	        this.checks = (source["checks"] ?? []).map((c: any) => new PreflightCheck(c));
-	    }
-	}
-	export class BuildHistoryEntry {
-	    builtAt: any;
-	    brandName: string;
-	    hubUrl: string;
-	    binaryPath: string;
-	    sha256: string;
-
-	    static createFrom(source: any = {}) {
-	        return new BuildHistoryEntry(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.builtAt = source["builtAt"];
-	        this.brandName = source["brandName"];
-	        this.hubUrl = source["hubUrl"];
-	        this.binaryPath = source["binaryPath"];
-	        this.sha256 = source["sha256"];
 	    }
 	}
 	export class resellerKindEntry {
@@ -3991,66 +4106,6 @@ export namespace toolmanifest {
 		}
 	}
 	
-
-}
-
-export namespace budget {
-
-	export class Config {
-	    enabled: boolean;
-	    dailyTokens: number;
-	    sessionTokens: number;
-	    softWarnPct: number;
-
-	    static createFrom(source: any = {}) {
-	        return new Config(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.enabled = source["enabled"];
-	        this.dailyTokens = source["dailyTokens"];
-	        this.sessionTokens = source["sessionTokens"];
-	        this.softWarnPct = source["softWarnPct"];
-	    }
-	}
-
-	export class Status {
-	    enabled: boolean;
-	    dailyTokens: number;
-	    sessionTokens: number;
-	    dailyUsed: number;
-	    sessionUsed: number;
-	    dailyPct: number;
-	    sessionPct: number;
-	    sessionStart: any;
-	    softWarnPct: number;
-	    hitDaily: boolean;
-	    hitSession: boolean;
-	    warnDaily: boolean;
-	    warnSession: boolean;
-
-	    static createFrom(source: any = {}) {
-	        return new Status(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.enabled = source["enabled"];
-	        this.dailyTokens = source["dailyTokens"];
-	        this.sessionTokens = source["sessionTokens"];
-	        this.dailyUsed = source["dailyUsed"];
-	        this.sessionUsed = source["sessionUsed"];
-	        this.dailyPct = source["dailyPct"];
-	        this.sessionPct = source["sessionPct"];
-	        this.sessionStart = source["sessionStart"];
-	        this.softWarnPct = source["softWarnPct"];
-	        this.hitDaily = source["hitDaily"];
-	        this.hitSession = source["hitSession"];
-	        this.warnDaily = source["warnDaily"];
-	        this.warnSession = source["warnSession"];
-	    }
-	}
 
 }
 

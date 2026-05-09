@@ -45,7 +45,7 @@ export function AdminPage() {
       setSysInfo(info as unknown as SystemInfo)
       setAppVersion(ver)
     } catch (err) {
-      errorToast(toast, err, { currentPage: 'api-admin' })
+      errorToast(toast, err, { currentPage: 'gateway' })
     }
     loadTools()
   }
@@ -68,7 +68,7 @@ export function AdminPage() {
       const statuses = await DetectAllTools()
       setTools(statuses || {})
     } catch (err) {
-      errorToast(toast, err, { currentPage: 'api-admin' })
+      errorToast(toast, err, { currentPage: 'gateway' })
     } finally {
       setToolsLoading(false)
     }
@@ -79,7 +79,7 @@ export function AdminPage() {
       const info = await CheckSelfUpdate()
       setUpdateInfo(info as { updateAvailable: boolean; latestVersion: string })
     } catch (err) {
-      errorToast(toast, err, { currentPage: 'api-admin' })
+      errorToast(toast, err, { currentPage: 'gateway' })
     }
   }
 
@@ -88,7 +88,7 @@ export function AdminPage() {
     try {
       await ApplySelfUpdate()
     } catch (err) {
-      errorToast(toast, err, { currentPage: 'api-admin' })
+      errorToast(toast, err, { currentPage: 'gateway' })
     } finally {
       setUpdating(false)
     }

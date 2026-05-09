@@ -27,7 +27,6 @@ import { WorkspacePage } from './pages/WorkspacePage'
 import { AccountPage } from './pages/AccountPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { PromoterHubPage } from './pages/PromoterHubPage'
-import { ApiAdminPage } from './pages/ApiAdminPage'
 import { PackagerPage } from './pages/PackagerPage'
 import { AppModeSelectPage } from './pages/AppModeSelectPage'
 import { ResellerSetupWizard } from './pages/ResellerSetupWizard'
@@ -331,8 +330,6 @@ function App() {
         return <SettingsPage />
       case 'promotion':
         return <PromoterHubPage />
-      case 'api-admin':
-        return <ApiAdminPage />
       case 'packager':
         return <PackagerPage />
       default:

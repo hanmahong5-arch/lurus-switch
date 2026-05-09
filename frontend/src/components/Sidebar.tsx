@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Settings, Home, Wrench, Wallet, Briefcase,
-  Megaphone, ShieldCheck, Radio, Bot, Package,
+  Megaphone, Radio, Bot, Package,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -51,7 +51,7 @@ function NavButton({ id, name, icon: Icon, iconColor, active, onClick, badge }: 
 // In Personal / EndUser modes these are hidden from the sidebar AND blocked
 // by the route guard in App.tsx.
 export const RESELLER_ONLY_PAGES: Set<string> = new Set([
-  'promotion', 'api-admin', 'packager',
+  'promotion', 'packager',
 ])
 
 // Backwards-compat alias used by App.tsx until the rename propagates.
@@ -248,17 +248,10 @@ export function Sidebar() {
                 onClick={() => setActiveTool('promotion')}
               />
 
-              {/* 8. API Admin */}
-              <NavButton
-                id="api-admin"
-                name={t('nav.apiAdmin')}
-                icon={ShieldCheck}
-                iconColor="text-red-500"
-                active={activeTool === 'api-admin'}
-                onClick={() => setActiveTool('api-admin')}
-              />
+              {/* api-admin entry removed — its 11 sub-tabs are merged into
+                  the unified Gateway page (see NewGatewayPage). */}
 
-              {/* 9. Packager (white-label EndUser builds) */}
+              {/* 8. Packager (white-label EndUser builds) */}
               <NavButton
                 id="packager"
                 name={t('nav.packager', '白标打包')}

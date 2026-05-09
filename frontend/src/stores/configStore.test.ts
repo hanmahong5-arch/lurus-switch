@@ -72,7 +72,7 @@ describe('configStore', () => {
 
     it('should switch to all new tool values', () => {
       const tools = [
-        'home', 'tools', 'gateway', 'workspace', 'account', 'settings', 'promotion', 'api-admin',
+        'home', 'tools', 'gateway', 'workspace', 'account', 'settings', 'promotion', 'packager',
       ] as const
 
       for (const tool of tools) {
@@ -127,8 +127,8 @@ describe('configStore', () => {
       expect(migrateLegacyRoute('process')).toEqual({ tool: 'workspace', subTab: 'process' })
     })
 
-    it('should map gateway-channels to api-admin', () => {
-      expect(migrateLegacyRoute('gateway-channels')).toEqual({ tool: 'api-admin', subTab: 'channels' })
+    it('should map gateway-channels to gateway page channels tab', () => {
+      expect(migrateLegacyRoute('gateway-channels')).toEqual({ tool: 'gateway', subTab: 'channels' })
     })
 
     it('should map unknown to home', () => {
