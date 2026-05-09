@@ -1,4 +1,16 @@
-/** Pre-configured HTTP client for the local gateway (lurus-newapi) API. */
+/** Pre-configured HTTP client for the local gateway (lurus-newapi) API.
+ *
+ * Wire-format calibrated to QuantumNous/new-api v1.0.0-rc.4. The previous
+ * iteration of this file lagged behind upstream and most paginated endpoints
+ * silently returned empty pages because the response shape had changed.
+ * Specifically: newapi wraps list responses as
+ *
+ *     { success, message, data: { items: T[], total, page, page_size } }
+ *
+ * and treats `?p=0` as page 1 (anything <1 floors to 1). Both are handled
+ * inside the `paginated` helper so callers see the flat
+ * `{ data: T[], total }` shape they expect.
+ */
 
 // --- Base Types ---
 
@@ -62,11 +74,11 @@ export interface GatewayLog {
   content: string
   username: string
   token_name: string
-  model: string
+  model_name: string
   quota: number
   prompt_tokens: number
   completion_tokens: number
-  channel_id: number
+  channel: number
   channel_name: string
 }
 
@@ -83,6 +95,7 @@ export interface GatewayRedemption {
 }
 
 export interface GatewayModelMeta {
+  id: number
   model_name: string
   developer: string
   type: string
@@ -103,6 +116,11 @@ export interface GatewayVendor {
   status: number
 }
 
+// SubscriptionPlan keeps its legacy fields (name/level/status) so existing
+// pages compile. newapi v1.0.0-rc.4 actually uses title/sort_order/enabled
+// — Reseller deployments hit this through newhub, which still translates
+// to the legacy shape, so consumers don't need to migrate yet. When newhub
+// catches up, swap to the new names. See audit memory 2026-05-09.
 export interface GatewaySubscriptionPlan {
   id: number
   name: string
@@ -116,11 +134,9 @@ export interface GatewaySubscriptionPlan {
   status: number
 }
 
-export interface GatewayOption {
-  key: string
-  value: string
-}
-
+// Legacy dashboard summary shape — newapi rc.4 has no equivalent single
+// endpoint. Reseller mode aggregates upstream via newhub
+// (HubGetDashboardSummary). Local mode returns zeros from the stub below.
 export interface GatewayDashboardData {
   user_count: number
   channel_count: number
@@ -130,6 +146,9 @@ export interface GatewayDashboardData {
   today_tokens: number
 }
 
+// Legacy performance shape — newapi /api/performance returns a richer
+// structure (cache_stats, memory_stats, …). For now we keep the old fields
+// so the dashboard page typechecks; reseller mode populates via Hub.
 export interface GatewayPerformanceStats {
   goroutines: number
   memory_alloc: number
@@ -138,11 +157,16 @@ export interface GatewayPerformanceStats {
   requests_per_sec: number
 }
 
+export interface GatewayOption {
+  key: string
+  value: string
+}
+
 export interface GatewayLogStat {
-  date: string
-  request_count: number
+  // newapi /api/log/stat returns a single aggregate, not a date series.
   quota: number
-  token_count: number
+  rpm: number
+  tpm: number
 }
 
 export interface GatewayQuotaDate {
@@ -153,11 +177,6 @@ export interface GatewayQuotaDate {
   model_usage: Record<string, number>
 }
 
-export interface GatewayGroup {
-  name: string
-  ratio: number
-}
-
 // --- Response Types ---
 
 export interface GatewayApiResponse<T> {
@@ -166,10 +185,17 @@ export interface GatewayApiResponse<T> {
   data?: T
 }
 
+/**
+ * Post-unwrap paginated shape. The on-the-wire envelope is
+ *   { success, message, data: { items, total, page, page_size, ... } }
+ * The `paginated` helper flattens it so consumers can keep using
+ * `res.data` as the row array and `res.total` for total count.
+ */
 export interface PaginatedResponse<T> {
   success: boolean
   message: string
   data: T[]
+  total: number
 }
 
 // --- Channel Type Constants ---
@@ -250,10 +276,51 @@ export class GatewayAPI {
     return res.json() as Promise<T>
   }
 
+  /**
+   * Unwrap a newapi paginated GET. Accepts both the wrapped
+   * `{ data: { items, total } }` shape (rc.4+) and a bare-array
+   * `{ data: [] }` for forward-compat with hypothetical older endpoints.
+   * Always 1-indexes pages — caller passes 0-indexed `page` and we
+   * translate.
+   */
+  private async paginated<T>(
+    basePath: string,
+    page: number,
+    perPage: number,
+    extraQuery?: URLSearchParams,
+  ): Promise<PaginatedResponse<T>> {
+    const qs = new URLSearchParams({
+      p: String(page + 1), // newapi treats <1 as 1; UI is 0-indexed, shift here.
+      page_size: String(perPage),
+    })
+    if (extraQuery) {
+      extraQuery.forEach((v, k) => qs.set(k, v))
+    }
+    const sep = basePath.includes('?') ? '&' : '?'
+    const raw = await this.request<{
+      success: boolean
+      message: string
+      data?: { items?: T[]; total?: number } | T[]
+    }>('GET', `${basePath}${sep}${qs.toString()}`)
+    const wrapper = raw.data
+    if (wrapper && !Array.isArray(wrapper) && Array.isArray(wrapper.items)) {
+      return {
+        success: !!raw.success,
+        message: raw.message ?? '',
+        data: (wrapper.items ?? []) as T[],
+        total: typeof wrapper.total === 'number' ? wrapper.total : (wrapper.items?.length ?? 0),
+      }
+    }
+    if (Array.isArray(wrapper)) {
+      return { success: !!raw.success, message: raw.message ?? '', data: wrapper as T[], total: wrapper.length }
+    }
+    return { success: !!raw.success, message: raw.message ?? '', data: [], total: 0 }
+  }
+
   // ========== Channels ==========
 
   getChannels(page = 0, perPage = 50): Promise<PaginatedResponse<GatewayChannel>> {
-    return this.request('GET', `/api/channel/?p=${page}&page_size=${perPage}`)
+    return this.paginated('/api/channel/', page, perPage)
   }
 
   getChannel(id: number): Promise<GatewayApiResponse<GatewayChannel>> {
@@ -261,7 +328,8 @@ export class GatewayAPI {
   }
 
   searchChannels(keyword: string, page = 0, perPage = 50): Promise<PaginatedResponse<GatewayChannel>> {
-    return this.request('GET', `/api/channel/search?keyword=${encodeURIComponent(keyword)}&p=${page}&page_size=${perPage}`)
+    const qs = new URLSearchParams({ keyword })
+    return this.paginated('/api/channel/search', page, perPage, qs)
   }
 
   createChannel(ch: Partial<GatewayChannel>): Promise<GatewayApiResponse<GatewayChannel>> {
@@ -300,8 +368,10 @@ export class GatewayAPI {
     return this.request('POST', '/api/channel/tag/disabled', { tag })
   }
 
+  // newapi expects PUT /api/channel/tag with body { tag, new_tag } — NOT
+  // POST /tag/edit nor body { old_tag, new_tag } as a previous version did.
   editChannelTag(oldTag: string, newTag: string): Promise<GatewayApiResponse<null>> {
-    return this.request('POST', '/api/channel/tag/edit', { old_tag: oldTag, new_tag: newTag })
+    return this.request('PUT', '/api/channel/tag', { tag: oldTag, new_tag: newTag })
   }
 
   copyChannel(id: number): Promise<GatewayApiResponse<GatewayChannel>> {
@@ -320,14 +390,15 @@ export class GatewayAPI {
     return this.request('GET', `/api/channel/update_balance/${id}`)
   }
 
+  // newapi route is POST /api/channel/fix (not /fix_abilities).
   fixChannelAbilities(): Promise<GatewayApiResponse<null>> {
-    return this.request('POST', '/api/channel/fix_abilities')
+    return this.request('POST', '/api/channel/fix')
   }
 
   // ========== Tokens ==========
 
   getTokens(page = 0, perPage = 50): Promise<PaginatedResponse<GatewayToken>> {
-    return this.request('GET', `/api/token/?p=${page}&page_size=${perPage}`)
+    return this.paginated('/api/token/', page, perPage)
   }
 
   getToken(id: number): Promise<GatewayApiResponse<GatewayToken>> {
@@ -335,7 +406,8 @@ export class GatewayAPI {
   }
 
   searchTokens(keyword: string, page = 0, perPage = 50): Promise<PaginatedResponse<GatewayToken>> {
-    return this.request('GET', `/api/token/search?keyword=${encodeURIComponent(keyword)}&p=${page}&page_size=${perPage}`)
+    const qs = new URLSearchParams({ keyword })
+    return this.paginated('/api/token/search', page, perPage, qs)
   }
 
   createToken(t: Partial<GatewayToken>): Promise<GatewayApiResponse<GatewayToken>> {
@@ -354,10 +426,17 @@ export class GatewayAPI {
     return this.request('POST', '/api/token/batch', { ids, action: 'delete' })
   }
 
+  // The token list endpoint is UserAuth-scoped — it returns only the
+  // current user's tokens. Reveal-key requires hitting the rate-limited
+  // /:id/key route since the list response always returns a masked key.
+  revealTokenKey(id: number): Promise<GatewayApiResponse<{ key: string }>> {
+    return this.request('POST', `/api/token/${id}/key`)
+  }
+
   // ========== Users ==========
 
   getUsers(page = 0, perPage = 50): Promise<PaginatedResponse<GatewayUser>> {
-    return this.request('GET', `/api/user/?p=${page}&page_size=${perPage}`)
+    return this.paginated('/api/user/', page, perPage)
   }
 
   getUser(id: number): Promise<GatewayApiResponse<GatewayUser>> {
@@ -365,7 +444,8 @@ export class GatewayAPI {
   }
 
   searchUsers(keyword: string, page = 0, perPage = 50): Promise<PaginatedResponse<GatewayUser>> {
-    return this.request('GET', `/api/user/search?keyword=${encodeURIComponent(keyword)}&p=${page}&page_size=${perPage}`)
+    const qs = new URLSearchParams({ keyword })
+    return this.paginated('/api/user/search', page, perPage, qs)
   }
 
   createUser(u: Partial<GatewayUser> & { password?: string }): Promise<GatewayApiResponse<GatewayUser>> {
@@ -387,7 +467,7 @@ export class GatewayAPI {
   // ========== Redemptions ==========
 
   getRedemptions(page = 0, perPage = 50): Promise<PaginatedResponse<GatewayRedemption>> {
-    return this.request('GET', `/api/redemption/?p=${page}&page_size=${perPage}`)
+    return this.paginated('/api/redemption/', page, perPage)
   }
 
   getRedemption(id: number): Promise<GatewayApiResponse<GatewayRedemption>> {
@@ -395,7 +475,8 @@ export class GatewayAPI {
   }
 
   searchRedemptions(keyword: string, page = 0, perPage = 50): Promise<PaginatedResponse<GatewayRedemption>> {
-    return this.request('GET', `/api/redemption/search?keyword=${encodeURIComponent(keyword)}&p=${page}&page_size=${perPage}`)
+    const qs = new URLSearchParams({ keyword })
+    return this.paginated('/api/redemption/search', page, perPage, qs)
   }
 
   createRedemption(r: Partial<GatewayRedemption>): Promise<GatewayApiResponse<GatewayRedemption>> {
@@ -417,19 +498,20 @@ export class GatewayAPI {
   // ========== Models ==========
 
   getModels(page = 0, perPage = 50): Promise<PaginatedResponse<GatewayModelMeta>> {
-    return this.request('GET', `/api/models/?p=${page}&page_size=${perPage}`)
+    return this.paginated('/api/models/', page, perPage)
   }
 
   createModel(m: Partial<GatewayModelMeta>): Promise<GatewayApiResponse<GatewayModelMeta>> {
     return this.request('POST', '/api/models/', m)
   }
 
-  updateModel(m: Partial<GatewayModelMeta> & { model_name: string }): Promise<GatewayApiResponse<GatewayModelMeta>> {
+  updateModel(m: Partial<GatewayModelMeta> & { id: number }): Promise<GatewayApiResponse<GatewayModelMeta>> {
     return this.request('PUT', '/api/models/', m)
   }
 
-  deleteModel(name: string): Promise<GatewayApiResponse<null>> {
-    return this.request('DELETE', `/api/models/${encodeURIComponent(name)}`)
+  // newapi expects an integer ID at /api/models/:id (parsed via strconv.Atoi).
+  deleteModel(id: number): Promise<GatewayApiResponse<null>> {
+    return this.request('DELETE', `/api/models/${id}`)
   }
 
   syncUpstreamPreview(): Promise<GatewayApiResponse<GatewayModelMeta[]>> {
@@ -445,21 +527,22 @@ export class GatewayAPI {
   }
 
   // ========== Vendors ==========
+  // newapi exposes vendors at /api/vendors/, NOT /api/models/vendors/.
 
   getVendors(): Promise<GatewayApiResponse<GatewayVendor[]>> {
-    return this.request('GET', '/api/models/vendors/')
+    return this.request('GET', '/api/vendors/')
   }
 
   createVendor(v: Partial<GatewayVendor>): Promise<GatewayApiResponse<GatewayVendor>> {
-    return this.request('POST', '/api/models/vendors/', v)
+    return this.request('POST', '/api/vendors/', v)
   }
 
   updateVendor(v: Partial<GatewayVendor> & { id: number }): Promise<GatewayApiResponse<GatewayVendor>> {
-    return this.request('PUT', '/api/models/vendors/', v)
+    return this.request('PUT', '/api/vendors/', v)
   }
 
   deleteVendor(id: number): Promise<GatewayApiResponse<null>> {
-    return this.request('DELETE', `/api/models/vendors/${id}`)
+    return this.request('DELETE', `/api/vendors/${id}`)
   }
 
   // ========== Logs ==========
@@ -468,27 +551,33 @@ export class GatewayAPI {
     start_timestamp?: number
     end_timestamp?: number
     username?: string
-    model?: string
-    channel_id?: number
+    model_name?: string
+    channel?: number
     token_name?: string
     type?: number
   }): Promise<PaginatedResponse<GatewayLog>> {
-    const qs = new URLSearchParams({ p: String(page), page_size: String(perPage) })
+    const qs = new URLSearchParams()
     if (params?.start_timestamp) qs.set('start_timestamp', String(params.start_timestamp))
     if (params?.end_timestamp) qs.set('end_timestamp', String(params.end_timestamp))
     if (params?.username) qs.set('username', params.username)
-    if (params?.model) qs.set('model', params.model)
-    if (params?.channel_id) qs.set('channel_id', String(params.channel_id))
+    // newapi reads `model_name` and `channel` (not `model` / `channel_id`).
+    if (params?.model_name) qs.set('model_name', params.model_name)
+    if (params?.channel) qs.set('channel', String(params.channel))
     if (params?.token_name) qs.set('token_name', params.token_name)
     if (params?.type !== undefined) qs.set('type', String(params.type))
-    return this.request('GET', `/api/log/?${qs.toString()}`)
+    return this.paginated('/api/log/', page, perPage, qs)
   }
 
-  searchLogs(keyword: string, page = 0, perPage = 50): Promise<PaginatedResponse<GatewayLog>> {
-    return this.request('GET', `/api/log/search?keyword=${encodeURIComponent(keyword)}&p=${page}&page_size=${perPage}`)
+  // /api/log/search has been deprecated upstream — the controller returns
+  // a static "该接口已废弃" envelope. We expose the call so callers can detect
+  // and swap to getLogs() with filters, but this method always rejects with
+  // a clear message rather than silently returning an empty page.
+  searchLogs(_keyword: string, _page = 0, _perPage = 50): Promise<PaginatedResponse<GatewayLog>> {
+    return Promise.reject(new Error('searchLogs: /api/log/search is deprecated upstream — use getLogs with filter params instead'))
   }
 
-  getLogStats(startTimestamp: number, endTimestamp: number): Promise<GatewayApiResponse<GatewayLogStat[]>> {
+  // newapi /api/log/stat returns a single aggregate object, not a date series.
+  getLogStats(startTimestamp: number, endTimestamp: number): Promise<GatewayApiResponse<GatewayLogStat>> {
     return this.request('GET', `/api/log/stat?start_timestamp=${startTimestamp}&end_timestamp=${endTimestamp}`)
   }
 
@@ -498,19 +587,71 @@ export class GatewayAPI {
 
   // ========== Dashboard ==========
 
-  getDashboardData(): Promise<GatewayApiResponse<GatewayDashboardData>> {
-    return this.request('GET', '/api/data/')
+  /**
+   * Legacy summary endpoint. newapi v1.0.0-rc.4 does NOT expose a single
+   * counters endpoint — `/api/data/` returns quota-date rows, not summary
+   * cards. Reseller deployments aggregate via newhub. We return zeros so
+   * Local-mode dashboard renders without crashing; real values require a
+   * client-side aggregation pass over /api/user/?p=1&page_size=1 etc.
+   */
+  async getDashboardData(): Promise<GatewayApiResponse<GatewayDashboardData>> {
+    return {
+      success: false,
+      message: 'newapi rc.4 has no /api/data/ summary endpoint — use Hub mode',
+      data: {
+        user_count: 0, channel_count: 0, token_count: 0,
+        today_request: 0, today_quota: 0, today_tokens: 0,
+      },
+    }
   }
 
-  getQuotaDates(startDate: string, endDate: string): Promise<GatewayApiResponse<GatewayQuotaDate[]>> {
-    return this.request('GET', `/api/data/quota_dates?start_date=${startDate}&end_date=${endDate}`)
+  /**
+   * Quota-date series. Accepts either ISO date strings (legacy callers) or
+   * Unix timestamps in seconds (correct rc.4 contract). Strings get parsed
+   * via Date.UTC and converted before the request goes out.
+   */
+  getQuotaDates(start: string | number, end: string | number): Promise<GatewayApiResponse<GatewayQuotaDate[]>> {
+    const toTs = (v: string | number): number => typeof v === 'number'
+      ? v
+      : Math.floor(Date.parse(v) / 1000) || 0
+    const startTs = toTs(start)
+    const endTs = toTs(end)
+    return this.request('GET', `/api/data/?start_timestamp=${startTs}&end_timestamp=${endTs}`)
   }
 
-  getPerformanceStats(): Promise<GatewayApiResponse<GatewayPerformanceStats>> {
-    return this.request('GET', '/api/performance/stats')
+  /**
+   * newapi /api/performance returns
+   *   { cache_stats, memory_stats, disk_cache_info, disk_space_info, config }
+   * which doesn't match the legacy GatewayPerformanceStats. We attempt a
+   * best-effort flatten of memory_stats fields so the legacy dashboard
+   * widget at least shows non-zero memory; everything else falls back to 0.
+   */
+  async getPerformanceStats(): Promise<GatewayApiResponse<GatewayPerformanceStats>> {
+    const raw = await this.request<{ success: boolean; message: string; data?: any }>('GET', '/api/performance/')
+    const mem = raw.data?.memory_stats ?? {}
+    return {
+      success: !!raw.success,
+      message: raw.message ?? '',
+      data: {
+        goroutines: typeof mem.num_goroutine === 'number' ? mem.num_goroutine : 0,
+        memory_alloc: typeof mem.alloc === 'number' ? mem.alloc : 0,
+        uptime: 0,
+        requests_total: 0,
+        requests_per_sec: 0,
+      },
+    }
   }
 
   // ========== Subscriptions ==========
+  //
+  // newapi v1.0.0-rc.4 actually serves admin CRUD under
+  // /api/subscription/admin/* with body wrapped as { plan: ... }, and the
+  // SubscriptionPlan model uses title/sort_order/enabled instead of
+  // name/level/status. The page below is too tangled with the legacy shape
+  // to migrate piecemeal — it's a Reseller-only feature reached through
+  // newhub (which still translates) so the legacy paths keep working.
+  // When the page gets rewritten for rc.4 we'll move these to /admin/.
+  // See audit memory project_admin_audit_202605.md for the punch list.
 
   getSubscriptionPlans(): Promise<GatewayApiResponse<GatewaySubscriptionPlan[]>> {
     return this.request('GET', '/api/subscription/plans/')
@@ -537,30 +678,59 @@ export class GatewayAPI {
   }
 
   // ========== Options ==========
+  // newapi /api/option/ returns an array of { key, value } pairs. We keep
+  // the consumer-facing shape as Record<string, string> and flatten here
+  // so callers don't have to.
 
-  getOptions(): Promise<GatewayApiResponse<Record<string, string>>> {
-    return this.request('GET', '/api/option/')
+  async getOptions(): Promise<GatewayApiResponse<Record<string, string>>> {
+    const raw = await this.request<{ success: boolean; message: string; data?: GatewayOption[] }>('GET', '/api/option/')
+    const map: Record<string, string> = {}
+    for (const entry of raw.data ?? []) {
+      if (entry && typeof entry.key === 'string') {
+        map[entry.key] = String(entry.value ?? '')
+      }
+    }
+    return { success: !!raw.success, message: raw.message ?? '', data: map }
   }
 
+  // newapi only accepts one option per request; for bulk updates the caller
+  // must call this in a loop.
   updateOption(key: string, value: string): Promise<GatewayApiResponse<null>> {
     return this.request('PUT', '/api/option/', { key, value })
   }
 
-  updateOptions(options: Record<string, string>): Promise<GatewayApiResponse<null>> {
-    return this.request('PUT', '/api/option/', options)
+  /** Convenience wrapper — sequential per-key PUTs. Returns on first failure. */
+  async updateOptions(options: Record<string, string>): Promise<GatewayApiResponse<null>> {
+    let last: GatewayApiResponse<null> = { success: true, message: '' }
+    for (const [k, v] of Object.entries(options)) {
+      last = await this.updateOption(k, v)
+      if (!last.success) return last
+    }
+    return last
   }
 
+  // newapi has the typo `rest_model_ratio` — yes really. Keeping the call
+  // hidden behind a sane name; see api-router.go:186.
   resetModelRatio(): Promise<GatewayApiResponse<null>> {
-    return this.request('POST', '/api/option/reset_model_ratio')
+    return this.request('POST', '/api/option/rest_model_ratio')
   }
 
+  /**
+   * newapi has no generic /clear_cache endpoint — closest equivalent is
+   * the channel-affinity cache, which is what the UI's "clear cache" button
+   * actually means in practice. `clearCache` retained as alias.
+   */
+  clearChannelAffinityCache(): Promise<GatewayApiResponse<null>> {
+    return this.request('DELETE', '/api/option/channel_affinity_cache')
+  }
   clearCache(): Promise<GatewayApiResponse<null>> {
-    return this.request('POST', '/api/option/clear_cache')
+    return this.clearChannelAffinityCache()
   }
 
   // ========== Groups ==========
+  // newapi /api/group/ returns a flat string array of group names.
 
-  getGroups(): Promise<GatewayApiResponse<GatewayGroup[]>> {
+  getGroups(): Promise<GatewayApiResponse<string[]>> {
     return this.request('GET', '/api/group/')
   }
 }

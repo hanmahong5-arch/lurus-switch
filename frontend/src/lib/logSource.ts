@@ -29,7 +29,8 @@ export interface LogSource {
   readonly capabilities: LogSourceCapabilities
 
   list(filter: LogFilter): Promise<{ items: GatewayLog[]; total: number }>
-  stats?(startTs: number, endTs: number): Promise<GatewayLogStat[]>
+  // newapi /api/log/stat returns a single aggregate, not a date series.
+  stats?(startTs: number, endTs: number): Promise<GatewayLogStat | null>
   clearHistory?(): Promise<void>
 }
 
@@ -43,22 +44,22 @@ class LocalLogSource implements LogSource {
   }
 
   async list(f: LogFilter) {
-    const params: Record<string, unknown> = {}
+    const params: Parameters<GatewayAPI['getLogs']>[2] = {}
     if (f.username) params.username = f.username
-    if (f.model) params.model = f.model
+    // newapi v1.0.0-rc.4 reads `model_name` and `channel` query keys.
+    if (f.model) params.model_name = f.model
     if (f.tokenName) params.token_name = f.tokenName
-    if (f.channelId !== undefined) params.channel_id = f.channelId
+    if (f.channelId !== undefined) params.channel = f.channelId
     if (f.startTimestamp !== undefined) params.start_timestamp = f.startTimestamp
     if (f.endTimestamp !== undefined) params.end_timestamp = f.endTimestamp
     if (f.type !== undefined) params.type = f.type
-    const res = await this.api.getLogs(f.page, f.perPage, params as Parameters<GatewayAPI['getLogs']>[2])
-    const items = res.data ?? []
-    return { items, total: items.length }
+    const res = await this.api.getLogs(f.page, f.perPage, params)
+    return { items: res.data ?? [], total: res.total ?? 0 }
   }
 
   async stats(startTs: number, endTs: number) {
     const r = await this.api.getLogStats(startTs, endTs)
-    return r.data ?? []
+    return r.data ?? null
   }
 
   async clearHistory() {
@@ -94,9 +95,9 @@ class HubLogSource implements LogSource {
     // The Wails-generated parameter is a class but the runtime accepts a
     // plain object — cast through `any` to skip the constructor.
     const resp = await HubListLogs(query as never)
-    // Hub returns LogEntry, frontend uses GatewayLog. The relevant fields
-    // (id, user_id, username, model_name, channel, etc.) overlap; we map
-    // model_name → model and channel → channel_id for compatibility.
+    // Hub returns LogEntry; frontend GatewayLog matches newapi rc.4
+    // shape (model_name + channel). LogEntry already names them this way
+    // so the map is a straight passthrough now.
     const items = (resp.items ?? []).map((e) => ({
       id: e.id,
       user_id: e.user_id,
@@ -105,11 +106,11 @@ class HubLogSource implements LogSource {
       content: e.content,
       username: e.username,
       token_name: e.token_name,
-      model: e.model_name,
+      model_name: e.model_name,
       quota: e.quota,
       prompt_tokens: e.prompt_tokens,
       completion_tokens: e.completion_tokens,
-      channel_id: e.channel,
+      channel: e.channel,
       channel_name: '',
     })) as GatewayLog[]
     return { items, total: resp.total ?? 0 }

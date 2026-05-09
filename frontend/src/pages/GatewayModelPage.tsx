@@ -18,6 +18,7 @@ const STATUS_OPTIONS = [
 const PER_PAGE = 50
 
 interface ModelFormData {
+  id?: number   // present in edit mode (newapi rc.4 keys models by integer id)
   model_name: string
   developer: string
   type: string
@@ -62,6 +63,7 @@ function emptyVendorForm(): VendorFormData {
 
 function modelToForm(m: GatewayModelMeta): ModelFormData {
   return {
+    id: m.id,
     model_name: m.model_name,
     developer: m.developer,
     type: m.type,
@@ -118,10 +120,10 @@ export function GatewayModelPage() {
   const [showVendorModal, setShowVendorModal] = useState(false)
   const [editingVendor, setEditingVendor] = useState<VendorFormData | null>(null)
 
-  // Confirm delete
+  // Confirm delete — both model and vendor are now keyed by integer id.
   const [confirmDelete, setConfirmDelete] = useState<{
     type: 'model' | 'vendor'
-    id: string | number
+    id: number
     name: string
   } | null>(null)
 
@@ -210,8 +212,8 @@ export function GatewayModelPage() {
         status: editingModel.status,
       }
 
-      if (editingModelOriginalName) {
-        await client.updateModel({ ...payload, model_name: editingModelOriginalName })
+      if (editingModel.id !== undefined) {
+        await client.updateModel({ ...payload, id: editingModel.id })
       } else {
         await client.createModel(payload)
       }
@@ -224,10 +226,10 @@ export function GatewayModelPage() {
     }
   }
 
-  const handleDeleteModel = async (name: string) => {
+  const handleDeleteModel = async (id: number) => {
     if (!client) return
     try {
-      await client.deleteModel(name)
+      await client.deleteModel(id)
       await loadModels()
     } catch (e) {
       setError(String(e))
@@ -328,9 +330,9 @@ export function GatewayModelPage() {
   const handleConfirmDelete = async () => {
     if (!confirmDelete) return
     if (confirmDelete.type === 'model') {
-      await handleDeleteModel(confirmDelete.id as string)
+      await handleDeleteModel(confirmDelete.id)
     } else {
-      await handleDeleteVendor(confirmDelete.id as number)
+      await handleDeleteVendor(confirmDelete.id)
     }
     setConfirmDelete(null)
   }
@@ -481,7 +483,7 @@ export function GatewayModelPage() {
                           onClick={() =>
                             setConfirmDelete({
                               type: 'model',
-                              id: m.model_name,
+                              id: m.id,
                               name: m.model_name,
                             })
                           }

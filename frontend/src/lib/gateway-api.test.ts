@@ -12,7 +12,7 @@ describe('GatewayAPI', () => {
     api = new GatewayAPI(BASE_URL, TOKEN)
     fetchSpy = vi.fn().mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ success: true, data: {} }),
+      json: () => Promise.resolve({ success: true, data: { items: [], total: 0 } }),
       text: () => Promise.resolve(''),
     })
     vi.stubGlobal('fetch', fetchSpy)
@@ -65,23 +65,60 @@ describe('GatewayAPI', () => {
     })
   })
 
-  // === Channels ===
-  describe('channels', () => {
-    it('getChannels should use GET with page params', async () => {
-      await api.getChannels(2, 25)
-      const [url, opts] = fetchSpy.mock.calls[0]
-      expect(url).toBe(`${BASE_URL}/api/channel/?p=2&page_size=25`)
-      expect(opts.method).toBe('GET')
+  // === Pagination semantics ===
+  describe('pagination', () => {
+    it('shifts 0-indexed page to 1-indexed (newapi treats <1 as page 1)', async () => {
+      await api.getChannels(0, 25)
+      const url = fetchSpy.mock.calls[0][0] as string
+      expect(url).toMatch(/p=1/)
+      expect(url).toMatch(/page_size=25/)
     })
 
-    it('getChannel should GET by id', async () => {
+    it('shifts page=2 to p=3', async () => {
+      await api.getChannels(2, 25)
+      const url = fetchSpy.mock.calls[0][0] as string
+      expect(url).toMatch(/p=3/)
+    })
+
+    it('unwraps {data: {items, total}} into flat {data: T[], total}', async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          message: '',
+          data: { items: [{ id: 1 }, { id: 2 }], total: 99, page: 1, page_size: 50 },
+        }),
+        text: () => Promise.resolve(''),
+      })
+      const res = await api.getChannels()
+      expect(res.data.length).toBe(2)
+      expect(res.total).toBe(99)
+    })
+
+    it('falls back to bare-array data for forward-compat', async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ success: true, data: [{ id: 1 }] }),
+        text: () => Promise.resolve(''),
+      })
+      const res = await api.getChannels()
+      expect(res.data.length).toBe(1)
+      expect(res.total).toBe(1)
+    })
+  })
+
+  // === Channels ===
+  describe('channels', () => {
+    it('getChannel should GET by id (no pagination shift)', async () => {
       await api.getChannel(42)
       expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/channel/42`)
     })
 
-    it('searchChannels should encode keyword', async () => {
-      await api.searchChannels('test query')
-      expect(fetchSpy.mock.calls[0][0]).toContain('keyword=test%20query')
+    it('searchChannels should encode keyword + still 1-index', async () => {
+      await api.searchChannels('test query', 0, 50)
+      const url = fetchSpy.mock.calls[0][0] as string
+      expect(url).toContain('keyword=test+query')
+      expect(url).toMatch(/p=1/)
     })
 
     it('createChannel should POST', async () => {
@@ -129,19 +166,29 @@ describe('GatewayAPI', () => {
       expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/channel/fetch_models/5`)
     })
 
-    it('fixChannelAbilities should POST', async () => {
+    it('fixChannelAbilities should POST /api/channel/fix (not /fix_abilities)', async () => {
       await api.fixChannelAbilities()
       const [url, opts] = fetchSpy.mock.calls[0]
-      expect(url).toBe(`${BASE_URL}/api/channel/fix_abilities`)
+      expect(url).toBe(`${BASE_URL}/api/channel/fix`)
       expect(opts.method).toBe('POST')
+    })
+
+    it('editChannelTag should PUT /api/channel/tag with {tag, new_tag}', async () => {
+      await api.editChannelTag('old', 'new')
+      const [url, opts] = fetchSpy.mock.calls[0]
+      expect(url).toBe(`${BASE_URL}/api/channel/tag`)
+      expect(opts.method).toBe('PUT')
+      const body = JSON.parse(opts.body)
+      expect(body.tag).toBe('old')
+      expect(body.new_tag).toBe('new')
     })
   })
 
   // === Tokens ===
   describe('tokens', () => {
-    it('getTokens should use GET', async () => {
+    it('getTokens should use GET (1-indexed)', async () => {
       await api.getTokens(0, 50)
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/token/?p=0&page_size=50`)
+      expect(fetchSpy.mock.calls[0][0]).toMatch(/\/api\/token\/\?p=1&page_size=50/)
     })
 
     it('createToken should POST', async () => {
@@ -158,6 +205,13 @@ describe('GatewayAPI', () => {
       await api.deleteToken(3)
       expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/token/3`)
       expect(fetchSpy.mock.calls[0][1].method).toBe('DELETE')
+    })
+
+    it('revealTokenKey should POST to rate-limited reveal route', async () => {
+      await api.revealTokenKey(7)
+      const [url, opts] = fetchSpy.mock.calls[0]
+      expect(url).toBe(`${BASE_URL}/api/token/7/key`)
+      expect(opts.method).toBe('POST')
     })
   })
 
@@ -219,19 +273,37 @@ describe('GatewayAPI', () => {
       expect(fetchSpy.mock.calls[0][0]).toContain('sync_upstream')
     })
 
-    it('deleteModel should encode model name', async () => {
-      await api.deleteModel('gpt-4o')
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/models/gpt-4o`)
+    it('deleteModel should DELETE by integer id (not name)', async () => {
+      await api.deleteModel(42)
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/models/42`)
+      expect(fetchSpy.mock.calls[0][1].method).toBe('DELETE')
+    })
+  })
+
+  // === Vendors ===
+  describe('vendors', () => {
+    it('getVendors should hit /api/vendors/ (NOT /api/models/vendors/)', async () => {
+      await api.getVendors()
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/vendors/`)
+    })
+
+    it('deleteVendor should DELETE under /api/vendors/', async () => {
+      await api.deleteVendor(3)
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/vendors/3`)
     })
   })
 
   // === Logs ===
   describe('logs', () => {
-    it('getLogs should append filter params', async () => {
-      await api.getLogs(0, 50, { username: 'root', model: 'gpt-4' })
+    it('getLogs should rename model→model_name and channel→channel', async () => {
+      await api.getLogs(0, 50, { username: 'root', model_name: 'gpt-4', channel: 7 })
       const url = fetchSpy.mock.calls[0][0] as string
       expect(url).toContain('username=root')
-      expect(url).toContain('model=gpt-4')
+      expect(url).toContain('model_name=gpt-4')
+      expect(url).toContain('channel=7')
+      // Old-style filter names must not appear.
+      expect(url).not.toMatch(/[?&]model=/)
+      expect(url).not.toMatch(/channel_id=/)
     })
 
     it('clearLogs should DELETE', async () => {
@@ -239,43 +311,68 @@ describe('GatewayAPI', () => {
       expect(fetchSpy.mock.calls[0][1].method).toBe('DELETE')
       expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/log/`)
     })
+
+    it('searchLogs rejects (deprecated upstream)', async () => {
+      await expect(api.searchLogs('q')).rejects.toThrow(/deprecated/i)
+    })
   })
 
   // === Dashboard ===
   describe('dashboard', () => {
-    it('getDashboardData should GET /api/data/', async () => {
-      await api.getDashboardData()
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/data/`)
+    it('getQuotaDates should pass timestamp range', async () => {
+      await api.getQuotaDates(1700000000, 1700100000)
+      const url = fetchSpy.mock.calls[0][0] as string
+      expect(url).toContain('start_timestamp=1700000000')
+      expect(url).toContain('end_timestamp=1700100000')
     })
 
-    it('getPerformanceStats should GET', async () => {
+    it('getPerformanceStats should GET /api/performance/', async () => {
       await api.getPerformanceStats()
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/performance/stats`)
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/performance/`)
     })
   })
 
   // === Options ===
   describe('options', () => {
-    it('getOptions should GET', async () => {
-      await api.getOptions()
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/option/`)
+    it('getOptions should flatten [{key,value}] into a map', async () => {
+      fetchSpy.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({
+          success: true,
+          data: [
+            { key: 'Theme', value: 'dark' },
+            { key: 'SiteName', value: 'Lurus' },
+          ],
+        }),
+        text: () => Promise.resolve(''),
+      })
+      const res = await api.getOptions()
+      expect(res.data).toEqual({ Theme: 'dark', SiteName: 'Lurus' })
     })
 
-    it('updateOption should PUT with key/value', async () => {
+    it('updateOption should PUT with {key, value}', async () => {
       await api.updateOption('Theme', 'dark')
       const body = JSON.parse(fetchSpy.mock.calls[0][1].body)
       expect(body.key).toBe('Theme')
       expect(body.value).toBe('dark')
     })
 
-    it('clearCache should POST', async () => {
-      await api.clearCache()
-      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/option/clear_cache`)
-      expect(fetchSpy.mock.calls[0][1].method).toBe('POST')
+    it('resetModelRatio uses upstream typo path /rest_model_ratio', async () => {
+      await api.resetModelRatio()
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/option/rest_model_ratio`)
+    })
+
+    it('clearChannelAffinityCache should DELETE the affinity cache', async () => {
+      await api.clearChannelAffinityCache()
+      expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/option/channel_affinity_cache`)
+      expect(fetchSpy.mock.calls[0][1].method).toBe('DELETE')
     })
   })
 
   // === Subscriptions ===
+  // Subscription paths kept on legacy /api/subscription/* until the page is
+  // rewritten for rc.4. See audit memory for the upstream namespace move
+  // (admin/* + {plan} body wrapper + PATCH-disable instead of DELETE).
   describe('subscriptions', () => {
     it('getSubscriptionPlans should GET', async () => {
       await api.getSubscriptionPlans()
@@ -292,7 +389,7 @@ describe('GatewayAPI', () => {
 
   // === Groups ===
   describe('groups', () => {
-    it('getGroups should GET', async () => {
+    it('getGroups should GET (returns string[])', async () => {
       await api.getGroups()
       expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/api/group/`)
     })

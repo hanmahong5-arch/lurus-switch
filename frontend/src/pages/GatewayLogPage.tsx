@@ -42,9 +42,11 @@ export function GatewayLogPage() {
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
 
-  // Stats
+  // Stats — newapi /api/log/stat returns a single aggregate object
+  // {quota, rpm, tpm}, not a date series. The bar-chart layout is gone;
+  // we render a 3-tile summary instead.
   const [showStats, setShowStats] = useState(false)
-  const [stats, setStats] = useState<GatewayLogStat[]>([])
+  const [stats, setStats] = useState<GatewayLogStat | null>(null)
 
   // Clear history
   const [showClearConfirm, setShowClearConfirm] = useState(false)
@@ -224,11 +226,24 @@ export function GatewayLogPage() {
         ))}
       </div>
 
-      {/* Stats panel */}
-      {showStats && stats.length > 0 && (
+      {/* Stats panel — 14-day aggregate (quota / rpm / tpm) */}
+      {showStats && stats && (
         <div className="rounded-lg border border-border bg-card p-4">
           <h3 className="text-sm font-medium mb-3">{t('gateway.logStats')} (14 days)</h3>
-          <SimpleBarChart data={stats as unknown as Record<string, unknown>[]} labelKey="date" valueKey="request_count" height={100} />
+          <div className="grid grid-cols-3 gap-3 text-sm">
+            <div className="rounded border border-border bg-background/50 p-3">
+              <div className="text-xs text-muted-foreground">Quota</div>
+              <div className="text-lg font-semibold tabular-nums">{stats.quota}</div>
+            </div>
+            <div className="rounded border border-border bg-background/50 p-3">
+              <div className="text-xs text-muted-foreground">RPM</div>
+              <div className="text-lg font-semibold tabular-nums">{stats.rpm}</div>
+            </div>
+            <div className="rounded border border-border bg-background/50 p-3">
+              <div className="text-xs text-muted-foreground">TPM</div>
+              <div className="text-lg font-semibold tabular-nums">{stats.tpm}</div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -290,13 +305,13 @@ export function GatewayLogPage() {
               <tr key={log.id} className="border-t border-border hover:bg-muted/30">
                 <td className="px-4 py-2 text-xs text-muted-foreground">{formatTime(log.created_at)}</td>
                 <td className="px-4 py-2">{log.username}</td>
-                <td className="px-4 py-2 font-mono text-xs">{log.model || '-'}</td>
+                <td className="px-4 py-2 font-mono text-xs">{log.model_name || '-'}</td>
                 <td className="px-4 py-2">
                   {log.prompt_tokens + log.completion_tokens > 0
                     ? `${log.prompt_tokens}+${log.completion_tokens}`
                     : '-'}
                 </td>
-                <td className="px-4 py-2 text-muted-foreground text-xs">{log.channel_name || log.channel_id}</td>
+                <td className="px-4 py-2 text-muted-foreground text-xs">{log.channel_name || log.channel}</td>
                 <td className="px-4 py-2 text-xs">{log.token_name || '-'}</td>
                 <td className="px-4 py-2 text-xs">
                   <span className="rounded px-1.5 py-0.5 bg-muted/60">
