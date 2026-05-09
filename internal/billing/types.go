@@ -2,7 +2,13 @@ package billing
 
 import "encoding/json"
 
-// UserInfo represents user account information from lurus-api V2
+// UserInfo represents user account information from lurus-api V2.
+// Role values mirror newapi's common.Role* constants:
+//
+//	0   guest, 1   common, 10  admin, 100 root
+//
+// When the upstream omits the field (e.g. a hub that hasn't been bumped yet)
+// we silently default to 0, which downstream UI treats as "no admin access".
 type UserInfo struct {
 	Quota          int64             `json:"quota"`
 	UsedQuota      int64             `json:"used_quota"`
@@ -13,6 +19,7 @@ type UserInfo struct {
 	Username       string            `json:"username"`
 	DisplayName    string            `json:"display_name"`
 	AffCode        string            `json:"aff_code"`
+	Role           int               `json:"role"`
 	Subscription   *SubscriptionInfo `json:"subscription,omitempty"`
 }
 

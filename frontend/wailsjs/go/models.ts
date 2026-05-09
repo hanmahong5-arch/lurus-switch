@@ -1237,12 +1237,13 @@ export namespace billing {
 	    username: string;
 	    display_name: string;
 	    aff_code: string;
+	    role: number;
 	    subscription?: SubscriptionInfo;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new UserInfo(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.quota = source["quota"];
@@ -1254,6 +1255,7 @@ export namespace billing {
 	        this.username = source["username"];
 	        this.display_name = source["display_name"];
 	        this.aff_code = source["aff_code"];
+	        this.role = source["role"];
 	        this.subscription = this.convertValues(source["subscription"], SubscriptionInfo);
 	    }
 	

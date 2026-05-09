@@ -4,6 +4,7 @@ import {
   Layers, Key, Box, Users, Gift, FileText, CreditCard, Settings2, Shield,
 } from 'lucide-react'
 import { useConfigStore, type GatewaySubTab } from '../stores/configStore'
+import { useBillingStore } from '../stores/billingStore'
 import { cn } from '../lib/utils'
 import { SwitchHubPage } from './SwitchHubPage'
 import { RelayPage } from './RelayPage'
@@ -30,18 +31,28 @@ type TabDef = {
   icon: React.ComponentType<{ className?: string }>
 }
 
+// newapi role constants (mirrors common.Role* in 2b-svc-newapi/common/constants.go).
+const ROLE_ADMIN = 10
+const ROLE_ROOT = 100
+
 export function NewGatewayPage() {
   const { t } = useTranslation()
   const { getSubTab, setSubTab, appMode } = useConfigStore()
   const activeTab = getSubTab('gateway', 'control') as GatewaySubTab
+  const userInfo = useBillingStore((s) => s.userInfo)
 
-  // Reseller mode owns the upstream newapi instance — show admin+root tabs.
-  // Personal mode points at Lurus Cloud's hub; admin tabs would be useless.
-  // EndUser mode never reaches this page (gated upstream).
-  const showAdmin = appMode === 'reseller'
-  // TODO(role): split admin vs root once newhub returns user.role and the
-  // value is plumbed into Switch. For now, Reseller users see both.
-  const showRoot = appMode === 'reseller'
+  // Reseller mode owns the upstream newapi. Within Reseller:
+  //   - Admin tabs show by default (the operator runs their own newapi).
+  //     If role is loaded AND < 10, hide them — handles multi-operator
+  //     deployments where employees connect with non-admin accounts.
+  //   - Root tabs (option / oauth / performance / ratio_sync) require
+  //     explicit role >= 100. Hidden until newhub returns role.
+  // Personal mode never reaches here (admin against Lurus Cloud is useless).
+  // EndUser mode is gated upstream.
+  const isReseller = appMode === 'reseller'
+  const role = userInfo?.role
+  const showAdmin = isReseller && (role === undefined || role >= ROLE_ADMIN)
+  const showRoot = isReseller && role !== undefined && role >= ROLE_ROOT
 
   const basicTabs: TabDef[] = [
     { id: 'control', label: t('home.gwControl'), icon: Settings },
