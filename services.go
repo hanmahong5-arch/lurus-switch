@@ -20,6 +20,7 @@ import (
 	"lurus-switch/internal/mcp"
 	"lurus-switch/internal/metering"
 	"lurus-switch/internal/modelcatalog"
+	"lurus-switch/internal/orgsync"
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promoter"
 	"lurus-switch/internal/promptlib"
@@ -87,6 +88,11 @@ type services struct {
 	// package gates writes; the audit package records them with enough
 	// payload for the Undo UI to revert.
 	auditJournal *audit.Journal
+
+	// Enterprise-mode org chart store. Lazily created on first access
+	// so Personal/Reseller installs don't pay the file IO cost.
+	orgsyncMu sync.Mutex
+	orgsync   *orgsync.Store
 }
 
 // newServices constructs all service dependencies. Initialization failures for
