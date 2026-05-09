@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,7 +16,7 @@
     --card-foreground: 222 47% 11%;
     --border: 220 25% 90%;
     --input: 220 25% 90%;
-    --primary: 228 99% 65%;
+    --primary: 17 100% 56%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 30% 95%;
     --secondary-foreground: 222 47% 11%;
@@ -22,8 +24,21 @@
     --accent-foreground: 222 47% 11%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
-    --ring: 228 99% 65%;
+    --ring: 17 100% 56%;
     --radius: 0.5rem;
+
+    /* LurusTech brand-spec tokens */
+    --lt-paper: #F5F2E8;
+    --lt-bg:    #E8E4D6;
+    --lt-ink:   #14130F;
+    --lt-rule:  #D6D2C2;
+    --lt-accent: #FF5D1F;   /* CTA + 选中态 */
+    --lt-ok:    #1F7A4F;
+    --lt-warn:  #B8821F;
+    --lt-err:   #B3392B;
+    --lt-info:  #2D4A8A;
+    --font-sans: 'Inter Tight', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
   }
 
   .dark {
@@ -37,7 +52,7 @@
     --card-foreground: 210 40% 95%;
     --border: 222 35% 18%;
     --input: 222 35% 18%;
-    --primary: 228 99% 65%;
+    --primary: 17 100% 56%;
     --primary-foreground: 0 0% 100%;
     --secondary: 222 40% 18%;
     --secondary-foreground: 210 40% 95%;
@@ -45,7 +60,7 @@
     --accent-foreground: 210 40% 95%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --ring: 228 99% 65%;
+    --ring: 17 100% 56%;
   }
 }
 

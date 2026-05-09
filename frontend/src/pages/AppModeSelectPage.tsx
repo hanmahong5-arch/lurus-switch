@@ -17,7 +17,7 @@ interface ModeChoice {
 
 const CHOICES: ModeChoice[] = [
   { id: 'personal', Icon: User, iconColor: 'text-blue-400', ringColor: 'hover:ring-blue-500/50' },
-  { id: 'reseller', Icon: Building2, iconColor: 'text-purple-400', ringColor: 'hover:ring-purple-500/50' },
+  { id: 'reseller', Icon: Building2, iconColor: 'text-[#FF5D1F]', ringColor: 'hover:ring-[#FF5D1F]/50' },
   { id: 'enterprise', Icon: Briefcase, iconColor: 'text-amber-400', ringColor: 'hover:ring-amber-500/50' },
   { id: 'enduser', Icon: Users, iconColor: 'text-emerald-400', ringColor: 'hover:ring-emerald-500/50' },
 ]

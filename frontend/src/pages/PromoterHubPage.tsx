@@ -150,7 +150,7 @@ function StatCard({ icon: Icon, label, value, color }: {
         <Icon className={cn('h-4 w-4', color)} />
         <span className="text-xs text-muted-foreground">{label}</span>
       </div>
-      <p className="text-xl font-semibold">{value}</p>
+      <p className="text-xl font-semibold font-mono tabular-nums">{value}</p>
     </div>
   )
 }
