@@ -3,6 +3,10 @@ package metering
 import "time"
 
 // Record captures a single API call through the gateway.
+//
+// Enterprise-mode dimensions (CostCenter / EmployeeID / ProjectTag) are
+// optional and only populated when the gateway request meta carries
+// them. Personal / Reseller deployments leave them empty.
 type Record struct {
 	ID           string    `json:"id"`
 	AppID        string    `json:"appId"`
@@ -14,6 +18,11 @@ type Record struct {
 	StatusCode   int       `json:"statusCode"`
 	ErrorMessage string    `json:"errorMessage,omitempty"`
 	Timestamp    time.Time `json:"timestamp"`
+
+	// Enterprise dimensions (optional).
+	CostCenter string `json:"costCenter,omitempty"` // e.g. "ENG-PLATFORM-001"
+	EmployeeID string `json:"employeeId,omitempty"` // SSO sub claim
+	ProjectTag string `json:"projectTag,omitempty"` // free-form, set by user/agent
 }
 
 // DailySummary aggregates usage for one day.
@@ -32,6 +41,16 @@ type AppSummary struct {
 	TokensIn   int64  `json:"tokensIn"`
 	TokensOut  int64  `json:"tokensOut"`
 	CacheHits  int64  `json:"cacheHits"`
+}
+
+// CostCenterSummary aggregates usage by cost-center for chargeback
+// reporting. Only meaningful in Enterprise mode.
+type CostCenterSummary struct {
+	CostCenter string `json:"costCenter"`
+	TotalCalls int64  `json:"totalCalls"`
+	TokensIn   int64  `json:"tokensIn"`
+	TokensOut  int64  `json:"tokensOut"`
+	UniqueEmps int    `json:"uniqueEmployees"` // distinct employee IDs in the bucket
 }
 
 // ModelSummary aggregates usage by model for a time range.

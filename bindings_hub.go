@@ -98,7 +98,11 @@ func (a *App) HubCopyChannel(id int) error {
 // HubAddChannel creates a channel from a free-form payload (Reseller UI
 // composes it from form fields; backend doesn't need to enforce shape since
 // Hub validates).
-func (a *App) HubAddChannel(input map[string]any) error {
+func (a *App) HubAddChannel(input map[string]any) (err error) {
+	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelCreate, "", input); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpChannelCreate, "", input, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -107,7 +111,12 @@ func (a *App) HubAddChannel(input map[string]any) error {
 }
 
 // HubUpdateChannel applies partial changes.
-func (a *App) HubUpdateChannel(input map[string]any) error {
+func (a *App) HubUpdateChannel(input map[string]any) (err error) {
+	target := stringField(input, "id")
+	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelUpdate, target, input); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpChannelUpdate, target, input, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -116,7 +125,12 @@ func (a *App) HubUpdateChannel(input map[string]any) error {
 }
 
 // HubDeleteChannel removes a single channel.
-func (a *App) HubDeleteChannel(id int) error {
+func (a *App) HubDeleteChannel(id int) (err error) {
+	target := fmtIntID(id)
+	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelDelete, target, map[string]any{"id": id}); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpChannelDelete, target, map[string]any{"id": id}, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -125,7 +139,13 @@ func (a *App) HubDeleteChannel(id int) error {
 }
 
 // HubDeleteChannelBatch removes a list of channels.
-func (a *App) HubDeleteChannelBatch(ids []int) error {
+func (a *App) HubDeleteChannelBatch(ids []int) (err error) {
+	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelDeleteBatch, "", map[string]any{"ids": ids}); err != nil {
+		return err
+	}
+	defer func() {
+		a.recordOutcome(auditOpChannelDeleteBatch, "", map[string]any{"ids": ids}, err)
+	}()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -154,7 +174,11 @@ func (a *App) HubListTokens(page, pageSize int) (*admin.TokenPage, error) {
 }
 
 // HubAddToken creates a token.
-func (a *App) HubAddToken(input map[string]any) error {
+func (a *App) HubAddToken(input map[string]any) (err error) {
+	if err = a.requireAndAudit(capTokenCreate(), auditOpTokenCreate, "", input); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpTokenCreate, "", input, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -163,7 +187,12 @@ func (a *App) HubAddToken(input map[string]any) error {
 }
 
 // HubUpdateToken applies partial changes.
-func (a *App) HubUpdateToken(input map[string]any) error {
+func (a *App) HubUpdateToken(input map[string]any) (err error) {
+	target := stringField(input, "id")
+	if err = a.requireAndAudit(capTokenCreate(), auditOpTokenUpdate, target, input); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpTokenUpdate, target, input, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -172,7 +201,12 @@ func (a *App) HubUpdateToken(input map[string]any) error {
 }
 
 // HubDeleteToken removes a single token.
-func (a *App) HubDeleteToken(id int) error {
+func (a *App) HubDeleteToken(id int) (err error) {
+	target := fmtIntID(id)
+	if err = a.requireAndAudit(capTokenRevoke(), auditOpTokenDelete, target, map[string]any{"id": id}); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpTokenDelete, target, map[string]any{"id": id}, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -181,7 +215,13 @@ func (a *App) HubDeleteToken(id int) error {
 }
 
 // HubDeleteTokenBatch removes a list of tokens.
-func (a *App) HubDeleteTokenBatch(ids []int) error {
+func (a *App) HubDeleteTokenBatch(ids []int) (err error) {
+	if err = a.requireAndAudit(capTokenRevoke(), auditOpTokenDeleteBatch, "", map[string]any{"ids": ids}); err != nil {
+		return err
+	}
+	defer func() {
+		a.recordOutcome(auditOpTokenDeleteBatch, "", map[string]any{"ids": ids}, err)
+	}()
 	c, err := hubClient()
 	if err != nil {
 		return err
@@ -215,7 +255,12 @@ func (a *App) HubCreateRedemptions(name string, quota int64, count int, expiredT
 }
 
 // HubDeleteRedemption removes a single code.
-func (a *App) HubDeleteRedemption(id int) error {
+func (a *App) HubDeleteRedemption(id int) (err error) {
+	target := fmtIntID(id)
+	if err = a.requireAndAudit(capRedemptionDelete(), auditOpRedemptionDelete, target, map[string]any{"id": id}); err != nil {
+		return err
+	}
+	defer func() { a.recordOutcome(auditOpRedemptionDelete, target, map[string]any{"id": id}, err) }()
 	c, err := hubClient()
 	if err != nil {
 		return err

@@ -1181,3 +1181,23 @@ export function WhiteLabelPreflight(arg1, arg2) {
 export function ZipWhiteLabelOutputDir(arg1) {
   return window['go']['main']['App']['ZipWhiteLabelOutputDir'](arg1);
 }
+
+export function ListAuditEntries(arg1, arg2) {
+  return window['go']['main']['App']['ListAuditEntries'](arg1, arg2);
+}
+
+export function GetAuditStats() {
+  return window['go']['main']['App']['GetAuditStats']();
+}
+
+export function UndoAuditEntry(arg1) {
+  return window['go']['main']['App']['UndoAuditEntry'](arg1);
+}
+
+export function ListAuditCapabilities() {
+  return window['go']['main']['App']['ListAuditCapabilities']();
+}
+
+export function GetCurrentPrincipal() {
+  return window['go']['main']['App']['GetCurrentPrincipal']();
+}

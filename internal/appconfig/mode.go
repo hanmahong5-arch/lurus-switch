@@ -7,18 +7,24 @@ import (
 
 // AppMode is the operating mode of the Switch desktop client.
 //
-// Three modes are supported (see ADR-020):
-//   - ModePersonal — single-user CLI manager, talks to Lurus-operated Hub.
-//   - ModeReseller — operator console for distributors: deploy private Hub,
-//     manage channels/tokens/redemptions, export white-labeled EndUser builds.
-//   - ModeEndUser  — locked-down client distributed by a reseller; activates
-//     via redemption code, talks only to the embedded reseller Hub URL.
+// Four modes are supported (see ADR-020 + Enterprise extension):
+//   - ModePersonal   — single-user CLI manager, talks to Lurus-operated Hub.
+//   - ModeReseller   — operator console for distributors: deploy private
+//     Hub, manage channels/tokens/redemptions, export white-labeled
+//     EndUser builds.
+//   - ModeEndUser    — locked-down client distributed by a reseller;
+//     activates via redemption code, talks only to the embedded reseller
+//     Hub URL.
+//   - ModeEnterprise — internal-tool deployment for traditional companies.
+//     SSO-bound users, cost-center accounting, DLP middleware on the
+//     gateway, employee dashboards. No outbound sale or white-label.
 type AppMode string
 
 const (
-	ModePersonal AppMode = "personal"
-	ModeReseller AppMode = "reseller"
-	ModeEndUser  AppMode = "enduser"
+	ModePersonal   AppMode = "personal"
+	ModeReseller   AppMode = "reseller"
+	ModeEndUser    AppMode = "enduser"
+	ModeEnterprise AppMode = "enterprise"
 
 	// ModeUnset means the user hasn't picked a mode yet — first-launch wizard
 	// is required before reaching any mode-gated UI.
@@ -28,7 +34,7 @@ const (
 // Valid reports whether m is a recognized mode value (excluding ModeUnset).
 func (m AppMode) Valid() bool {
 	switch m {
-	case ModePersonal, ModeReseller, ModeEndUser:
+	case ModePersonal, ModeReseller, ModeEndUser, ModeEnterprise:
 		return true
 	default:
 		return false

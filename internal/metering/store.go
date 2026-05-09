@@ -132,6 +132,39 @@ func (s *Store) AppSummaries(from, to time.Time) []AppSummary {
 	return out
 }
 
+// CostCenterSummaries aggregates usage by cost-center for the given
+// range. Records without a CostCenter are bucketed under "" (empty);
+// the Enterprise dashboard hides that bucket but a Personal/Reseller
+// install will only ever produce that bucket.
+func (s *Store) CostCenterSummaries(from, to time.Time) []CostCenterSummary {
+	records := s.recordsInRange(from, to)
+	byCc := make(map[string]*CostCenterSummary)
+	emp := make(map[string]map[string]struct{}) // cc -> set of employeeIds
+	for _, r := range records {
+		cs, ok := byCc[r.CostCenter]
+		if !ok {
+			cs = &CostCenterSummary{CostCenter: r.CostCenter}
+			byCc[r.CostCenter] = cs
+			emp[r.CostCenter] = make(map[string]struct{})
+		}
+		cs.TotalCalls++
+		cs.TokensIn += r.TokensIn
+		cs.TokensOut += r.TokensOut
+		if r.EmployeeID != "" {
+			emp[r.CostCenter][r.EmployeeID] = struct{}{}
+		}
+	}
+	out := make([]CostCenterSummary, 0, len(byCc))
+	for cc, cs := range byCc {
+		cs.UniqueEmps = len(emp[cc])
+		out = append(out, *cs)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return (out[i].TokensIn + out[i].TokensOut) > (out[j].TokensIn + out[j].TokensOut)
+	})
+	return out
+}
+
 // ModelSummaries returns per-model usage for a date range.
 func (s *Store) ModelSummaries(from, to time.Time) []ModelSummary {
 	records := s.recordsInRange(from, to)

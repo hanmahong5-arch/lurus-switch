@@ -6,7 +6,7 @@ import { confirmIfDirty } from '../lib/dirtyGuard'
 // 'unset' is the bootstrap state shown to users on first launch.
 // Legacy 'user' / 'promoter' values from v0.1.0 saved configs are migrated
 // at the backend (internal/appconfig/mode.go) and never reach this store.
-export type AppMode = 'unset' | 'personal' | 'reseller' | 'enduser'
+export type AppMode = 'unset' | 'personal' | 'reseller' | 'enduser' | 'enterprise'
 export type UserLevel = 'beginner' | 'regular' | 'power'
 
 // migrateLegacyAppMode normalizes a raw value from disk (which may be the
@@ -21,6 +21,8 @@ export function migrateLegacyAppMode(raw: string | undefined | null): AppMode {
       return 'reseller'
     case 'enduser':
       return 'enduser'
+    case 'enterprise':
+      return 'enterprise'
     default:
       return 'unset'
   }

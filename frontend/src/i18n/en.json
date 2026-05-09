@@ -19,6 +19,11 @@
       "tagline": "I run an AI tooling shop",
       "desc": "Distributor: deploy your own Hub in one click, configure model routing, batch-issue activation codes, export white-labeled clients."
     },
+    "enterprise": {
+      "label": "Enterprise",
+      "tagline": "Deploy to my company's employees",
+      "desc": "Internal IT: SSO sign-in, per-cost-center token accounting, DLP middleware on the gateway, monthly chargeback reports that drop into SAP / Workday."
+    },
     "enduser": {
       "label": "EndUser",
       "tagline": "I have an activation code",

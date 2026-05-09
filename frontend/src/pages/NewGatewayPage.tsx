@@ -19,6 +19,7 @@ import { GatewayLogPage } from './GatewayLogPage'
 import { GatewaySubscriptionPage } from './GatewaySubscriptionPage'
 import { GatewaySettingsPage } from './GatewaySettingsPage'
 import { AdminPage } from './AdminPage'
+import { AuditLogPanel } from '../components/gateway/AuditLogPanel'
 
 // Single Gateway page covering basic gateway ops (control / usage / apps /
 // relay) plus the full newapi admin console (channels / tokens / models / …
@@ -122,7 +123,12 @@ export function NewGatewayPage() {
       case 'admin-settings':
         return <GatewayRequiredGuard><GatewaySettingsPage /></GatewayRequiredGuard>
       case 'system':
-        return <AdminPage />
+        return (
+          <div className="h-full overflow-y-auto p-6 space-y-6">
+            <AuditLogPanel />
+            <AdminPage />
+          </div>
+        )
       default:
         return <SwitchHubPage section="control" />
     }

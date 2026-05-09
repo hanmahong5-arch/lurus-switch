@@ -630,3 +630,13 @@ export function ValidateZeroClawConfig(arg1:config.ZeroClawConfig):Promise<valid
 export function WhiteLabelPreflight(arg1:string,arg2:string):Promise<main.PreflightReport>;
 
 export function ZipWhiteLabelOutputDir(arg1:string):Promise<string>;
+
+export function ListAuditEntries(arg1:number,arg2:any):Promise<Array<any>>;
+
+export function GetAuditStats():Promise<any>;
+
+export function UndoAuditEntry(arg1:string):Promise<void>;
+
+export function ListAuditCapabilities():Promise<Record<string,string>>;
+
+export function GetCurrentPrincipal():Promise<string>;

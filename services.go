@@ -7,6 +7,7 @@ import (
 	"lurus-switch/internal/agent"
 	"lurus-switch/internal/analytics"
 	"lurus-switch/internal/appreg"
+	"lurus-switch/internal/audit"
 	"lurus-switch/internal/auth"
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/budget"
@@ -81,6 +82,11 @@ type services struct {
 	redemptionStore *redemption.Store
 	redeemer        *redemption.Redeemer
 	heartbeat       *redemption.Heartbeat
+
+	// Append-only journal of state-mutating bindings. The capability
+	// package gates writes; the audit package records them with enough
+	// payload for the Undo UI to revert.
+	auditJournal *audit.Journal
 }
 
 // newServices constructs all service dependencies. Initialization failures for
@@ -159,6 +165,11 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("redemption store: %v", err))
 	}
 
+	auditJ, aerr := audit.NewJournal(appDataDir)
+	if aerr != nil {
+		warnings = append(warnings, fmt.Sprintf("audit journal: %v", aerr))
+	}
+
 	svc := &services{
 		store:       store,
 		validator:   validator.NewValidator(),
@@ -190,6 +201,7 @@ func newServices(appDataDir, version string) (*services, []string) {
 		}(),
 		redemptionStore: redemptionStr,
 		redeemer:        redemption.NewRedeemer(version),
+		auditJournal:    auditJ,
 	}
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {

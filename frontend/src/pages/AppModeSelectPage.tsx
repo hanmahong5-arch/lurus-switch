@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, User, Building2, Users } from 'lucide-react'
+import { Loader2, User, Building2, Users, Briefcase } from 'lucide-react'
 import { SetAppMode } from '../../wailsjs/go/main/App'
 import type { AppMode } from '../stores/configStore'
 
@@ -18,6 +18,7 @@ interface ModeChoice {
 const CHOICES: ModeChoice[] = [
   { id: 'personal', Icon: User, iconColor: 'text-blue-400', ringColor: 'hover:ring-blue-500/50' },
   { id: 'reseller', Icon: Building2, iconColor: 'text-purple-400', ringColor: 'hover:ring-purple-500/50' },
+  { id: 'enterprise', Icon: Briefcase, iconColor: 'text-amber-400', ringColor: 'hover:ring-amber-500/50' },
   { id: 'enduser', Icon: Users, iconColor: 'text-emerald-400', ringColor: 'hover:ring-emerald-500/50' },
 ]
 
@@ -49,7 +50,7 @@ export function AppModeSelectPage({ onPick }: Props) {
           <p className="text-muted-foreground">{t('mode.welcome.subtitle', '请选择你的使用模式（之后可在设置中更改）')}</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {CHOICES.map(({ id, Icon, iconColor, ringColor }) => {
             const isLoading = submitting === id
             return (

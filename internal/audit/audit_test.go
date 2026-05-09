@@ -1,0 +1,159 @@
+package audit
+
+import (
+	"errors"
+	"path/filepath"
+	"testing"
+
+	"lurus-switch/internal/capability"
+)
+
+func newTestJournal(t *testing.T) *Journal {
+	t.Helper()
+	dir := t.TempDir()
+	j, err := NewJournal(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return j
+}
+
+func TestRecord_Ok(t *testing.T) {
+	j := newTestJournal(t)
+	e := j.Record("channel.create", "ch-1", nil, map[string]string{"name": "ch-1"}, nil)
+	if e.Outcome != "ok" {
+		t.Errorf("outcome = %s", e.Outcome)
+	}
+	if e.Reversible {
+		t.Error("no handler registered, should be Reversible=false")
+	}
+}
+
+func TestRecord_DeniedOutcome(t *testing.T) {
+	j := newTestJournal(t)
+	denied := &capability.Error{Required: capability.CapChannelWrite, Principal: "agent:x"}
+	e := j.Record("channel.create", "ch-1", nil, nil, denied)
+	if e.Outcome != "denied" {
+		t.Errorf("outcome = %s, want denied", e.Outcome)
+	}
+}
+
+func TestRecord_ErrorOutcome(t *testing.T) {
+	j := newTestJournal(t)
+	e := j.Record("channel.create", "ch-1", nil, nil, errors.New("upstream 500"))
+	if e.Outcome != "error" {
+		t.Errorf("outcome = %s", e.Outcome)
+	}
+	if e.Error == "" {
+		t.Error("expected Error field to be populated")
+	}
+}
+
+func TestRegister_MakesReversible(t *testing.T) {
+	j := newTestJournal(t)
+	j.Register("channel.create", func(_ Entry) error { return nil })
+	e := j.Record("channel.create", "ch-1", nil, nil, nil)
+	if !e.Reversible {
+		t.Error("expected Reversible=true after Register")
+	}
+}
+
+func TestUndo_HappyPath(t *testing.T) {
+	j := newTestJournal(t)
+	called := false
+	j.Register("channel.create", func(e Entry) error {
+		called = true
+		if e.Target != "ch-1" {
+			t.Errorf("undo got Target=%s, want ch-1", e.Target)
+		}
+		return nil
+	})
+	e := j.Record("channel.create", "ch-1", nil, map[string]any{"id": 1}, nil)
+	if err := j.Undo(e.ID); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Error("undo handler not invoked")
+	}
+	// Marker entry should be appended.
+	list := j.List(10, Filter{})
+	if list[0].Operation != "audit.undo" {
+		t.Errorf("expected newest entry to be audit.undo, got %s", list[0].Operation)
+	}
+}
+
+func TestUndo_TwiceFails(t *testing.T) {
+	j := newTestJournal(t)
+	j.Register("channel.create", func(_ Entry) error { return nil })
+	e := j.Record("channel.create", "ch-1", nil, nil, nil)
+	if err := j.Undo(e.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := j.Undo(e.ID); err == nil {
+		t.Error("expected error on second Undo")
+	}
+}
+
+func TestUndo_NonReversibleFails(t *testing.T) {
+	j := newTestJournal(t)
+	e := j.Record("channel.create", "ch-1", nil, nil, nil) // no handler
+	if err := j.Undo(e.ID); err == nil {
+		t.Error("expected error for non-reversible op")
+	}
+}
+
+func TestList_Filtered(t *testing.T) {
+	j := newTestJournal(t)
+	capability.SetCurrent(capability.NewToken("agent:sales", capability.CapNotifyUser))
+	defer capability.SetCurrent(capability.AllToken("desktop-user"))
+
+	j.Record("channel.create", "ch-1", nil, nil, nil)
+	j.Record("channel.delete", "ch-2", nil, nil, nil)
+	j.Record("user.create", "u-1", nil, nil, nil)
+
+	got := j.List(10, Filter{Operation: "channel"})
+	if len(got) != 2 {
+		t.Errorf("expected 2 channel.* entries, got %d", len(got))
+	}
+}
+
+func TestStats_Aggregates(t *testing.T) {
+	j := newTestJournal(t)
+	j.Record("channel.create", "ch-1", nil, nil, nil)
+	j.Record("channel.create", "ch-2", nil, nil, nil)
+	j.Record("user.delete", "u-1", nil, nil, errors.New("boom"))
+
+	s := j.Stats()
+	if s.Total != 3 {
+		t.Errorf("Total=%d, want 3", s.Total)
+	}
+	if s.OK != 2 || s.Error != 1 {
+		t.Errorf("OK/Error counts wrong: %+v", s)
+	}
+	if s.ByOperation["channel.create"] != 2 {
+		t.Errorf("channel.create count = %d", s.ByOperation["channel.create"])
+	}
+}
+
+func TestColdStorage_Persists(t *testing.T) {
+	dir := t.TempDir()
+	// First journal session
+	j, _ := NewJournal(dir)
+	j.Record("channel.create", "ch-1", nil, map[string]string{"name": "first"}, nil)
+
+	// Hydrate from disk
+	j2, _ := NewJournal(dir)
+	list := j2.List(10, Filter{})
+	if len(list) == 0 {
+		t.Fatal("expected hydrated entries")
+	}
+	if list[0].Target != "ch-1" {
+		t.Errorf("hydrated target = %s, want ch-1", list[0].Target)
+	}
+
+	// Verify file actually exists
+	matches, _ := filepath.Glob(filepath.Join(dir, "audit", "*.ndjson"))
+	if len(matches) == 0 {
+		t.Error("expected at least one cold-storage NDJSON file")
+	}
+}

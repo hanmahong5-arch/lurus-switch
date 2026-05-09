@@ -187,8 +187,20 @@ func (a *App) QuickSetup(model string) map[string]string {
 func (a *App) SwitchModel(model string) map[string]string {
 	result := make(map[string]string)
 
+	// Audit-record + cap-gate. Model switching affects every CLI bound to
+	// the gateway — definitely a write operation.
+	if err := a.requireAndAudit(capPricingWrite(), auditOpModelSwitch, model, map[string]any{"model": model}); err != nil {
+		result["error"] = err.Error()
+		return result
+	}
+	var swErr error
+	defer func() {
+		a.recordOutcome(auditOpModelSwitch, model, map[string]any{"model": model, "result": result}, swErr)
+	}()
+
 	if a.proxyMgr == nil {
 		result["error"] = "proxy manager not initialized"
+		swErr = fmt.Errorf("proxy manager not initialized")
 		return result
 	}
 
@@ -196,6 +208,7 @@ func (a *App) SwitchModel(model string) map[string]string {
 	settings.Model = model
 	if err := a.proxyMgr.SaveSettings(settings); err != nil {
 		result["error"] = fmt.Sprintf("failed to save settings: %v", err)
+		swErr = err
 		return result
 	}
 

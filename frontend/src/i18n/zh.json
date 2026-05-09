@@ -19,6 +19,11 @@
       "tagline": "我要开 AI 编程小卖部",
       "desc": "经销商：在自己云上一键部署 Hub，配模型路由，生成激活码批次，导出带自己品牌的客户端。"
     },
+    "enterprise": {
+      "label": "Enterprise",
+      "tagline": "公司部署给员工用",
+      "desc": "企业内部：SSO 接入，员工按部门核算 token，DLP 拦截敏感数据外发，月度 Chargeback 报表对接 SAP / Workday。"
+    },
     "enduser": {
       "label": "EndUser",
       "tagline": "我有激活码",
