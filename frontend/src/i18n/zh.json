@@ -1020,7 +1020,58 @@
     "started": "{{name}} 已启动",
     "stopped": "{{name}} 已停止",
     "cloned": "已克隆 {{name}}",
-    "deleted": "已删除 {{name}}"
+    "deleted": "已删除 {{name}}",
+    "banner": {
+      "title": "助理是什么？",
+      "body": "把一个 CLI 工具长期绑定到一个角色：自定义 system prompt、专用模型、独立配置目录、可选 MCP 与权限。和裸跑 `claude` / `codex` 比，助理是开箱即用的多智能体编队 — 停了再启还是同一个身份，可以克隆做 A/B 变体。",
+      "learnMore": "了解更多",
+      "hide": "收起"
+    },
+    "howItWorks": {
+      "title": "三步上手",
+      "step1": "新建：选工具 + 模型 + 给个角色名（如「前端审查员」）",
+      "step2": "启动：在独立 config 目录里跑起来，互不干扰",
+      "step3": "复用：停了再起还是同一身份；克隆做变体"
+    },
+    "detail": {
+      "title": "助理详情",
+      "config": "配置",
+      "output": "实时输出",
+      "systemPrompt": "System Prompt",
+      "tools": "MCP / 工具",
+      "permissions": "权限",
+      "budget": "预算",
+      "configDir": "配置目录",
+      "noPrompt": "（未设置）",
+      "noOutput": "尚无输出。启动助理后这里会实时显示 stdout/stderr。",
+      "outputLines": "{{count}} 行",
+      "refresh": "刷新输出",
+      "shell": "Shell",
+      "files": "文件",
+      "network": "网络",
+      "allowed": "允许",
+      "denied": "禁止",
+      "tokenBudget": "Token 预算",
+      "currencyBudget": "费用预算",
+      "period": "周期",
+      "policy": "策略",
+      "noBudget": "未限",
+      "createdAt": "创建于",
+      "updatedAt": "更新于"
+    },
+    "fleet": {
+      "homeTitle": "助理舰队",
+      "homeBody": "{{total}} 个助理 · {{running}} 运行中",
+      "homeEmpty": "还没建过助理",
+      "manage": "去管理"
+    },
+    "statusBar": {
+      "label": "助理",
+      "tooltip": "{{running}} 运行中 / {{total}} 总数 — 点击查看"
+    },
+    "card": {
+      "openDetail": "查看详情"
+    }
   },
   "help": {
     "gateway": {

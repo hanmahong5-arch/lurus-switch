@@ -1020,7 +1020,58 @@
     "started": "{{name}} started",
     "stopped": "{{name}} stopped",
     "cloned": "Cloned {{name}}",
-    "deleted": "Deleted {{name}}"
+    "deleted": "Deleted {{name}}",
+    "banner": {
+      "title": "What is an Agent?",
+      "body": "Bind a CLI tool to a long-lived role: custom system prompt, dedicated model, isolated config dir, optional MCP servers and permissions. Compared to bare `claude` / `codex`, agents give you an out-of-the-box multi-agent fleet — stop and restart preserves identity; clone for A/B variants.",
+      "learnMore": "Learn more",
+      "hide": "Hide"
+    },
+    "howItWorks": {
+      "title": "Get started in 3 steps",
+      "step1": "Create: pick a tool + model + role name (e.g. \"Frontend Reviewer\")",
+      "step2": "Launch: runs in an isolated config dir — no cross-contamination",
+      "step3": "Reuse: stop and restart keeps the identity; clone for variants"
+    },
+    "detail": {
+      "title": "Agent detail",
+      "config": "Configuration",
+      "output": "Live output",
+      "systemPrompt": "System prompt",
+      "tools": "MCP / Tools",
+      "permissions": "Permissions",
+      "budget": "Budget",
+      "configDir": "Config directory",
+      "noPrompt": "(not set)",
+      "noOutput": "No output yet. Once the agent runs, stdout/stderr stream here.",
+      "outputLines": "{{count}} lines",
+      "refresh": "Refresh output",
+      "shell": "Shell",
+      "files": "Files",
+      "network": "Network",
+      "allowed": "allow",
+      "denied": "deny",
+      "tokenBudget": "Token budget",
+      "currencyBudget": "Spend budget",
+      "period": "Period",
+      "policy": "Policy",
+      "noBudget": "unlimited",
+      "createdAt": "Created",
+      "updatedAt": "Updated"
+    },
+    "fleet": {
+      "homeTitle": "Agent fleet",
+      "homeBody": "{{total}} agents · {{running}} running",
+      "homeEmpty": "No agents yet",
+      "manage": "Manage"
+    },
+    "statusBar": {
+      "label": "Agents",
+      "tooltip": "{{running}} running / {{total}} total — click to view"
+    },
+    "card": {
+      "openDetail": "View detail"
+    }
   },
   "help": {
     "gateway": {

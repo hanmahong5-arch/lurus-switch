@@ -19,6 +19,7 @@ import { QuickActions } from '../components/QuickActions'
 import { OptimizationPanel } from '../components/OptimizationPanel'
 import { HomeIntentPanel } from '../components/HomeIntentPanel'
 import { RuntimeStatusPanel } from '../components/RuntimeStatusPanel'
+import { AgentFleetCard } from '../components/AgentFleetCard'
 import { ModelPicker, type Model } from '../components/ModelPicker'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
 import type { gy } from '../../wailsjs/go/models'
@@ -80,7 +81,7 @@ export function HomePage() {
     setCheckingUpdates, setConfiguring, setError,
   } = useHomeStore()
 
-  const { setActiveTool, setSubTab } = useConfigStore()
+  const { setActiveTool, setSubTab, appMode } = useConfigStore()
   const toast = useToastStore((s) => s.addToast)
   const { products, setProducts, setStatuses } = useGYStore()
 
@@ -461,6 +462,9 @@ export function HomePage() {
 
         {/* Live runtime status — endpoint reachability + process state */}
         <RuntimeStatusPanel />
+
+        {/* Agent fleet entry — only Personal mode has the Agents page. */}
+        {appMode === 'personal' && <AgentFleetCard />}
 
         {/* Section A: Health Score Gauge */}
         <HealthScoreGauge
