@@ -1,6 +1,11 @@
 package metering
 
 import (
+	"bytes"
+	"log"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -142,6 +147,44 @@ func TestStore_CacheHitTracking(t *testing.T) {
 	summary := store.TodaySummary()
 	if summary.CacheHits != 1 {
 		t.Fatalf("expected 1 cache hit, got %d", summary.CacheHits)
+	}
+}
+
+// TestStore_AppendToDayFile_WriteError verifies that appendToDayFile()
+// logs an error (instead of silently swallowing it) when os.WriteFile
+// fails. We force the failure by pointing the store's baseDir at a path
+// whose parent component is a regular file, so any nested write target
+// (baseDir/YYYY-MM-DD.json) is invalid on every OS.
+func TestStore_AppendToDayFile_WriteError(t *testing.T) {
+	parent := t.TempDir()
+
+	// Create a regular file, then treat it as if it were the metering
+	// directory. Writing to <file>/anything.json fails on Windows,
+	// macOS, and Linux alike.
+	notADir := filepath.Join(parent, "not-a-dir")
+	if err := os.WriteFile(notADir, []byte("blocker"), 0o600); err != nil {
+		t.Fatalf("create blocker file: %v", err)
+	}
+
+	store := &Store{
+		baseDir:   notADir,
+		buffer:    make([]Record, 0, bufferFlushSize),
+		recent:    make([]Record, 0, recentActivityN),
+		daily:     make(map[string][]Record),
+		lastFlush: time.Now(),
+	}
+
+	// Capture log output so we can assert that the error surfaced.
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	defer log.SetOutput(os.Stderr)
+
+	day := time.Now().Format("2006-01-02")
+	store.appendToDayFile(day, []Record{{AppID: "t", Model: "m", TokensIn: 1, TokensOut: 2}})
+
+	out := buf.String()
+	if !strings.Contains(out, "metering: appendToDayFile") {
+		t.Fatalf("expected log to contain 'metering: appendToDayFile', got %q", out)
 	}
 }
 

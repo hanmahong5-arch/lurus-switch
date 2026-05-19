@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -165,6 +166,41 @@ func (s *Store) CostCenterSummaries(from, to time.Time) []CostCenterSummary {
 	return out
 }
 
+// EmployeeSummaries aggregates per-employee usage for the chargeback
+// dashboard. Records without an EmployeeID end up under "" — the UI
+// labels that bucket as "unattributed" so the admin sees the gap.
+func (s *Store) EmployeeSummaries(from, to time.Time) []EmployeeSummary {
+	records := s.recordsInRange(from, to)
+	byEmp := make(map[string]*EmployeeSummary)
+	for _, r := range records {
+		es, ok := byEmp[r.EmployeeID]
+		if !ok {
+			es = &EmployeeSummary{
+				EmployeeID: r.EmployeeID,
+				CostCenter: r.CostCenter,
+			}
+			byEmp[r.EmployeeID] = es
+		}
+		es.TotalCalls++
+		es.TokensIn += r.TokensIn
+		es.TokensOut += r.TokensOut
+		// Last-write-wins on CostCenter — should be stable across the
+		// range, but if an admin re-binds an app mid-period the most
+		// recent attribution is the one auditors expect.
+		if r.CostCenter != "" {
+			es.CostCenter = r.CostCenter
+		}
+	}
+	out := make([]EmployeeSummary, 0, len(byEmp))
+	for _, es := range byEmp {
+		out = append(out, *es)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		return (out[i].TokensIn + out[i].TokensOut) > (out[j].TokensIn + out[j].TokensOut)
+	})
+	return out
+}
+
 // ModelSummaries returns per-model usage for a date range.
 func (s *Store) ModelSummaries(from, to time.Time) []ModelSummary {
 	records := s.recordsInRange(from, to)
@@ -298,12 +334,17 @@ func (s *Store) recordsInRange(from, to time.Time) []Record {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	fromY, fromM, fromD := from.Date()
+	day := time.Date(fromY, fromM, fromD, 0, 0, 0, 0, from.Location())
+	toY, toM, toD := to.Date()
+	end := time.Date(toY, toM, toD, 0, 0, 0, 0, to.Location())
+
 	var out []Record
-	for d := from; !d.After(to); d = d.AddDate(0, 0, 1) {
-		day := d.Format("2006-01-02")
-		records, ok := s.daily[day]
+	for d := day; !d.After(end); d = d.AddDate(0, 0, 1) {
+		key := d.Format("2006-01-02")
+		records, ok := s.daily[key]
 		if !ok {
-			records = s.loadDayFile(day)
+			records = s.loadDayFile(key)
 		}
 		for _, r := range records {
 			if !r.Timestamp.Before(from) && !r.Timestamp.After(to) {
@@ -357,9 +398,12 @@ func (s *Store) appendToDayFile(day string, newRecords []Record) {
 	all := append(existing, newRecords...)
 	data, err := json.Marshal(all)
 	if err != nil {
+		log.Printf("metering: appendToDayFile failed for %s: %v", fp, err)
 		return
 	}
-	_ = os.WriteFile(fp, data, 0o600)
+	if err := os.WriteFile(fp, data, 0o600); err != nil {
+		log.Printf("metering: appendToDayFile failed for %s: %v", fp, err)
+	}
 }
 
 func generateRecordID() string {
