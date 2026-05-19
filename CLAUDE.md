@@ -76,3 +76,6 @@ cd frontend && bun run build
 | Architecture | `./_bmad-output/planning-artifacts/architecture.md` |
 | Gap Analysis | `./_bmad-output/planning-artifacts/bmad-gap-analysis.md` |
 | Sprint Status | `./_bmad-output/sprint-status.yaml` |
+
+---
+_BMAD artifacts last review: 2026-05-18 — governance: `lurus/doc/audit/2026-05-18-bmad-output-stale.md`._
