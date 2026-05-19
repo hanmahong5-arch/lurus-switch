@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -191,32 +192,185 @@ func defaultBuildOutputDir(brand string) string {
 	return filepath.Join(base, "whitelabel-builds", slug)
 }
 
-// whitelabelHMACKey derives the per-Hub HMAC key. Two scenarios:
+// whitelabelHMACKey resolves the per-Hub HMAC key used to sign + verify
+// the white-label sidecar. The resolver tries two sources in order:
 //
-//   - Reseller mode with AdminToken saved → key = sha256("whitelabel:" + token).
-//     Each Reseller's builds are unique-keyed; rotating the token
-//     invalidates all prior builds (acceptable: they reissue installers
-//     after token rotation anyway).
-//   - No saved token (e.g. first launch dev environment) → key derived
-//     from the device fingerprint, used only for round-trip testing.
+//  1. Hub endpoint `/api/v2/admin/whitelabel/hmac-key?tenant_slug=<slug>`
+//     (Track 2.3 / Phase D). When the Reseller has configured HubURL +
+//     AdminToken + TenantSlug, we fetch the per-tenant key from there.
+//     The Hub-issued key rotates server-side and lets the platform
+//     revoke a Reseller's signing capability without shipping a new
+//     Switch build.
+//  2. Hardcoded `whitelabelBuildSecret` fallback. Used when the Hub
+//     endpoint is absent (older Hub deployments), the Reseller hasn't
+//     finished setup, or any transport error trips the remote call.
+//     This is also the only path on a freshly-installed EndUser binary
+//     where there is no Reseller config at all.
 //
-// Once the Hub /api/v2/admin/whitelabel/hmac-key endpoint ships, this
-// function fetches there instead. No API change for callers.
-//
-// 🔑 KEY DERIVATION CHANGE (audit blocker #1, 2026-05): the previous
+// 🔑 KEY DERIVATION HISTORY (audit blocker #1, 2026-05): the original
 // implementation derived the key from `s.Reseller.AdminToken`, which is
 // empty on a fresh EndUser machine. Result: every distributed white-
 // label binary failed sidecar verification on first launch and silently
 // fell through to the unset-mode picker — completely defeating the
-// white-label lock. We now use a baked-in build secret. The HMAC's
-// purpose is tamper-detection during distribution (CDN, archive
-// manipulation), NOT defense against malicious Resellers (who hold the
-// secret too — the source is open). For that, ship signed installers
-// (Authenticode on Windows, codesign on macOS) — see the manual
-// distribution checklist in PackagerPage.
+// white-label lock. We then switched to a baked-in build secret. As of
+// Phase D (2026-05), the Hub also publishes a per-tenant key so older
+// builds stay compatible while new builds can be invalidated by a Hub-
+// side rotation. The HMAC's purpose is tamper-detection during
+// distribution (CDN, archive manipulation), NOT defense against
+// malicious Resellers (who hold the secret too — the source is open).
+// For that, ship signed installers (Authenticode on Windows, codesign
+// on macOS) — see the manual distribution checklist in PackagerPage.
 const whitelabelBuildSecret = "lurus-switch-whitelabel-v1-46de2f01-tamper-detection"
 
+// errHubHMACKeyEndpointAbsent signals that the Hub does not expose the
+// per-tenant HMAC-key endpoint (404, 405) or the call failed in a way
+// that should cause the caller to silently fall back to the hardcoded
+// build secret. The error is a sentinel — callers compare with
+// errors.Is for the fallback decision.
+var errHubHMACKeyEndpointAbsent = errors.New("hub: whitelabel hmac-key endpoint absent")
+
+// hubHMACKeyHTTPClient is the seam tests use to swap in an httptest
+// server's client. Production callers leave this nil and get a sane
+// default with a short timeout (the Hub call is on the critical path
+// of `BuildWhiteLabelPackage`, so the budget must be small).
+var hubHMACKeyHTTPClient *http.Client
+
+func defaultHubHMACKeyClient() *http.Client {
+	if hubHMACKeyHTTPClient != nil {
+		return hubHMACKeyHTTPClient
+	}
+	return &http.Client{Timeout: 5 * time.Second}
+}
+
+// fetchHubHMACKey calls the Hub admin endpoint and returns the 32-byte
+// per-tenant HMAC key. The Hub returns `{success, data:{hmac_key:"<hex>"}}`
+// and we decode the hex into raw bytes. Errors are classified into:
+//
+//   - errHubHMACKeyEndpointAbsent — 404 / 405 / 501 / connection refused.
+//     Caller should silently fall back to the hardcoded secret so older
+//     Hub deployments keep working.
+//   - generic error — anything else (200 success=false, non-JSON body,
+//     wrong-length hex, invalid hex). Caller still falls back, but the
+//     message is preserved for stderr logging because these signal a
+//     misconfigured Hub rather than an absent feature.
+//
+// `ctx` carries the per-call deadline. The Authorization header uses the
+// same convention as internal/hub/admin.Client: raw token, no `Bearer`
+// prefix — Hub middleware accepts that form for native admin tokens.
+func fetchHubHMACKey(ctx context.Context, hubBaseURL, tenantSlug, adminToken string) ([]byte, error) {
+	hubBaseURL = strings.TrimRight(strings.TrimSpace(hubBaseURL), "/")
+	tenantSlug = strings.TrimSpace(tenantSlug)
+	adminToken = strings.TrimSpace(adminToken)
+	if hubBaseURL == "" {
+		return nil, fmt.Errorf("%w: empty hub URL", errHubHMACKeyEndpointAbsent)
+	}
+	if tenantSlug == "" {
+		return nil, fmt.Errorf("%w: empty tenant slug", errHubHMACKeyEndpointAbsent)
+	}
+	if adminToken == "" {
+		return nil, fmt.Errorf("%w: empty admin token", errHubHMACKeyEndpointAbsent)
+	}
+
+	q := url.Values{}
+	q.Set("tenant_slug", tenantSlug)
+	endpoint := hubBaseURL + "/api/v2/admin/whitelabel/hmac-key?" + q.Encode()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("build hmac-key request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", adminToken)
+
+	resp, err := defaultHubHMACKeyClient().Do(req)
+	if err != nil {
+		// Connection refused / DNS failure / context deadline → treat
+		// as endpoint-absent so we silently fall back. The underlying
+		// transport error stays wrapped for log surfaces.
+		return nil, fmt.Errorf("%w: transport: %v", errHubHMACKeyEndpointAbsent, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound ||
+		resp.StatusCode == http.StatusMethodNotAllowed ||
+		resp.StatusCode == http.StatusNotImplemented {
+		return nil, fmt.Errorf("%w: HTTP %d", errHubHMACKeyEndpointAbsent, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read hmac-key response: %w", err)
+	}
+
+	var env struct {
+		Success bool   `json:"success"`
+		Message string `json:"message"`
+		Data    struct {
+			HMACKey string `json:"hmac_key"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &env); err != nil {
+		return nil, fmt.Errorf("malformed hmac-key response (HTTP %d): %w", resp.StatusCode, err)
+	}
+	if !env.Success {
+		msg := env.Message
+		if msg == "" {
+			msg = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("hub hmac-key error: %s", msg)
+	}
+
+	hexKey := strings.TrimSpace(env.Data.HMACKey)
+	if len(hexKey) != 2*sha256.Size {
+		// sha256.Size = 32 bytes → 64 hex chars. Anything else is a
+		// Hub bug; better to scream than to silently produce a wrong-
+		// shaped key that cascades into Verify failures later.
+		return nil, fmt.Errorf("malformed hmac-key: expected %d hex chars, got %d", 2*sha256.Size, len(hexKey))
+	}
+	keyBytes, err := hex.DecodeString(hexKey)
+	if err != nil {
+		return nil, fmt.Errorf("malformed hmac-key: invalid hex: %w", err)
+	}
+	return keyBytes, nil
+}
+
+// whitelabelHMACKey returns the HMAC key for sidecar sign/verify. It
+// tries the Hub-side per-tenant endpoint first and falls back to the
+// hardcoded build secret on any failure. Fallback is mandatory:
+//
+//   - Older Hub deployments (pre-Phase-D) lack the endpoint entirely.
+//   - Fresh EndUser machines have no Reseller config to authenticate
+//     with — but they still need to verify a sidecar signed elsewhere.
+//   - Network blips during a build must not bounce the Reseller back
+//     to the wizard.
+//
+// As a consequence, this function never returns an error — the legacy
+// signature is preserved (and the error path is reserved for future
+// hard-fail policy if we ever want to honor a `--strict` build flag).
+//
+// TODO(track-2.5): plumb a real context.Context through callers
+// (`BuildWhiteLabelPackage`, `applyWhiteLabelSidecar`) once a refactor
+// of the Wails binding signatures is on the table. Today we use
+// context.Background() so the Hub call is bounded only by the
+// http.Client timeout.
 func whitelabelHMACKey() ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s, err := appconfig.LoadAppSettings()
+	if err == nil && s != nil &&
+		s.Reseller.HubURL != "" && s.Reseller.TenantSlug != "" && s.Reseller.AdminToken != "" {
+		key, fetchErr := fetchHubHMACKey(ctx, s.Reseller.HubURL, s.Reseller.TenantSlug, s.Reseller.AdminToken)
+		if fetchErr == nil {
+			return key, nil
+		}
+		// Fallback path. Endpoint-absent is the expected legacy branch
+		// and stays quiet; other classes of failure (malformed key,
+		// hub-error) get a one-line stderr so operators notice.
+		if !errors.Is(fetchErr, errHubHMACKeyEndpointAbsent) {
+			fmt.Fprintf(os.Stderr, "whitelabel: hub hmac-key fetch failed, falling back to baked secret: %v\n", fetchErr)
+		}
+	}
 	sum := sha256.Sum256([]byte(whitelabelBuildSecret))
 	return sum[:], nil
 }
