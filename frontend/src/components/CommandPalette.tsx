@@ -5,6 +5,7 @@ import {
   Search, Download, Play, Square, Link2, Wrench, Activity,
   Home, Settings, Briefcase, CreditCard, Radio, Terminal, Wallet,
   Loader2, ArrowLeft, ArrowRight, Clock, ShieldAlert,
+  Camera, UserCog, Users, KeyRound, Building,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
@@ -24,10 +25,10 @@ import {
   InstallTool, InstallAllTools, StartGateway, StopGateway,
   AutoConfigureToolsForGateway, ApplyAllOptimizations,
   FullSetupForGateway, DetectAllTools, CheckAllToolHealth,
-  LaunchTool,
+  LaunchTool, TakeConfigSnapshot, SetAppMode, IsModeLocked,
 } from '../../wailsjs/go/main/App'
 
-type Category = 'recent' | 'install' | 'action' | 'navigate' | 'launch'
+type Category = 'recent' | 'install' | 'action' | 'navigate' | 'launch' | 'snapshot' | 'mode'
 
 interface Command {
   id: string
@@ -41,7 +42,7 @@ interface Command {
   rawLabel?: string
 }
 
-const CATEGORY_ORDER: Category[] = ['recent', 'install', 'action', 'navigate', 'launch']
+const CATEGORY_ORDER: Category[] = ['recent', 'snapshot', 'mode', 'install', 'action', 'navigate', 'launch']
 
 const RECENT_LIMIT = 5
 
@@ -116,9 +117,22 @@ export function CommandPalette() {
       category: 'install' as Category,
       icon: Download,
       action: async () => {
-        await InstallTool(name)
+        const result = await InstallTool(name)
         refreshTools()
-        toast('success', `${toolMeta[name].label} ${t('dashboard.installSuccess')}`)
+        // Result.success guard — without this a CN-network silent failure
+        // would still raise a green "installed" toast (see feedback memory:
+        // wails-result-success-silent-failure).
+        if (result?.success) {
+          toast('success', `${toolMeta[name].label} ${t('dashboard.installSuccess')}`)
+        } else {
+          toast(
+            'error',
+            result?.message
+              || t('commandPalette.errors.installFailed', '{{tool}} 安装失败', {
+                tool: toolMeta[name].label,
+              }),
+          )
+        }
       },
     })),
     {
@@ -128,9 +142,24 @@ export function CommandPalette() {
       category: 'install',
       icon: Download,
       action: async () => {
-        await InstallAllTools()
+        const results = await InstallAllTools()
         refreshTools()
-        toast('success', t('dashboard.installAllSuccess'))
+        const failed = (results ?? []).filter((r) => !r?.success)
+        if (failed.length === 0) {
+          toast('success', t('dashboard.installAllSuccess'))
+        } else {
+          // Surface per-tool failures rather than a green-then-wonder-why
+          // bug report. One toast with the first failing tool's message
+          // keeps the UI quiet but actionable.
+          const first = failed[0]
+          toast(
+            'error',
+            t('commandPalette.errors.installAllFailed', '{{n}} 个工具安装失败：{{msg}}', {
+              n: failed.length,
+              msg: first?.message || first?.tool || '',
+            }),
+          )
+        }
       },
     },
     // Actions
@@ -147,7 +176,23 @@ export function CommandPalette() {
     {
       id: 'connect-all', labelKey: 'commandPalette.commands.connectAll',
       keywords: ['connect', 'all', 'tools', 'gateway', 'configure'], category: 'action', icon: Link2,
-      action: async () => { await AutoConfigureToolsForGateway(); refreshTools(); toast('success', t('home.optimizeSuccess')) },
+      action: async () => {
+        const results = await AutoConfigureToolsForGateway()
+        refreshTools()
+        const failed = (results ?? []).filter((r) => !r?.success)
+        if (failed.length === 0) {
+          toast('success', t('home.optimizeSuccess'))
+        } else {
+          const first = failed[0]
+          toast(
+            'error',
+            t('commandPalette.errors.configFailed', '{{n}} 个工具未能接入：{{msg}}', {
+              n: failed.length,
+              msg: first?.message || first?.tool || '',
+            }),
+          )
+        }
+      },
     },
     {
       id: 'fix-all', labelKey: 'commandPalette.commands.fixAll',
@@ -187,6 +232,84 @@ export function CommandPalette() {
       keywords: ['tour', 'help', 'welcome', 'intro', 'onboarding', '功能', '指引', '介绍', '欢迎'],
       category: 'action', icon: Activity,
       action: () => { openFeatureTour(true) },
+    },
+    // Snapshot — quick "save current config so I can roll back if the next
+    // thing breaks anything". Linked to the snapshot store; rollback UI
+    // lives in PR-W1.5.
+    {
+      id: 'take-snapshot', labelKey: 'commandPalette.commands.takeSnapshot',
+      keywords: ['snapshot', 'backup', 'save', '快照', '备份'],
+      category: 'snapshot', icon: Camera,
+      action: async () => {
+        const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
+        const name = `palette-${ts}`
+        // TakeConfigSnapshot(name, reason) — Wails-typed, throws on failure.
+        await TakeConfigSnapshot(name, t('commandPalette.snapshotReason', 'Command palette one-tap snapshot'))
+        toast('success', t('commandPalette.snapshotSaved', '已保存配置快照：{{name}}', { name }))
+      },
+    },
+    // Mode switch — Personal / Reseller / EndUser. Suppressed (action no-ops
+    // with a toast) when the build is mode-locked (white-label installer or
+    // operator pinned via settings).
+    {
+      id: 'mode-personal', labelKey: 'commandPalette.commands.modePersonal',
+      keywords: ['mode', 'personal', 'switch', '个人', '模式'],
+      category: 'mode', icon: UserCog,
+      action: async () => {
+        const locked = await IsModeLocked().catch(() => false)
+        if (locked) {
+          toast('warning', t('commandPalette.errors.modeLocked', '当前模式已被锁定，无法切换'))
+          return
+        }
+        await SetAppMode('personal')
+        useConfigStore.getState().setAppMode('personal')
+        toast('success', t('commandPalette.modeSwitched', '已切换到 {{mode}} 模式', { mode: 'Personal' }))
+      },
+    },
+    {
+      id: 'mode-reseller', labelKey: 'commandPalette.commands.modeReseller',
+      keywords: ['mode', 'reseller', 'switch', '经销商', '模式'],
+      category: 'mode', icon: Users,
+      action: async () => {
+        const locked = await IsModeLocked().catch(() => false)
+        if (locked) {
+          toast('warning', t('commandPalette.errors.modeLocked', '当前模式已被锁定，无法切换'))
+          return
+        }
+        await SetAppMode('reseller')
+        useConfigStore.getState().setAppMode('reseller')
+        toast('success', t('commandPalette.modeSwitched', '已切换到 {{mode}} 模式', { mode: 'Reseller' }))
+      },
+    },
+    {
+      id: 'mode-enduser', labelKey: 'commandPalette.commands.modeEnduser',
+      keywords: ['mode', 'enduser', 'switch', 'customer', '客户', '模式'],
+      category: 'mode', icon: KeyRound,
+      action: async () => {
+        const locked = await IsModeLocked().catch(() => false)
+        if (locked) {
+          toast('warning', t('commandPalette.errors.modeLocked', '当前模式已被锁定，无法切换'))
+          return
+        }
+        await SetAppMode('enduser')
+        useConfigStore.getState().setAppMode('enduser')
+        toast('success', t('commandPalette.modeSwitched', '已切换到 {{mode}} 模式', { mode: 'EndUser' }))
+      },
+    },
+    {
+      id: 'mode-enterprise', labelKey: 'commandPalette.commands.modeEnterprise',
+      keywords: ['mode', 'enterprise', 'switch', '企业', '模式'],
+      category: 'mode', icon: Building,
+      action: async () => {
+        const locked = await IsModeLocked().catch(() => false)
+        if (locked) {
+          toast('warning', t('commandPalette.errors.modeLocked', '当前模式已被锁定，无法切换'))
+          return
+        }
+        await SetAppMode('enterprise')
+        useConfigStore.getState().setAppMode('enterprise')
+        toast('success', t('commandPalette.modeSwitched', '已切换到 {{mode}} 模式', { mode: 'Enterprise' }))
+      },
     },
     // Navigate
     {

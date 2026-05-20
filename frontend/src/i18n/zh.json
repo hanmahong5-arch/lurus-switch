@@ -1722,6 +1722,8 @@
     "execute": "执行",
     "categories": {
       "recent": "最近访问",
+      "snapshot": "快照",
+      "mode": "切换模式",
       "install": "安装",
       "action": "操作",
       "navigate": "导航",
@@ -1770,8 +1772,22 @@
       "undoLastAudit": "撤销最近一条审计",
       "launchClaudeCode": "启动 Claude Code",
       "launchCodex": "启动 Codex",
-      "launchGeminiCLI": "启动 Gemini CLI"
+      "launchGeminiCLI": "启动 Gemini CLI",
+      "takeSnapshot": "立即创建配置快照",
+      "modePersonal": "切换到 Personal 模式",
+      "modeReseller": "切换到 Reseller 模式",
+      "modeEnduser": "切换到 EndUser 模式",
+      "modeEnterprise": "切换到 Enterprise 模式"
     },
+    "errors": {
+      "installFailed": "{{tool}} 安装失败",
+      "installAllFailed": "{{n}} 个工具安装失败：{{msg}}",
+      "configFailed": "{{n}} 个工具未能接入：{{msg}}",
+      "modeLocked": "当前模式已被锁定，无法切换"
+    },
+    "snapshotReason": "命令面板一键快照",
+    "snapshotSaved": "已保存配置快照：{{name}}",
+    "modeSwitched": "已切换到 {{mode}} 模式",
     "undoNothing": "没有可撤销的最近审计条目",
     "undoDone": "已撤销 {{op}}"
   },

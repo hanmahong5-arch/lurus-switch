@@ -1720,6 +1720,8 @@
     "execute": "Execute",
     "categories": {
       "recent": "Recently visited",
+      "snapshot": "Snapshot",
+      "mode": "Switch mode",
       "install": "Install",
       "action": "Actions",
       "navigate": "Navigate",
@@ -1768,8 +1770,22 @@
       "undoLastAudit": "Undo last audited action",
       "launchClaudeCode": "Launch Claude Code",
       "launchCodex": "Launch Codex",
-      "launchGeminiCLI": "Launch Gemini CLI"
+      "launchGeminiCLI": "Launch Gemini CLI",
+      "takeSnapshot": "Take a config snapshot now",
+      "modePersonal": "Switch to Personal mode",
+      "modeReseller": "Switch to Reseller mode",
+      "modeEnduser": "Switch to EndUser mode",
+      "modeEnterprise": "Switch to Enterprise mode"
     },
+    "errors": {
+      "installFailed": "{{tool}} install failed",
+      "installAllFailed": "{{n}} tool(s) failed to install: {{msg}}",
+      "configFailed": "{{n}} tool(s) failed to connect: {{msg}}",
+      "modeLocked": "Mode is locked on this build — cannot switch"
+    },
+    "snapshotReason": "Command palette one-tap snapshot",
+    "snapshotSaved": "Config snapshot saved: {{name}}",
+    "modeSwitched": "Switched to {{mode}} mode",
     "undoNothing": "No reversible audit entry to undo",
     "undoDone": "Undid {{op}}"
   },
