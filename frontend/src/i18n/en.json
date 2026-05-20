@@ -1235,6 +1235,15 @@
       "generic": "Set these in your app:\n  Base URL: {{url}}\n  API Key: {{token}}"
     }
   },
+  "billing": {
+    "breakdown": {
+      "byModel": "Tokens by model (30d)",
+      "byTool": "Tokens by tool (30d)",
+      "empty": "No usage recorded in the last 30 days",
+      "unknownModel": "Unknown model",
+      "error": "Usage breakdown unavailable: {{err}}"
+    }
+  },
   "account": {
     "balance": "Balance",
     "frozen": "Frozen",

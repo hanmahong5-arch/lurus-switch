@@ -12,6 +12,7 @@ import { SubscriptionCard } from '../components/billing/SubscriptionCard'
 import { TopUpPanel } from '../components/billing/TopUpPanel'
 import { RedeemPanel } from '../components/billing/RedeemPanel'
 import { PlanSelector } from '../components/billing/PlanSelector'
+import { UsageBreakdown } from '../components/billing/UsageBreakdown'
 import {
   BillingGetUserInfo,
   BillingGetPlans,
@@ -256,6 +257,9 @@ export function BillingPage() {
                     total={userInfo.daily_quota}
                   />
                 </div>
+
+                {/* Usage breakdown — by model + by tool (last 30 days) */}
+                <UsageBreakdown />
 
                 {/* Subscription */}
                 <div className="grid grid-cols-2 gap-4">

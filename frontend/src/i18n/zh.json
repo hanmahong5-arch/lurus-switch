@@ -1237,6 +1237,15 @@
       "generic": "在你的应用中设置:\n  Base URL: {{url}}\n  API Key: {{token}}"
     }
   },
+  "billing": {
+    "breakdown": {
+      "byModel": "按模型分布（近 30 天）",
+      "byTool": "按工具分布（近 30 天）",
+      "empty": "过去 30 天暂无调用记录",
+      "unknownModel": "未知模型",
+      "error": "用量明细暂不可用：{{err}}"
+    }
+  },
   "account": {
     "balance": "鹿贝余额",
     "frozen": "冻结金额",
