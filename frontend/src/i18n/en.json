@@ -94,7 +94,13 @@
       "retry": "Retry now",
       "configure": "Configure",
       "install": "Install",
-      "openTools": "Open Tools page"
+      "openTools": "Open Tools page",
+      "daysRemaining": "{{days}} days left",
+      "expiredNow": "Activation has expired",
+      "expiringSoon": "{{days}} days until expiry",
+      "expiringSoonHint": "Reach out to your reseller now to renew and avoid an outage.",
+      "expiringCritical": "{{days}} days until expiry",
+      "expiringCriticalHint": "Contact your reseller immediately to renew, or service will stop."
     }
   },
   "nav": {

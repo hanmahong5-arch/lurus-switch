@@ -94,7 +94,13 @@
       "retry": "立即重试",
       "configure": "配置",
       "install": "安装",
-      "openTools": "打开工具页"
+      "openTools": "打开工具页",
+      "daysRemaining": "{{days}} 天后",
+      "expiredNow": "激活已到期",
+      "expiringSoon": "还剩 {{days}} 天到期",
+      "expiringSoonHint": "提前与经销商沟通续期，避免服务中断。",
+      "expiringCritical": "仅剩 {{days}} 天到期",
+      "expiringCriticalHint": "请立即联系经销商续期，否则服务即将停止。"
     }
   },
   "nav": {

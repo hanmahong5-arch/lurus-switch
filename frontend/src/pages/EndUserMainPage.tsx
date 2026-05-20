@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Activity, AlertTriangle, Check, KeyRound, LogOut, RefreshCw, Wrench } from 'lucide-react'
+import { Activity, AlertTriangle, Check, Clock, KeyRound, LogOut, RefreshCw, Wrench } from 'lucide-react'
 import {
   ClearActivation,
   GetEndUserStatus,
@@ -86,6 +86,45 @@ export function EndUserMainPage({ onDeactivated }: Props) {
     }
   }
 
+  // Days remaining until expiry. null = no valid expiresAt (no countdown).
+  // < 0 means already expired (status.state should be revoked, but we still
+  // compute it for the banner so a stale UI flash before the next heartbeat
+  // doesn't silently hide the expiry).
+  const daysUntilExpiry = useMemo(() => {
+    const iso = status?.expiresAt
+    if (!iso) return null
+    const d = new Date(iso)
+    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return null
+    const diffMs = d.getTime() - Date.now()
+    return Math.ceil(diffMs / 86_400_000)
+  }, [status?.expiresAt])
+
+  // Banner severity is driven by days remaining + activation present.
+  // Unactivated/revoked states are handled elsewhere — this only triggers
+  // when the user IS active but the clock is running out.
+  const expirySeverity: 'critical' | 'warning' | null = useMemo(() => {
+    if (daysUntilExpiry === null) return null
+    if (!status?.activated) return null
+    if (status.state === 'revoked' || status.state === 'unactivated') return null
+    if (daysUntilExpiry <= 7) return 'critical'
+    if (daysUntilExpiry <= 30) return 'warning'
+    return null
+  }, [daysUntilExpiry, status?.activated, status?.state])
+
+  // Quota severity uses absolute thresholds — there's no "used vs total"
+  // signal from the Hub yet (heartbeat returns a quota but the store does
+  // not persist it), so we colour the remaining number rather than render
+  // a fake progress bar. Numbers chosen to align with typical reseller
+  // grants (10K = bottom of the cheapest tier, 100K = comfortable).
+  const quotaSeverity: 'critical' | 'warning' | 'ok' | null = useMemo(() => {
+    const q = status?.quota
+    if (q === undefined || q === null) return null
+    if (q <= 0) return 'critical'
+    if (q < 10_000) return 'critical'
+    if (q < 100_000) return 'warning'
+    return 'ok'
+  }, [status?.quota])
+
   return (
     <div className="h-full overflow-auto bg-background text-foreground">
       <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -108,6 +147,47 @@ export function EndUserMainPage({ onDeactivated }: Props) {
             {t('common.refresh', '刷新')}
           </button>
         </header>
+
+        {expirySeverity === 'critical' && (
+          <div
+            role="alert"
+            data-testid="expiry-banner-critical"
+            className="rounded-md border border-red-500/50 bg-red-950/30 px-3 py-2.5 text-xs text-red-100 flex items-start gap-2"
+          >
+            <Clock className="h-4 w-4 shrink-0 mt-0.5 text-red-300" />
+            <div className="flex-1">
+              <div className="font-semibold">
+                {daysUntilExpiry !== null && daysUntilExpiry <= 0
+                  ? t('enduser.main.expiredNow', '激活已到期')
+                  : t('enduser.main.expiringCritical', '剩余 {{days}} 天到期', { days: daysUntilExpiry })}
+              </div>
+              <div className="text-red-100/80 mt-0.5">
+                {t(
+                  'enduser.main.expiringCriticalHint',
+                  '请尽快联系经销商续期，否则服务将停止。',
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {expirySeverity === 'warning' && (
+          <div
+            role="alert"
+            data-testid="expiry-banner-warning"
+            className="rounded-md border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200 flex items-start gap-2"
+          >
+            <Clock className="h-4 w-4 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <div className="font-medium">
+                {t('enduser.main.expiringSoon', '剩余 {{days}} 天到期', { days: daysUntilExpiry })}
+              </div>
+              <div className="text-amber-200/80 mt-0.5">
+                {t('enduser.main.expiringSoonHint', '提前与经销商沟通续期，避免服务中断。')}
+              </div>
+            </div>
+          </div>
+        )}
 
         {isStale && (
           <div className="rounded-md border border-amber-500/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-200 flex items-start gap-2">
@@ -148,10 +228,19 @@ export function EndUserMainPage({ onDeactivated }: Props) {
             <Stat
               label={t('enduser.main.quota', '剩余额度')}
               value={formatQuota(status?.quota)}
+              severity={quotaSeverity}
             />
             <Stat
               label={t('enduser.main.expires', '到期时间')}
               value={formatDate(status?.expiresAt)}
+              hint={
+                daysUntilExpiry !== null
+                  ? daysUntilExpiry <= 0
+                    ? t('enduser.main.expiredNow', '激活已到期')
+                    : t('enduser.main.daysRemaining', '{{days}} 天后', { days: daysUntilExpiry })
+                  : undefined
+              }
+              severity={expirySeverity}
             />
             <Stat
               label={t('enduser.main.userId', '账号 ID')}
@@ -229,21 +318,40 @@ function Stat({
   icon,
   label,
   value,
+  hint,
+  severity,
 }: {
   icon?: React.ReactNode
   label: string
   value: string
+  hint?: string
+  severity?: 'critical' | 'warning' | 'ok' | null
 }) {
+  const valueColour =
+    severity === 'critical'
+      ? 'text-red-300'
+      : severity === 'warning'
+      ? 'text-amber-300'
+      : severity === 'ok'
+      ? 'text-emerald-200'
+      : ''
+  const hintColour =
+    severity === 'critical'
+      ? 'text-red-300/80'
+      : severity === 'warning'
+      ? 'text-amber-300/80'
+      : 'text-muted-foreground'
   return (
     <div>
       <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-1 flex items-center gap-1">
         {icon}
         {label}
       </div>
-      <div className="text-lg font-semibold flex items-center gap-1">
+      <div className={'text-lg font-semibold flex items-center gap-1 ' + valueColour}>
         <Check className="h-4 w-4 text-emerald-400/0" />
         {value}
       </div>
+      {hint && <div className={'text-xs mt-0.5 ' + hintColour}>{hint}</div>}
     </div>
   )
 }
