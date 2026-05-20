@@ -1,14 +1,15 @@
 import { useEffect, useCallback, useState } from 'react'
-import { RefreshCw, Loader2, Download, ArrowUpCircle, Wand2, Zap, Repeat, Wrench } from 'lucide-react'
+import { Loader2, Download, ArrowUpCircle, Wand2, Zap, Repeat, Wrench, AlertTriangle } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
-import { cn } from '../lib/utils'
 import { TOOL_ORDER, TOOL_DISPLAY } from '../lib/toolMeta'
+import { Button, Card, EmptyState, Modal } from '../components/ui'
 import { errorToast } from '../lib/errorToast'
 import { withRetry } from '../lib/withRetry'
 import { useHomeStore, type Suggestion } from '../stores/homeStore'
 import { useConfigStore } from '../stores/configStore'
 import { useToastStore } from '../stores/toastStore'
 import { useGYStore } from '../stores/gyStore'
+import { usePageActionsStore } from '../stores/pageActionsStore'
 import { ToolCard } from '../components/ToolCard'
 import { QuickActionCards } from '../components/QuickActionCards'
 import { StatusOverview } from '../components/StatusOverview'
@@ -19,6 +20,8 @@ import { QuickActions } from '../components/QuickActions'
 import { OptimizationPanel } from '../components/OptimizationPanel'
 import { HomeIntentPanel } from '../components/HomeIntentPanel'
 import { RuntimeStatusPanel } from '../components/RuntimeStatusPanel'
+import { TopologyView } from '../components/TopologyView'
+import { HomeAccountHero } from '../components/account/HomeAccountHero'
 import { AgentFleetCard } from '../components/AgentFleetCard'
 import { ModelPicker, type Model } from '../components/ModelPicker'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
@@ -65,6 +68,18 @@ async function getComputeHealthScore(): Promise<(() => Promise<any>) | null> {
     _resolvedHealthScore = null
   }
   return _resolvedHealthScore
+}
+
+// Many Wails bindings return a Result-shaped object: { success, message, ... }.
+// When success===false the binding did NOT throw — but the operation failed
+// (e.g. GitHub release API blocked in CN). Without this check the UI shows a
+// fake success toast while the underlying tool stays broken. Mirror the
+// TopologyView pattern: throw so the outer try/catch surfaces via errorToast.
+type WailsResult = { success?: boolean; message?: string } | null | undefined
+function ensureSuccess(result: WailsResult, fallback: string): void {
+  if (result && result.success === false) {
+    throw new Error(result.message || fallback)
+  }
 }
 
 
@@ -137,6 +152,11 @@ export function HomePage() {
     return () => clearTimeout(timer)
   }, [])
 
+  // Register the page-level refresh with the global header. The header
+  // renders the refresh icon only when a handler is registered, so other
+  // pages that haven't opted in stay clean.
+  const setRefreshHandler = usePageActionsStore((s) => s.setRefreshHandler)
+
   const loadHealthScore = useCallback(async () => {
     const fn = await getComputeHealthScore()
     if (!fn) return
@@ -161,13 +181,26 @@ export function HomePage() {
         const health = await CheckAllToolHealth()
         setToolHealth(health)
         useDashboardStore.getState().setToolHealth(health)
-      } catch {}
+      } catch (e) {
+        // Tool health is best-effort but failure shouldn't be invisible —
+        // surface a low-priority toast so the user knows the health panel
+        // is stale instead of silently showing stale data.
+        toast('warning', t('home.healthCheckFailed', '健康检查失败') + ': ' + String((e as Error)?.message ?? e))
+      }
     } catch (err) {
       errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', retry: () => detectTools(), t })
     } finally {
       setDetecting(false)
     }
   }, [t, setDetecting, setTools, setToolHealth, toast, setActiveTool])
+
+  useEffect(() => {
+    setRefreshHandler(async () => {
+      await detectTools()
+      await loadHealthScore()
+    })
+    return () => setRefreshHandler(null)
+  }, [detectTools, loadHealthScore, setRefreshHandler])
 
   const handleOptimize = useCallback(async () => {
     setConfiguring(true)
@@ -193,13 +226,13 @@ export function HomePage() {
     try {
       switch (suggestion.action) {
         case 'install-tool':
-          await InstallTool(suggestion.target)
+          ensureSuccess(await InstallTool(suggestion.target), t('home.installFailed', '安装失败'))
           break
         case 'install-runtime':
-          await InstallDependency(suggestion.target)
+          ensureSuccess(await InstallDependency(suggestion.target), t('home.installFailed', '安装失败'))
           break
         case 'update-tool':
-          await UpdateTool(suggestion.target)
+          ensureSuccess(await UpdateTool(suggestion.target), t('home.updateFailed', '更新失败'))
           break
         case 'start-gateway':
           await StartGateway()
@@ -208,7 +241,7 @@ export function HomePage() {
           await AutoConfigureToolsForGateway()
           break
         case 'fix-config':
-          await AutoFixToolConfig(suggestion.target)
+          ensureSuccess(await AutoFixToolConfig(suggestion.target), t('home.fixFailed', '修复失败'))
           break
         default:
           break
@@ -230,7 +263,7 @@ export function HomePage() {
     if (curInstalling[toolName] || Object.values(curInstalling).some(Boolean) || Object.values(curUpdating).some(Boolean)) return
     setInstalling(toolName, true)
     try {
-      await InstallTool(toolName)
+      ensureSuccess(await InstallTool(toolName), t('home.installFailed', '安装失败'))
       const statuses = await DetectAllTools()
       setTools(statuses)
       toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.installSuccess')}`, {
@@ -251,10 +284,16 @@ export function HomePage() {
     if (Object.values(curInstalling).some(Boolean)) return
     for (const name of TOOL_ORDER) setInstalling(name, true)
     try {
-      await InstallAllTools()
+      const results = await InstallAllTools()
       const statuses = await DetectAllTools()
       setTools(statuses)
-      toast('success', t('dashboard.installAllSuccess'))
+      const failed = Array.isArray(results) ? results.filter(r => r && r.success === false) : []
+      if (failed.length > 0) {
+        const detail = failed.map(r => `${r.tool}: ${r.message || t('home.installFailed', '安装失败')}`).join('; ')
+        toast('warning', detail)
+      } else {
+        toast('success', t('dashboard.installAllSuccess'))
+      }
       loadHealthScore()
     } catch (err) {
       errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', retry: () => handleInstallAll(), t })
@@ -341,12 +380,27 @@ export function HomePage() {
   const handleQuickStart = async (toolName: string) => {
     setQuickStarting((prev) => ({ ...prev, [toolName]: true }))
     try {
-      await InstallTool(toolName)
+      ensureSuccess(await InstallTool(toolName), t('home.installFailed', '安装失败'))
       try {
         const gwStatus = await GetGatewayStatus()
-        if (gwStatus?.running) await AutoConfigureToolForGateway(toolName)
-      } catch { /* gateway may not be running */ }
-      try { await AutoFixToolConfig(toolName) } catch { /* best effort */ }
+        if (gwStatus?.running) {
+          ensureSuccess(
+            await AutoConfigureToolForGateway(toolName),
+            t('home.configureFailed', '网关配置失败'),
+          )
+        }
+      } catch (e) {
+        // Gateway may not be running — degrade to a warning so the rest of
+        // quick-start still completes; don't fail the whole flow.
+        toast('warning', t('home.configureFailed', '网关配置失败') + ': ' + String((e as Error)?.message ?? e))
+      }
+      try {
+        ensureSuccess(await AutoFixToolConfig(toolName), t('home.fixFailed', '修复失败'))
+      } catch (e) {
+        // Auto-fix is best-effort, but a silent failure leaves the tool
+        // broken while showing success. Surface as warning, continue.
+        toast('warning', t('home.fixFailed', '修复失败') + ': ' + String((e as Error)?.message ?? e))
+      }
       await detectTools()
       await loadHealthScore()
       toast('success', t('home.quickStartSuccess', { tool: TOOL_DISPLAY[toolName] || toolName }))
@@ -436,26 +490,17 @@ export function HomePage() {
 
   return (
     <div className="h-full overflow-y-auto">
-      <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">{t('home.title')}</h2>
-            <p className="text-sm text-muted-foreground">{t('home.subtitle')}</p>
-          </div>
-          <button
-            onClick={() => { detectTools(); loadHealthScore() }}
-            disabled={detecting}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-              'border border-border hover:bg-muted',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
-          >
-            {detecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            {t('dashboard.refresh')}
-          </button>
-        </div>
+      <div className="max-w-[1600px] mx-auto p-6 space-y-6">
+        {/* Account summary hero — welcome + wallet/usage/subscription at a
+            glance. Triggers initial refresh + 60s background polling on
+            mount; hidden in EndUser mode (its own dashboard handles it). */}
+        <HomeAccountHero />
+
+        {/* Architecture topology — first thing users see, click-through to
+            the page that fixes whichever entity is red. The user's "360-grade
+            GUI" directive: every branch state visible with an actionable next
+            step. */}
+        <TopologyView />
 
         {/* Intent panel — verb-first entry points */}
         <HomeIntentPanel />
@@ -498,63 +543,63 @@ export function HomePage() {
         <OptimizationPanel onRefresh={() => { detectTools(); loadHealthScore() }} />
 
         {/* Uninstall Confirmation Modal */}
-        {confirmUninstall && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card border border-border rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-              <h3 className="font-semibold mb-2">{t('dashboard.uninstallTitle', { tool: confirmUninstall })}</h3>
-              <p className="text-sm text-muted-foreground mb-6">
-                <Trans
-                  i18nKey="dashboard.uninstallDesc"
-                  values={{ tool: confirmUninstall }}
-                  components={{ bold: <strong /> }}
-                />
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmUninstall(null)} className="flex-1 px-4 py-2 rounded-md text-sm border border-border hover:bg-muted transition-colors">
-                  {t('dashboard.uninstallCancel')}
-                </button>
-                <button onClick={handleUninstallConfirm} className="flex-1 px-4 py-2 rounded-md text-sm bg-red-500 text-white hover:bg-red-600 transition-colors">
-                  {t('dashboard.uninstallConfirm')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <Modal
+          open={!!confirmUninstall}
+          onClose={() => setConfirmUninstall(null)}
+          title={confirmUninstall ? t('dashboard.uninstallTitle', { tool: confirmUninstall }) : ''}
+          icon={AlertTriangle}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setConfirmUninstall(null)}>
+                {t('dashboard.uninstallCancel')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={handleUninstallConfirm}>
+                {t('dashboard.uninstallConfirm')}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            <Trans
+              i18nKey="dashboard.uninstallDesc"
+              values={{ tool: confirmUninstall ?? '' }}
+              components={{ bold: <strong /> }}
+            />
+          </p>
+        </Modal>
 
         {/* Quota Widget */}
         <DashboardQuotaWidget />
 
         {/* Current Model */}
         {currentModel && (
-          <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+          <Card variant="elevated" className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <Zap className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm font-medium">{t('dashboard.currentModel')}</p>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground font-mono">
                   {catalogModels.find(m => m.id === currentModel)?.displayName || currentModel}
                 </p>
               </div>
             </div>
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setShowModelPicker(!showModelPicker)}
-              disabled={switchingModel}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                'border border-border hover:bg-muted',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
+              loading={switchingModel}
+              icon={!switchingModel ? <Repeat className="h-3.5 w-3.5" /> : undefined}
             >
-              {switchingModel ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Repeat className="h-3.5 w-3.5" />}
               {t('dashboard.switchModel')}
-            </button>
-          </div>
+            </Button>
+          </Card>
         )}
 
         {showModelPicker && (
-          <div className="border border-border rounded-lg p-4 bg-card">
+          <Card variant="elevated" className="p-4">
             <ModelPicker models={catalogModels} selected={currentModel} onSelect={handleSwitchModel} loading={switchingModel} />
-          </div>
+          </Card>
         )}
 
         {/* Runtime Dependencies */}
@@ -571,27 +616,23 @@ export function HomePage() {
             ))}
           </div>
         ) : !detecting && !anyInstalled && Object.keys(tools).length > 0 ? (
-          <div className="border border-dashed border-border rounded-lg p-10 flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <Wrench className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.noToolsDesc')}</p>
-            </div>
-            <button
-              onClick={handleInstallAll}
-              disabled={anyInstalling}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                'bg-primary text-primary-foreground hover:bg-primary/90',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
-            >
-              <Download className="h-4 w-4" />
-              {t('dashboard.installAll')}
-            </button>
-          </div>
+          <Card variant="default" className="border-dashed">
+            <EmptyState
+              icon={Wrench}
+              title={t('dashboard.noToolsTitle')}
+              hint={t('dashboard.noToolsDesc')}
+              action={
+                <Button
+                  size="lg"
+                  onClick={handleInstallAll}
+                  loading={anyInstalling}
+                  icon={!anyInstalling ? <Download className="h-4 w-4" /> : undefined}
+                >
+                  {t('dashboard.installAll')}
+                </Button>
+              }
+            />
+          </Card>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {TOOL_ORDER.map((name) => {
@@ -634,37 +675,51 @@ export function HomePage() {
 
         {/* Bulk actions */}
         <div className="flex gap-2 flex-wrap">
-          <button onClick={handleInstallAll} disabled={anyInstalling || detecting}
-            className={cn('flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors', 'bg-primary text-primary-foreground hover:bg-primary/90', 'disabled:opacity-50 disabled:cursor-not-allowed')}>
-            {anyInstalling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          <Button
+            size="lg"
+            onClick={handleInstallAll}
+            disabled={anyInstalling || detecting}
+            loading={anyInstalling}
+            icon={!anyInstalling ? <Download className="h-4 w-4" /> : undefined}
+          >
             {t('dashboard.installAll')}
-          </button>
+          </Button>
           {hasUpdates && (
-            <button onClick={handleUpdateAll} disabled={anyUpdating || detecting}
-              className={cn('flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors', 'bg-amber-500 text-white hover:bg-amber-600', 'disabled:opacity-50 disabled:cursor-not-allowed')}>
-              {anyUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowUpCircle className="h-4 w-4" />}
+            <Button
+              size="lg"
+              variant="secondary"
+              onClick={handleUpdateAll}
+              disabled={anyUpdating || detecting}
+              loading={anyUpdating}
+              icon={!anyUpdating ? <ArrowUpCircle className="h-4 w-4" /> : undefined}
+              className="bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
+            >
               {t('dashboard.updateAll')}
-            </button>
+            </Button>
           )}
         </div>
 
         {/* Lurus Ecosystem (moved from GYProductsPage) */}
         {products.length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">{t('home.ecosystem')}</h3>
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              [ {t('home.ecosystem').toUpperCase()} ]
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {products.map((product) => (
-                <button
+                <Card
                   key={product.id}
+                  as="button"
+                  variant="default"
                   onClick={() => LaunchGYProduct(product.id).catch(() => {})}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted transition-colors text-left"
+                  className="flex items-center gap-3 p-3 hover:bg-card/60 hover:border-rule-strong text-left"
                 >
                   <span className="text-xl">{product.id === 'lurus-lucrum' ? '🔮' : product.id === 'lurus-creator' ? '🎨' : '🧠'}</span>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{product.name}</p>
                     <p className="text-xs text-muted-foreground truncate">{product.description}</p>
                   </div>
-                </button>
+                </Card>
               ))}
             </div>
           </div>

@@ -3,6 +3,23 @@
     "title": "Lurus Switch",
     "subtitle": "本地 AI 网关"
   },
+  "topology": {
+    "ok": "正常",
+    "degraded": "降级",
+    "down": "中断",
+    "notconfigured": "未配置",
+    "total": "节点",
+    "refresh": "刷新",
+    "retry": "重试",
+    "loading": "正在探测组件…",
+    "failed": "无法生成拓扑快照",
+    "lastUpdated": "更新于 {{time}}",
+    "installed": "{{tool}} 已安装",
+    "updated": "{{tool}} 已更新",
+    "fixed": "{{tool}} 配置已修复",
+    "gatewayStarted": "网关已启动",
+    "loggedIn": "已登录"
+  },
   "mode": {
     "welcome": {
       "title": "欢迎使用 Lurus Switch",
@@ -48,7 +65,15 @@
       "expired": "该激活码已过期，请联系经销商。",
       "disabled": "该激活码已被经销商禁用。",
       "endpointAbsent": "Hub 暂未启用激活码兑换接口，请联系经销商升级。",
-      "server": "服务暂时不可用，请稍后重试。"
+      "server": "服务暂时不可用，请稍后重试。",
+      "action": {
+        "retry": "重试",
+        "contact": "联系经销商",
+        "clear": "清空重输",
+        "noSupport": "请联系您拿到这份安装包的经销商",
+        "mailSubject": "激活码无法使用",
+        "mailBody": "激活码：{{code}}\nHub：{{hub}}\n失败原因（kind）：{{kind}}\n"
+      }
     },
     "main": {
       "title": "我的服务",
@@ -78,12 +103,29 @@
     "breadcrumb": "面包屑导航",
     "section": {
       "overview": "总览",
+      "overviewHint": "看现在的状态",
       "configure": "配置",
+      "configureHint": "装 CLI 工具、配上游网关",
       "work": "工作",
-      "reseller": "经销"
+      "workHint": "日常使用 + 账户",
+      "reseller": "经销",
+      "resellerHint": "推广、激活码、白标",
+      "admin": "治理",
+      "adminHint": "组织、合规、模板",
+      "explore": "探索",
+      "exploreHint": "Lurus 生态产品"
+    },
+    "shortcut": {
+      "docs": "上下文文件",
+      "prompts": "提示词库",
+      "processes": "进程监控",
+      "relay": "中转规则",
+      "ecosystem": "Lurus 生态"
     },
     "home": "首页",
+    "live": "实时观察",
     "agents": "助理",
+    "conversations": "会话",
     "tools": "工具",
     "gateway": "网关",
     "workspace": "工作台",
@@ -103,20 +145,169 @@
     "gyProducts": "Lurus 生态",
     "promoterHub": "推广管理",
     "switchHub": "Switch 网关",
-    "packager": "白标打包"
+    "packager": "白标打包",
+    "dlp": "DLP 数据保护",
+    "orgchart": "组织架构",
+    "agentTemplates": "Agent 模板库",
+    "chargeback": "成本归集"
   },
   "common": {
     "unsavedChangesConfirm": "当前页面有未保存的改动，离开会丢失。是否继续？",
     "back": "上一步",
     "next": "下一步",
     "dismiss": "关闭",
-    "refresh": "刷新"
+    "refresh": "刷新",
+    "add": "添加",
+    "empty": "暂无数据"
+  },
+  "diagnostics": {
+    "title": "系统诊断",
+    "running": "正在收集…",
+    "rerun": "重新检测",
+    "dump": "生成 Debug Dump",
+    "openDumpsDir": "打开 dump 目录",
+    "summary": "{{ok}} 正常 · {{warn}} 警告 · {{fail}} 失败",
+    "dumpSaved": "Debug dump 已保存到：",
+    "meta": "生成时间 {{ts}} · v{{ver}} · {{os}}/{{arch}}"
+  },
+  "competingInstall": {
+    "title": "检测到其他工具的配置",
+    "body": "本机已安装 {{names}}。Switch 可以并存使用 — 在「工具」页可统一查看配置。",
+    "goTools": "去工具页 →"
+  },
+  "dlp": {
+    "title": "DLP — 数据保护",
+    "subtitle": "扫描经过本机网关的每条请求，按规则阻断 / 脱敏 / 记录敏感数据。修改即时生效。",
+    "live": "实时",
+    "paused": "已暂停",
+    "pausePolling": "暂停轮询",
+    "resumePolling": "继续轮询",
+    "blocked": "已阻断",
+    "stats": {
+      "total": "总命中",
+      "blocked": "已阻断",
+      "redacted": "已脱敏",
+      "warned": "仅告警"
+    },
+    "patterns": {
+      "title": "规则集",
+      "hint": "Block 直接拒绝；Redact 把命中部分替换为占位符；Warn / Allow 不改请求只记录。"
+    },
+    "col": {
+      "severity": "严重度",
+      "name": "规则",
+      "tags": "标签",
+      "policy": "策略"
+    },
+    "removePattern": "删除规则",
+    "tester": {
+      "title": "即时扫描测试",
+      "placeholder": "在此粘贴一段要测试的 prompt，点「扫描」查看会被哪些规则触发。",
+      "run": "扫描",
+      "result": "结果",
+      "hits": "命中",
+      "redacted": "查看脱敏后版本"
+    },
+    "recent": {
+      "title": "最近命中",
+      "hint": "环形缓冲（最多 200 条），由网关请求路径写入。",
+      "empty": "暂无命中。"
+    }
+  },
+  "orgchart": {
+    "title": "组织架构 — 部门与员工",
+    "subtitle": "Enterprise 模式下用于成本中心归集、SSO 绑定、按部门授权 token。",
+    "tree": {
+      "title": "部门树",
+      "roots": "根部门",
+      "empty": "尚未创建部门",
+      "addRootPh": "+ 根部门名称",
+      "addChildPh": "+ 子部门名称"
+    },
+    "employees": {
+      "title": "员工",
+      "deptSel": "当前部门 · {{count}} 人",
+      "noDept": "请先在左侧选择部门",
+      "includeInactive": "含已停用",
+      "emailPh": "邮箱",
+      "namePh": "姓名（选填）"
+    },
+    "col": {
+      "email": "邮箱",
+      "name": "姓名",
+      "role": "角色",
+      "status": "状态"
+    },
+    "import": {
+      "button": "批量导入 CSV",
+      "title": "批量导入员工 (SCIM-lite)",
+      "hint1": "粘贴 CSV，列顺序：email, display_name, department, role。可选 header 行（含 \"email\" 关键字会被识别为标题）。",
+      "hint2": "department 列可填部门名（不区分大小写）或部门 ID。空时使用左侧选中的部门作为默认。",
+      "hint3": "已存在 email 会更新（DisplayName / Department / Role 覆盖；SSO subject 不动），不存在则新建。",
+      "usingDefault": "默认部门 (列空时使用): ",
+      "created": "新建",
+      "updated": "更新",
+      "errors": "失败",
+      "errorList": "失败的行",
+      "run": "导入"
+    }
+  },
+  "chargeback": {
+    "title": "成本归集 — Chargeback",
+    "subtitle": "按部门和员工汇总 token 用量。要让数据落到对的桶里，先在 Connected Apps 把每个 app 绑定到员工。",
+    "from": "起",
+    "to": "止",
+    "byDept": "按部门",
+    "byEmployee": "按员工",
+    "totals": "合计",
+    "calls": "次",
+    "tokens": "tokens",
+    "exportCsv": "导出 CSV",
+    "empty": "该时间段无记录。先把 app 绑定到员工 / 部门，再让流量过本机网关。",
+    "gotoBinding": "去 Connected Apps 绑定归属 →",
+    "col": {
+      "dept": "部门",
+      "cc": "成本中心",
+      "headcount": "人数",
+      "employee": "员工",
+      "calls": "调用数",
+      "in": "token in",
+      "out": "token out",
+      "total": "合计"
+    }
+  },
+  "agentGallery": {
+    "title": "Agent 模板库",
+    "subtitle": "内置 5 类岗位 agent — 销售 / 支持 / 运维 / 财务 / 合规。点击查看 system prompt、capability 白名单、预算与 guardrails。",
+    "noCaps": "没有授权（deny-by-default）",
+    "section": {
+      "caps": "Capabilities（白名单）",
+      "budget": "预算",
+      "guardrails": "Guardrails",
+      "useCases": "典型场景",
+      "mcp": "依赖的 MCP",
+      "prompt": "System Prompt",
+      "notes": "部署说明"
+    }
   },
   "header": {
     "langToggle": "切换语言",
-    "langToggleHint": "Switch to English / 切换到英文",
+    "langToggleHint": "切换到英文",
     "themeToggle": "切换主题",
-    "themeToggleHint": "主题（点击循环）：暗色 → 亮色 → 跟随系统"
+    "themeToggleHint": "主题（点击循环）：暗色 → 亮色 → 跟随系统",
+    "refresh": "刷新",
+    "refreshHint": "刷新当前页",
+    "cmdPalette": "命令面板 (Ctrl+K)",
+    "quickLaunch": "快速启动 CLI",
+    "quickLaunchTitle": "在新终端启动",
+    "launchOk": "已在终端启动 {{tool}}",
+    "notInstalled": "未安装",
+    "copySelection": "复制选中",
+    "copySelectionHint": "复制选中（{{count}} 字符）",
+    "copyNoSelection": "没有选中文本",
+    "copyOk": "已复制 {{count}} 字符：{{preview}}",
+    "copyFailed": "复制失败：",
+    "shortcuts": "键盘快捷键"
   },
   "reseller": {
     "setup": {
@@ -162,6 +353,12 @@
   "home": {
     "title": "首页",
     "subtitle": "AI 开发环境一览",
+    "hero": {
+      "label": "账户摘要",
+      "welcome": "欢迎回来, {{name}}",
+      "welcomeGuest": "欢迎",
+      "lastUpdated": "最后更新: {{time}}"
+    },
     "intent": {
       "title": "你想做什么？",
       "titleEn": "What do you want to do?"
@@ -330,6 +527,14 @@
     "save": "保存",
     "saved": "已保存",
     "saveError": "保存设置失败: {{error}}",
+    "info": {
+      "version": "版本",
+      "platform": "平台",
+      "mode": "模式",
+      "configDir": "配置目录",
+      "diagnose": "运行诊断",
+      "openConfigDir": "打开配置目录"
+    },
     "tabs": {
       "appearance": "外观",
       "proxy": "代理配置",
@@ -365,8 +570,30 @@
       "startupPageDesc": "应用启动后默认显示的页面"
     },
     "proxy": {
-      "movedNotice": "代理配置已移至「账户 > 连接与配置」页面。",
-      "hint": "提示：前往「账户」页面配置代理设置。"
+      "movedNotice": "中转 API 配置（API Key / 端点）已移至「账户 > 连接与配置」页面。",
+      "hint": "提示：前往「账户」页面配置 API 中转设置。"
+    },
+    "upstreamProxy": {
+      "title": "上游代理（BYO VPN）",
+      "subtitle": "所有出站 HTTP 请求（AI 中转、自动更新、版本检查）将通过此代理转发。Switch 自身不提供任何翻墙能力，仅支持您接入自有 V2Ray / Clash / 公司代理。",
+      "enable": "启用上游代理",
+      "url": "代理地址",
+      "urlHint": "支持 http / https / socks5 / socks5h（推荐 socks5h 由代理解析 DNS）",
+      "noProxy": "绕过列表",
+      "noProxyHint": "逗号分隔的域名后缀。localhost / 127.0.0.0/8 / ::1 始终绕过。",
+      "testUrl": "测试目标",
+      "testUrlHint": "点\"测试\"时探测此 URL。空则使用默认（Google 204）。",
+      "autoDetect": "自动检测本地代理",
+      "detectNone": "未检测到本地代理。请先启动 V2Ray / Clash 或 plugins/dnstunnel 客户端。",
+      "detectHit": "已检测到 {{name}}：{{url}}",
+      "test": "测试连接",
+      "save": "保存并立即生效",
+      "testOK": "连接成功",
+      "testFail": "连接失败",
+      "helpTitle": "什么是上游代理？",
+      "help1": "如果您所在的网络环境无法直接访问 Anthropic / GitHub / npm 等服务，可在本地运行 V2Ray、Clash、Shadowsocks 等独立代理客户端，然后在此填入其本地监听地址。",
+      "help2": "Switch 仅做一件事：把自己的所有 HTTP 请求转交给您填的代理。不内置任何 VPN / DNS 隧道 / 翻墙逻辑。",
+      "help3": "修改保存后立即生效，无需重启。新发起的请求会走新代理；已在传输中的连接保持原状直到完成。"
     },
     "update": {
       "autoCheck": "自动检查更新",
@@ -389,6 +616,21 @@
       "snapshotsCleared": "已清除 {{count}} 个快照",
       "promptsCleared": "已清除 {{count}} 个提示词"
     }
+  },
+  "doctor": {
+    "title": "连通性诊断",
+    "subtitle": "同时检测主流 AI 服务商、Lurus Hub 和基础设施服务的可达性，对比直连与经上游代理的结果，并给出一键解决方案。",
+    "rerun": "重新诊断",
+    "applyProxy": "一键应用",
+    "goConfigure": "去配置",
+    "useThis": "使用",
+    "col": {
+      "provider": "服务",
+      "direct": "直连",
+      "upstream": "经代理"
+    },
+    "localProxies": "检测到的本地代理",
+    "systemProxyTitle": "系统环境变量里发现代理"
   },
   "statusBar": {
     "status": "状态",
@@ -867,6 +1109,23 @@
     "deleteAppDesc": "这将撤销该应用的 Token。使用此 Token 的工具将失去访问权限。",
     "deleteConfirm": "删除",
     "deleteSuccess": "应用已移除",
+    "owner": "归属人",
+    "bindOwner": "绑定归属",
+    "editOwner": "编辑归属",
+    "bindOwnerHint": "将此 app 关联到员工 / 成本中心，启用 chargeback 拆分",
+    "bindOwnerTitle": "App 归属绑定",
+    "bindOwnerDesc": "App「{{name}}」产生的所有调用将记入下面的员工 / 成本中心，用于 chargeback 报表。",
+    "ownerNone": "无",
+    "ownerIdPlaceholder": "员工 ID",
+    "ownerNoEmployees": "尚未导入员工。前往「治理 · 组织架构」批量导入后即可在此选择。",
+    "openOrgChart": "打开组织架构 →",
+    "ownerReturnHint": "导入完成后回来这里继续绑定 {{name}}",
+    "costCenterLabel": "成本中心",
+    "costCenterPlaceholder": "如 ENG-PROD、SALES-CN",
+    "costCenterAuto": "选员工后会自动套用其部门的成本中心；可手动覆盖。",
+    "ownerClear": "清除归属",
+    "ownerSaved": "已保存归属",
+    "ownerCleared": "已清除归属",
     "usage": "用量分析",
     "periodToday": "今日",
     "period7d": "7 天",
@@ -990,7 +1249,66 @@
     "quotaWarning": "配额 ⚠ {{pct}}%",
     "balanceDisplay": "余额 {{amount}}",
     "configureEndpoint": "请先配置 API 端点",
-    "goToConfigure": "前往配置"
+    "goToConfigure": "前往配置",
+    "summary": {
+      "signIn": "登录账户",
+      "signInHint": "解锁余额 / 订阅 / 用量",
+      "guest": "未登录",
+      "noBilling": "账户已连接",
+      "enduserClient": "激活客户端",
+      "resellerHint": "经销商控制台",
+      "enduserHint": "激活码客户端",
+      "quota": "配额"
+    },
+    "detail": {
+      "title": "账户 · 详细信息",
+      "guest": "未登录",
+      "refresh": "刷新",
+      "openFull": "完整账户页",
+      "wallet": {
+        "title": "钱包",
+        "frozen": "冻结 {{amount}}",
+        "topUp": "充值",
+        "history": "交易明细"
+      },
+      "usage": {
+        "title": "用量(本月)",
+        "month": "本月",
+        "today": "今日",
+        "quota": "配额",
+        "byModel": "按模型",
+        "byChannel": "按渠道"
+      },
+      "subscription": {
+        "title": "订阅",
+        "plan": "计划",
+        "expires": "到期",
+        "expired": "已到期",
+        "free": "免费",
+        "autoRenew": "已开启自动续费",
+        "renew": "续费",
+        "upgrade": "升级"
+      },
+      "service": {
+        "title": "服务",
+        "gateway": "Gateway",
+        "tools": "工具",
+        "connected": "已连接",
+        "tenant": "租户"
+      },
+      "reseller": {
+        "name": "经销商名称",
+        "hint": "经销商财务信息请在专属控制台查看"
+      },
+      "enduser": {
+        "expires": "激活到期",
+        "heartbeat": "最后心跳"
+      }
+    },
+    "usage": {
+      "monthCost": "本月费用",
+      "monthCostEstimated": "本月费用估算 — 基于今日消耗外推,Hub 字段就绪后切换"
+    }
   },
   "proxyPanel": {
     "connectFailed": "连接失败: 无法到达",
@@ -1190,13 +1508,23 @@
   },
   "relay": {
     "title": "中转站管理",
-    "subtitle": "管理 API 中转站端点及工具路由映射",
+    "subtitle": "为 CLI 工具配置 API 中转站 — 不配也能用",
     "healthCheck": "健康检查",
+    "intro": {
+      "title": "什么是中转站？",
+      "body": "中转站 = 一个替代 Anthropic / OpenAI 官方 API 的地址。Switch 把你 CLI 工具的请求转发到这里，由它代理上游模型。",
+      "default": "不配置 = ",
+      "defaultBody": "所有工具走 Lurus 自营 API（hub.lurus.cn）。已经能正常使用就不用动这页。",
+      "whenUse": "什么时候需要？",
+      "whenUseBody": "你买了第三方 / 自己搭了 newapi / OpenRouter 等中转，想让某些工具走那边。"
+    },
     "recommended": "推荐中转站",
+    "recommendedHint": "Lurus 已验证过的第三方中转 — 点「使用」直接加入你的列表。",
     "fetchFromCloud": "从云端获取",
     "fetchHint": "点击「从云端获取」加载推荐中转站列表",
     "useRelay": "使用此中转站",
     "custom": "自定义中转站",
+    "customHint": "你自己买的 API 服务 / 内网中转。需要 URL + （可选）API Key。",
     "addRelay": "添加中转站",
     "nameLabel": "名称 *",
     "namePlaceholder": "我的中转站",
@@ -1206,8 +1534,14 @@
     "loading": "加载中...",
     "emptyCustom": "暂无自定义中转站",
     "deleteTitle": "删除",
+    "deleteBlockedHint": "先在「工具路由映射」中取消使用，再删除",
+    "inUse": "{{n}} 个工具在用",
+    "idle": "未被使用",
     "toolRouting": "工具路由映射",
+    "toolRoutingHint": "为每个 CLI 单独指定中转站。留「默认」就走全局上游，多数人不用动。",
     "noRelay": "— 不指定 —",
+    "useDefault": "默认（全局上游）",
+    "usesGlobal": "走全局上游（默认）",
     "applied": "已应用",
     "saveMapping": "保存映射",
     "applyAll": "一键应用",
@@ -1399,14 +1733,46 @@
       "navBack": "返回上一页",
       "navForward": "前进到下一页",
       "goHome": "前往首页",
+      "goConversations": "前往会话浏览",
       "goTools": "前往工具",
       "goGateway": "前往网关",
       "goWorkspace": "前往工作台",
       "goAccount": "前往账户",
       "goSettings": "前往设置",
+      "goConnectedApps": "前往 Connected Apps（绑定归属）",
+      "goChargeback": "前往 Chargeback 报表",
+      "goOrgChart": "前往组织架构",
+      "goDlp": "前往 DLP 管理",
+      "goAgentTemplates": "前往 Agent 模板画廊",
+      "goPromotion": "前往推广",
+      "goPackager": "前往白标打包",
+      "goRelay": "前往中转站",
+      "goChannels": "前往渠道（newapi）",
+      "goTokens": "前往令牌（newapi）",
+      "goRedemptions": "前往兑换码（newapi）",
+      "goLogs": "前往请求日志（newapi）",
+      "goAudit": "前往审计日志",
+      "undoLastAudit": "撤销最近一条审计",
       "launchClaudeCode": "启动 Claude Code",
       "launchCodex": "启动 Codex",
       "launchGeminiCLI": "启动 Gemini CLI"
-    }
+    },
+    "undoNothing": "没有可撤销的最近审计条目",
+    "undoDone": "已撤销 {{op}}"
+  },
+  "conversations": {
+    "title": "会话浏览",
+    "reindex": "重新索引",
+    "searchPlaceholder": "搜索 Session ID 或项目路径…",
+    "filterAnyTool": "全部 CLI",
+    "filterAnyModel": "全部模型",
+    "onlyDLPHits": "仅显示触发 DLP 的会话",
+    "loading": "加载中…",
+    "empty": "暂无会话。在任意项目中运行 claude / codex / gemini 后点击重新索引。",
+    "pickSession": "从左侧选择一个会话查看完整对话。",
+    "contextDrawer": "项目上下文",
+    "exportSuccess": "已导出到 {{path}}",
+    "forkSuccess": "已派生新会话 {{sid}}（保留 {{n}} 条消息）",
+    "reindexed": "扫描 {{n}} 个会话，新增 {{a}} 个"
   }
 }

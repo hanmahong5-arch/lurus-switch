@@ -3,6 +3,23 @@
     "title": "Lurus Switch",
     "subtitle": "Local AI Gateway"
   },
+  "topology": {
+    "ok": "OK",
+    "degraded": "Degraded",
+    "down": "Down",
+    "notconfigured": "Not configured",
+    "total": "total",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "loading": "Probing components…",
+    "failed": "Failed to build topology snapshot",
+    "lastUpdated": "Updated {{time}}",
+    "installed": "{{tool}} installed",
+    "updated": "{{tool}} updated",
+    "fixed": "{{tool}} config repaired",
+    "gatewayStarted": "Gateway started",
+    "loggedIn": "Signed in"
+  },
   "mode": {
     "welcome": {
       "title": "Welcome to Lurus Switch",
@@ -48,7 +65,15 @@
       "expired": "This code has expired. Contact your reseller.",
       "disabled": "This code was disabled by the reseller.",
       "endpointAbsent": "This Hub does not yet expose the redemption endpoint. Contact the reseller.",
-      "server": "Service is temporarily unavailable. Please retry shortly."
+      "server": "Service is temporarily unavailable. Please retry shortly.",
+      "action": {
+        "retry": "Retry",
+        "contact": "Contact reseller",
+        "clear": "Clear & retry",
+        "noSupport": "Please contact the reseller who shipped you this installer.",
+        "mailSubject": "Activation code not working",
+        "mailBody": "Code: {{code}}\nHub: {{hub}}\nFailure kind: {{kind}}\n"
+      }
     },
     "main": {
       "title": "My service",
@@ -78,12 +103,29 @@
     "breadcrumb": "Breadcrumb",
     "section": {
       "overview": "Overview",
+      "overviewHint": "What's running right now",
       "configure": "Configure",
+      "configureHint": "Install CLI tools, configure upstream",
       "work": "Work",
-      "reseller": "Reseller"
+      "workHint": "Daily use + account",
+      "reseller": "Reseller",
+      "resellerHint": "Promotion, codes, white-label",
+      "admin": "Admin",
+      "adminHint": "Org, compliance, templates",
+      "explore": "Explore",
+      "exploreHint": "Lurus ecosystem"
+    },
+    "shortcut": {
+      "docs": "Docs",
+      "prompts": "Prompts",
+      "processes": "Processes",
+      "relay": "Relay",
+      "ecosystem": "Ecosystem"
     },
     "home": "Home",
+    "live": "Live",
     "agents": "Agents",
+    "conversations": "Conversations",
     "tools": "Tools",
     "gateway": "Gateway",
     "workspace": "Workspace",
@@ -103,7 +145,126 @@
     "gyProducts": "Lurus Apps",
     "promoterHub": "Promoter Hub",
     "switchHub": "Switch Gateway",
-    "packager": "White-label Packager"
+    "packager": "White-label Packager",
+    "dlp": "DLP",
+    "orgchart": "Org Chart",
+    "agentTemplates": "Agent Gallery",
+    "chargeback": "Chargeback"
+  },
+  "dlp": {
+    "title": "DLP — Data Loss Prevention",
+    "subtitle": "Scans every request flowing through the local gateway and blocks / redacts / logs sensitive data. Changes apply immediately.",
+    "live": "Live",
+    "paused": "Paused",
+    "pausePolling": "Pause polling",
+    "resumePolling": "Resume polling",
+    "blocked": "BLOCKED",
+    "stats": {
+      "total": "Total hits",
+      "blocked": "Blocked",
+      "redacted": "Redacted",
+      "warned": "Warned"
+    },
+    "patterns": {
+      "title": "Rules",
+      "hint": "Block rejects the request; Redact replaces matched bytes with a token; Warn / Allow only logs."
+    },
+    "col": {
+      "severity": "sev",
+      "name": "rule",
+      "tags": "tags",
+      "policy": "policy"
+    },
+    "removePattern": "Remove rule",
+    "tester": {
+      "title": "Ad-hoc scan",
+      "placeholder": "Paste a prompt here to test what rules would fire.",
+      "run": "Scan",
+      "result": "Result",
+      "hits": "Hits",
+      "redacted": "Show redacted version"
+    },
+    "recent": {
+      "title": "Recent hits",
+      "hint": "Ring buffer (last 200), populated by the gateway request path.",
+      "empty": "No hits yet."
+    }
+  },
+  "orgchart": {
+    "title": "Organization — departments & employees",
+    "subtitle": "Enterprise-mode chargeback, SSO binding, per-department token authorization.",
+    "tree": {
+      "title": "Departments",
+      "roots": "roots",
+      "empty": "No departments yet",
+      "addRootPh": "+ root department name",
+      "addChildPh": "+ child department name"
+    },
+    "employees": {
+      "title": "Employees",
+      "deptSel": "Selected department · {{count}} people",
+      "noDept": "Pick a department on the left",
+      "includeInactive": "Include inactive",
+      "emailPh": "email",
+      "namePh": "Display name (optional)"
+    },
+    "col": {
+      "email": "email",
+      "name": "name",
+      "role": "role",
+      "status": "status"
+    },
+    "import": {
+      "button": "Bulk CSV import",
+      "title": "Bulk employee import (SCIM-lite)",
+      "hint1": "Paste CSV with columns: email, display_name, department, role. Header row optional (a row containing \"email\" is detected automatically).",
+      "hint2": "Department column accepts a name (case-insensitive) or an ID. Empty falls back to the department selected on the left.",
+      "hint3": "Existing emails are updated (DisplayName / Department / Role overwritten; SSO subject untouched); missing rows are created.",
+      "usingDefault": "Default department (when column empty): ",
+      "created": "Created",
+      "updated": "Updated",
+      "errors": "Errors",
+      "errorList": "Failed rows",
+      "run": "Import"
+    }
+  },
+  "chargeback": {
+    "title": "Chargeback report",
+    "subtitle": "Token usage rolled up by department and employee. To populate the buckets, first bind each Connected App to an employee.",
+    "from": "From",
+    "to": "To",
+    "byDept": "By department",
+    "byEmployee": "By employee",
+    "totals": "Totals",
+    "calls": "calls",
+    "tokens": "tokens",
+    "exportCsv": "Export CSV",
+    "empty": "No records in this range. Bind apps to employees / departments and let traffic flow through the local gateway.",
+    "gotoBinding": "Bind ownership in Connected Apps →",
+    "col": {
+      "dept": "Department",
+      "cc": "Cost center",
+      "headcount": "Headcount",
+      "employee": "Employee",
+      "calls": "Calls",
+      "in": "Tokens in",
+      "out": "Tokens out",
+      "total": "Total"
+    }
+  },
+  "agentGallery": {
+    "title": "Agent template gallery",
+    "subtitle": "5 built-in role recipes — sales / support / ops / finance / compliance. Click to inspect system prompt, capability allowlist, budget, and guardrails.",
+    "noCaps": "No capabilities granted (deny-by-default)",
+    "section": {
+      "caps": "Capabilities (allowlist)",
+      "budget": "Budget",
+      "guardrails": "Guardrails",
+      "useCases": "Use cases",
+      "mcp": "Required MCP servers",
+      "prompt": "System prompt",
+      "notes": "Deployment notes"
+    }
   },
   "common": {
     "unsavedChangesConfirm": "You have unsaved changes on this page. Leave anyway?",
@@ -112,11 +273,39 @@
     "dismiss": "Dismiss",
     "refresh": "Refresh"
   },
+  "diagnostics": {
+    "title": "System Diagnostics",
+    "running": "Collecting…",
+    "rerun": "Re-run",
+    "dump": "Generate Debug Dump",
+    "openDumpsDir": "Open dump folder",
+    "summary": "{{ok}} OK · {{warn}} warnings · {{fail}} failed",
+    "dumpSaved": "Debug dump saved to:",
+    "meta": "Generated {{ts}} · v{{ver}} · {{os}}/{{arch}}"
+  },
+  "competingInstall": {
+    "title": "Other tool configurations detected",
+    "body": "Found existing {{names}} on this machine. Switch works alongside them — see the Tools page for a unified view.",
+    "goTools": "Open Tools page →"
+  },
   "header": {
     "langToggle": "Toggle language",
-    "langToggleHint": "Switch to Chinese / 切换到中文",
+    "langToggleHint": "Switch to Chinese",
     "themeToggle": "Toggle theme",
-    "themeToggleHint": "Theme (click to cycle): dark → light → auto"
+    "themeToggleHint": "Theme (click to cycle): dark → light → auto",
+    "refresh": "Refresh",
+    "refreshHint": "Refresh current page",
+    "cmdPalette": "Command palette (Ctrl+K)",
+    "quickLaunch": "Quick launch CLI",
+    "quickLaunchTitle": "Launch in new terminal",
+    "launchOk": "Launched {{tool}} in terminal",
+    "notInstalled": "not installed",
+    "copySelection": "Copy selection",
+    "copySelectionHint": "Copy selection ({{count}} chars)",
+    "copyNoSelection": "Nothing selected",
+    "copyOk": "Copied {{count}} chars: {{preview}}",
+    "copyFailed": "Copy failed: ",
+    "shortcuts": "Keyboard shortcuts"
   },
   "reseller": {
     "setup": {
@@ -162,6 +351,12 @@
   "home": {
     "title": "Home",
     "subtitle": "AI development environment at a glance",
+    "hero": {
+      "label": "Account summary",
+      "welcome": "Welcome back, {{name}}",
+      "welcomeGuest": "Welcome",
+      "lastUpdated": "Last updated: {{time}}"
+    },
     "intent": {
       "title": "What do you want to do?",
       "titleEn": "What do you want to do?"
@@ -330,6 +525,14 @@
     "save": "Save",
     "saved": "Saved",
     "saveError": "Failed to save settings: {{error}}",
+    "info": {
+      "version": "Version",
+      "platform": "Platform",
+      "mode": "Mode",
+      "configDir": "Config dir",
+      "diagnose": "Run Diagnostics",
+      "openConfigDir": "Open config folder"
+    },
     "tabs": {
       "appearance": "Appearance",
       "proxy": "Proxy",
@@ -365,8 +568,30 @@
       "startupPageDesc": "Default page shown when app launches"
     },
     "proxy": {
-      "movedNotice": "Proxy configuration has been moved to Account > Connection.",
-      "hint": "Tip: Go to Account page to configure proxy settings."
+      "movedNotice": "Relay API config (key / endpoint) has been moved to Account > Connection.",
+      "hint": "Tip: Go to Account page to configure relay API settings."
+    },
+    "upstreamProxy": {
+      "title": "Upstream Proxy (BYO VPN)",
+      "subtitle": "Every outbound HTTP request (AI relay, auto-updater, version checks) will be routed through this proxy. Switch ships no censorship-evasion logic; it only forwards through your own V2Ray / Clash / corporate proxy.",
+      "enable": "Enable upstream proxy",
+      "url": "Proxy URL",
+      "urlHint": "Supports http / https / socks5 / socks5h (socks5h is recommended so DNS is resolved by the proxy)",
+      "noProxy": "Bypass list",
+      "noProxyHint": "Comma-separated host suffixes. localhost / 127.0.0.0/8 / ::1 are always bypassed.",
+      "testUrl": "Test target",
+      "testUrlHint": "URL probed when you click Test. Empty = default (Google 204).",
+      "autoDetect": "Auto-detect local proxy",
+      "detectNone": "No local proxy detected. Start V2Ray / Clash / plugins/dnstunnel client first.",
+      "detectHit": "Detected {{name}} at {{url}}",
+      "test": "Test Connection",
+      "save": "Save & Apply Live",
+      "testOK": "Connected",
+      "testFail": "Connection failed",
+      "helpTitle": "What is upstream proxy?",
+      "help1": "If your network can't reach Anthropic / GitHub / npm directly, run V2Ray, Clash, Shadowsocks, etc. locally and put its listen address here.",
+      "help2": "Switch does exactly one thing: it hands every HTTP request to the proxy you configured. It never bundles VPN, DNS-tunnel, or any circumvention transport.",
+      "help3": "Changes apply live — no restart needed. New requests use the new proxy; in-flight connections keep their existing transport until done."
     },
     "update": {
       "autoCheck": "Auto-check Updates",
@@ -389,6 +614,21 @@
       "snapshotsCleared": "{{count}} snapshots cleared",
       "promptsCleared": "{{count}} prompts cleared"
     }
+  },
+  "doctor": {
+    "title": "Connectivity Doctor",
+    "subtitle": "Probes AI providers, Lurus Hub, and infra services in parallel. Compares direct vs through-upstream-proxy reachability and surfaces one-click remedies.",
+    "rerun": "Re-run",
+    "applyProxy": "Apply",
+    "goConfigure": "Configure",
+    "useThis": "Use",
+    "col": {
+      "provider": "Provider",
+      "direct": "Direct",
+      "upstream": "Via proxy"
+    },
+    "localProxies": "Detected local proxies",
+    "systemProxyTitle": "System proxy env vars detected"
   },
   "statusBar": {
     "status": "Status",
@@ -867,6 +1107,23 @@
     "deleteAppDesc": "This will revoke the app's token. Any tool using this token will lose access.",
     "deleteConfirm": "Delete",
     "deleteSuccess": "App removed",
+    "owner": "Owner",
+    "bindOwner": "Bind Owner",
+    "editOwner": "Edit Owner",
+    "bindOwnerHint": "Tag this app to an employee / cost center to enable chargeback splits",
+    "bindOwnerTitle": "Bind App Ownership",
+    "bindOwnerDesc": "All calls from app \"{{name}}\" will be attributed to the employee / cost center selected below for chargeback reports.",
+    "ownerNone": "None",
+    "ownerIdPlaceholder": "Employee ID",
+    "ownerNoEmployees": "No employees imported yet. Go to Governance → Org Chart to bulk-import, then return here to assign.",
+    "openOrgChart": "Open Org Chart →",
+    "ownerReturnHint": "Come back here to finish binding {{name}} after import.",
+    "costCenterLabel": "Cost Center",
+    "costCenterPlaceholder": "e.g. ENG-PROD, SALES-CN",
+    "costCenterAuto": "Auto-fills from employee's department; you can override manually.",
+    "ownerClear": "Clear Ownership",
+    "ownerSaved": "Ownership saved",
+    "ownerCleared": "Ownership cleared",
     "usage": "Usage Analytics",
     "periodToday": "Today",
     "period7d": "7 Days",
@@ -990,7 +1247,66 @@
     "quotaWarning": "Quota ⚠ {{pct}}%",
     "balanceDisplay": "Balance {{amount}}",
     "configureEndpoint": "Configure API endpoint first",
-    "goToConfigure": "Configure"
+    "goToConfigure": "Configure",
+    "summary": {
+      "signIn": "Sign in",
+      "signInHint": "Unlock balance / plan / usage",
+      "guest": "Guest",
+      "noBilling": "Connected",
+      "enduserClient": "Activated client",
+      "resellerHint": "Reseller console",
+      "enduserHint": "Activation-code client",
+      "quota": "Quota"
+    },
+    "detail": {
+      "title": "Account · Details",
+      "guest": "Not signed in",
+      "refresh": "Refresh",
+      "openFull": "Open account page",
+      "wallet": {
+        "title": "Wallet",
+        "frozen": "Frozen {{amount}}",
+        "topUp": "Top up",
+        "history": "History"
+      },
+      "usage": {
+        "title": "Usage (this month)",
+        "month": "Month",
+        "today": "Today",
+        "quota": "Quota",
+        "byModel": "By model",
+        "byChannel": "By channel"
+      },
+      "subscription": {
+        "title": "Subscription",
+        "plan": "Plan",
+        "expires": "Expires",
+        "expired": "Expired",
+        "free": "Free",
+        "autoRenew": "Auto-renew enabled",
+        "renew": "Renew",
+        "upgrade": "Upgrade"
+      },
+      "service": {
+        "title": "Service",
+        "gateway": "Gateway",
+        "tools": "Tools",
+        "connected": "connected",
+        "tenant": "Tenant"
+      },
+      "reseller": {
+        "name": "Reseller",
+        "hint": "Reseller billing in dedicated console"
+      },
+      "enduser": {
+        "expires": "Activation expires",
+        "heartbeat": "Last heartbeat"
+      }
+    },
+    "usage": {
+      "monthCost": "This month",
+      "monthCostEstimated": "Estimated — extrapolated from today's usage; swaps to real value when Hub field lands"
+    }
   },
   "proxyPanel": {
     "connectFailed": "Connection failed: unreachable",
@@ -1190,13 +1506,23 @@
   },
   "relay": {
     "title": "Relay Management",
-    "subtitle": "Manage API relay endpoints and tool routing",
+    "subtitle": "Configure API relay endpoints for CLI tools — optional",
     "healthCheck": "Health Check",
+    "intro": {
+      "title": "What is a relay?",
+      "body": "A relay is an alternative API endpoint to Anthropic / OpenAI official APIs. Switch forwards your CLI requests through it; the relay proxies to the upstream model.",
+      "default": "No config = ",
+      "defaultBody": "All tools go to Lurus' own API (hub.lurus.cn). If everything works, leave this page alone.",
+      "whenUse": "When do I need this?",
+      "whenUseBody": "You bought a third-party relay or self-hosted newapi / OpenRouter and want certain tools to use it."
+    },
     "recommended": "Recommended Relays",
+    "recommendedHint": "Vetted third-party relays — click \"Use\" to add one to your list.",
     "fetchFromCloud": "Fetch from Cloud",
     "fetchHint": "Click \"Fetch from Cloud\" to load recommended relay list",
     "useRelay": "Use this relay",
     "custom": "Custom Relays",
+    "customHint": "Your own API service / internal relay. Needs URL + (optional) API key.",
     "addRelay": "Add Relay",
     "nameLabel": "Name *",
     "namePlaceholder": "My Relay",
@@ -1206,8 +1532,14 @@
     "loading": "Loading...",
     "emptyCustom": "No custom relays yet",
     "deleteTitle": "Delete",
+    "deleteBlockedHint": "Stop using it in Tool Routing first, then delete",
+    "inUse": "Used by {{n}} tool(s)",
+    "idle": "Not in use",
     "toolRouting": "Tool Routing",
+    "toolRoutingHint": "Override the relay per CLI. Leave \"Default\" to use the global upstream — most users never touch this.",
     "noRelay": "— None —",
+    "useDefault": "Default (global upstream)",
+    "usesGlobal": "Uses global upstream (default)",
     "applied": "Applied",
     "saveMapping": "Save Mapping",
     "applyAll": "Apply All",
@@ -1399,14 +1731,46 @@
       "navBack": "Go Back",
       "navForward": "Go Forward",
       "goHome": "Go to Home",
+      "goConversations": "Go to Conversations",
       "goTools": "Go to Tools",
       "goGateway": "Go to Gateway",
       "goWorkspace": "Go to Workspace",
       "goAccount": "Go to Account",
       "goSettings": "Go to Settings",
+      "goConnectedApps": "Connected Apps (bind ownership)",
+      "goChargeback": "Chargeback report",
+      "goOrgChart": "Org chart",
+      "goDlp": "DLP admin",
+      "goAgentTemplates": "Agent template gallery",
+      "goPromotion": "Promotion",
+      "goPackager": "White-label packager",
+      "goRelay": "Relay station",
+      "goChannels": "Channels (newapi)",
+      "goTokens": "Tokens (newapi)",
+      "goRedemptions": "Redemption codes (newapi)",
+      "goLogs": "Request logs (newapi)",
+      "goAudit": "Audit log",
+      "undoLastAudit": "Undo last audited action",
       "launchClaudeCode": "Launch Claude Code",
       "launchCodex": "Launch Codex",
       "launchGeminiCLI": "Launch Gemini CLI"
-    }
+    },
+    "undoNothing": "No reversible audit entry to undo",
+    "undoDone": "Undid {{op}}"
+  },
+  "conversations": {
+    "title": "Conversations",
+    "reindex": "Reindex",
+    "searchPlaceholder": "Search session ID or project path…",
+    "filterAnyTool": "Any tool",
+    "filterAnyModel": "Any model",
+    "onlyDLPHits": "Only sessions with DLP hits",
+    "loading": "Loading…",
+    "empty": "No sessions yet. Run claude / codex / gemini in any project, then reindex.",
+    "pickSession": "Pick a session on the left to view the transcript.",
+    "contextDrawer": "Project context",
+    "exportSuccess": "Exported to {{path}}",
+    "forkSuccess": "Forked into session {{sid}} ({{n}} messages kept)",
+    "reindexed": "Scanned {{n}} sessions ({{a}} new)"
   }
 }
