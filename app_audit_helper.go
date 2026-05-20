@@ -41,6 +41,38 @@ func (a *App) recordOutcome(op, target string, after any, err error) {
 	a.auditJournal.Record(op, target, nil, after, err)
 }
 
+// recordOutcomeFull is recordOutcome's variant for ops that captured a
+// Before snapshot (the prior server-side state). Required when the op
+// has a registered undo handler that needs to revert state.
+func (a *App) recordOutcomeFull(op, target string, before, after any, err error) {
+	if a.auditJournal == nil {
+		return
+	}
+	a.auditJournal.Record(op, target, before, after, err)
+}
+
+// intField reads a numeric "id" from a free-form map. JSON unmarshaling
+// produces float64 even for integer-shaped fields, so callers that
+// receive a map (e.g. HubUpdateChannel) can't just type-assert to int.
+func intField(m map[string]any, key string) int {
+	if m == nil {
+		return 0
+	}
+	v, ok := m[key]
+	if !ok || v == nil {
+		return 0
+	}
+	switch t := v.(type) {
+	case int:
+		return t
+	case int64:
+		return int(t)
+	case float64:
+		return int(t)
+	}
+	return 0
+}
+
 // auditOp is the single sentinel both the binding wrapper and the
 // frontend agree on for op identifiers. Centralizing here so they
 // don't drift.

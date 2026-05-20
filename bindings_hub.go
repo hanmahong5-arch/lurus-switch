@@ -19,10 +19,21 @@ import (
 // next request. The cost is one Client allocation per call — negligible for
 // admin operations that already round-trip the network.
 
-// hubClient builds an admin.Client from saved Reseller settings. Returns a
-// caller-friendly error when the URL or token are missing — frontend can
-// surface "请先在设置中配置 Hub" to the user.
+// hubClientFactory is the seam tests use to inject a fake admin client.
+// Production paths use defaultHubClient which reads from disk.
+var hubClientFactory = defaultHubClient
+
+// hubClient is the production accessor — calls through the factory so
+// tests can swap it. Both bindings_hub.go and app_audit_undo.go go
+// through here.
 func hubClient() (*admin.Client, error) {
+	return hubClientFactory()
+}
+
+// defaultHubClient builds an admin.Client from saved Reseller settings.
+// Returns a caller-friendly error when the URL or token are missing —
+// frontend can surface "请先在设置中配置 Hub" to the user.
+func defaultHubClient() (*admin.Client, error) {
 	s, err := appconfig.LoadAppSettings()
 	if err != nil {
 		return nil, fmt.Errorf("load app settings: %w", err)
@@ -110,46 +121,75 @@ func (a *App) HubAddChannel(input map[string]any) (err error) {
 	return c.AddChannel(a.hubCtx(), admin.CreateChannelInput(input))
 }
 
-// HubUpdateChannel applies partial changes.
+// HubUpdateChannel applies partial changes. Captures the prior channel
+// state into the audit journal's Before field so the Undo handler can
+// restore it.
 func (a *App) HubUpdateChannel(input map[string]any) (err error) {
 	target := stringField(input, "id")
 	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelUpdate, target, input); err != nil {
 		return err
 	}
-	defer func() { a.recordOutcome(auditOpChannelUpdate, target, input, err) }()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpChannelUpdate, target, input, cerr)
+		return cerr
 	}
+	// Best-effort prior-state capture. A failed fetch leaves Before nil
+	// — the entry stays Reversible=true (the op IS reversible if a
+	// future Before is found), but Undo at runtime will refuse cleanly
+	// with a "missing Before snapshot" error.
+	var before any
+	if id := intField(input, "id"); id > 0 {
+		if ch, gerr := c.GetChannel(a.hubCtx(), id); gerr == nil {
+			before = ch
+		}
+	}
+	defer func() { a.recordOutcomeFull(auditOpChannelUpdate, target, before, input, err) }()
 	return c.UpdateChannel(a.hubCtx(), input)
 }
 
-// HubDeleteChannel removes a single channel.
+// HubDeleteChannel removes a single channel. Captures the prior
+// channel state so Undo can re-create it.
 func (a *App) HubDeleteChannel(id int) (err error) {
 	target := fmtIntID(id)
 	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelDelete, target, map[string]any{"id": id}); err != nil {
 		return err
 	}
-	defer func() { a.recordOutcome(auditOpChannelDelete, target, map[string]any{"id": id}, err) }()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpChannelDelete, target, map[string]any{"id": id}, cerr)
+		return cerr
 	}
+	var before any
+	if ch, gerr := c.GetChannel(a.hubCtx(), id); gerr == nil {
+		before = ch
+	}
+	defer func() {
+		a.recordOutcomeFull(auditOpChannelDelete, target, before, map[string]any{"id": id}, err)
+	}()
 	return c.DeleteChannel(a.hubCtx(), id)
 }
 
-// HubDeleteChannelBatch removes a list of channels.
+// HubDeleteChannelBatch removes a list of channels. Snapshots all
+// affected rows for batch undo.
 func (a *App) HubDeleteChannelBatch(ids []int) (err error) {
 	if err = a.requireAndAudit(capChannelWrite(), auditOpChannelDeleteBatch, "", map[string]any{"ids": ids}); err != nil {
 		return err
 	}
-	defer func() {
-		a.recordOutcome(auditOpChannelDeleteBatch, "", map[string]any{"ids": ids}, err)
-	}()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpChannelDeleteBatch, "", map[string]any{"ids": ids}, cerr)
+		return cerr
 	}
+	var before []*admin.Channel
+	for _, id := range ids {
+		if ch, gerr := c.GetChannel(a.hubCtx(), id); gerr == nil {
+			before = append(before, ch)
+		}
+	}
+	defer func() {
+		a.recordOutcomeFull(auditOpChannelDeleteBatch, "", before, map[string]any{"ids": ids}, err)
+	}()
 	return c.DeleteChannelBatch(a.hubCtx(), ids)
 }
 
@@ -186,46 +226,71 @@ func (a *App) HubAddToken(input map[string]any) (err error) {
 	return c.AddToken(a.hubCtx(), admin.CreateTokenInput(input))
 }
 
-// HubUpdateToken applies partial changes.
+// HubUpdateToken applies partial changes. Captures prior token state
+// so Undo can revert.
 func (a *App) HubUpdateToken(input map[string]any) (err error) {
 	target := stringField(input, "id")
 	if err = a.requireAndAudit(capTokenCreate(), auditOpTokenUpdate, target, input); err != nil {
 		return err
 	}
-	defer func() { a.recordOutcome(auditOpTokenUpdate, target, input, err) }()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpTokenUpdate, target, input, cerr)
+		return cerr
 	}
+	var before any
+	if id := intField(input, "id"); id > 0 {
+		if tk, gerr := c.GetToken(a.hubCtx(), id); gerr == nil {
+			before = tk
+		}
+	}
+	defer func() { a.recordOutcomeFull(auditOpTokenUpdate, target, before, input, err) }()
 	return c.UpdateToken(a.hubCtx(), input)
 }
 
-// HubDeleteToken removes a single token.
+// HubDeleteToken removes a single token. Captures prior state for
+// Undo (note: re-created tokens get a new key — Hub regenerates
+// secrets to avoid resurrecting compromised credentials).
 func (a *App) HubDeleteToken(id int) (err error) {
 	target := fmtIntID(id)
 	if err = a.requireAndAudit(capTokenRevoke(), auditOpTokenDelete, target, map[string]any{"id": id}); err != nil {
 		return err
 	}
-	defer func() { a.recordOutcome(auditOpTokenDelete, target, map[string]any{"id": id}, err) }()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpTokenDelete, target, map[string]any{"id": id}, cerr)
+		return cerr
 	}
+	var before any
+	if tk, gerr := c.GetToken(a.hubCtx(), id); gerr == nil {
+		before = tk
+	}
+	defer func() {
+		a.recordOutcomeFull(auditOpTokenDelete, target, before, map[string]any{"id": id}, err)
+	}()
 	return c.DeleteToken(a.hubCtx(), id)
 }
 
-// HubDeleteTokenBatch removes a list of tokens.
+// HubDeleteTokenBatch removes a list of tokens. Snapshots affected
+// rows for batch undo.
 func (a *App) HubDeleteTokenBatch(ids []int) (err error) {
 	if err = a.requireAndAudit(capTokenRevoke(), auditOpTokenDeleteBatch, "", map[string]any{"ids": ids}); err != nil {
 		return err
 	}
-	defer func() {
-		a.recordOutcome(auditOpTokenDeleteBatch, "", map[string]any{"ids": ids}, err)
-	}()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpTokenDeleteBatch, "", map[string]any{"ids": ids}, cerr)
+		return cerr
 	}
+	var before []*admin.Token
+	for _, id := range ids {
+		if tk, gerr := c.GetToken(a.hubCtx(), id); gerr == nil {
+			before = append(before, tk)
+		}
+	}
+	defer func() {
+		a.recordOutcomeFull(auditOpTokenDeleteBatch, "", before, map[string]any{"ids": ids}, err)
+	}()
 	return c.DeleteTokenBatch(a.hubCtx(), ids)
 }
 
@@ -254,17 +319,25 @@ func (a *App) HubCreateRedemptions(name string, quota int64, count int, expiredT
 	})
 }
 
-// HubDeleteRedemption removes a single code.
+// HubDeleteRedemption removes a single code. Captures the prior
+// redemption struct so Undo can re-issue an equivalent code.
 func (a *App) HubDeleteRedemption(id int) (err error) {
 	target := fmtIntID(id)
 	if err = a.requireAndAudit(capRedemptionDelete(), auditOpRedemptionDelete, target, map[string]any{"id": id}); err != nil {
 		return err
 	}
-	defer func() { a.recordOutcome(auditOpRedemptionDelete, target, map[string]any{"id": id}, err) }()
-	c, err := hubClient()
-	if err != nil {
-		return err
+	c, cerr := hubClient()
+	if cerr != nil {
+		a.recordOutcome(auditOpRedemptionDelete, target, map[string]any{"id": id}, cerr)
+		return cerr
 	}
+	var before any
+	if r, gerr := c.GetRedemption(a.hubCtx(), id); gerr == nil {
+		before = r
+	}
+	defer func() {
+		a.recordOutcomeFull(auditOpRedemptionDelete, target, before, map[string]any{"id": id}, err)
+	}()
 	return c.DeleteRedemption(a.hubCtx(), id)
 }
 
