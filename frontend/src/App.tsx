@@ -17,6 +17,7 @@ import { useBashGuardStore } from './stores/bashGuardStore'
 import { BudgetModal } from './components/BudgetModal'
 import { useBudgetStore } from './stores/budgetStore'
 import { ActivityPane } from './components/ActivityPane'
+import { ActivityDrawer, useActivityIngest } from './components/ActivityDrawer'
 import { FeatureTourModal } from './components/FeatureTourModal'
 import { useFeatureTourStore } from './stores/featureTourStore'
 import { HomePage } from './pages/HomePage'
@@ -56,6 +57,9 @@ function App() {
   useNavPersist()
   useKeyboardShortcuts()
   usePlatformEvents()
+  // Subscribe to activity:event once for the whole session — required so
+  // the drawer collects history while it's closed too.
+  useActivityIngest()
   const [showWizard, setShowWizard] = useState<boolean | null>(null)
   // null = still loading; once resolved, holds the boot-time mode for routing.
   const [bootMode, setBootMode] = useState<AppMode | null>(null)
@@ -348,6 +352,7 @@ function App() {
       <BudgetMount />
       <FeatureTourMount />
       <ActivityPane />
+      <ActivityDrawer />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden">

@@ -2,10 +2,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Loader2, CheckCircle2, AlertTriangle, ChevronUp, ChevronDown,
-  Activity as ActivityIcon, X,
+  Activity as ActivityIcon, X, History,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
+import { useActivityStore, unreadCount } from '../stores/activityStore'
 
 // Wire-format mirrors internal/activity.Event 1:1 — keep in sync if the
 // Go struct grows fields.
@@ -35,6 +36,10 @@ export function ActivityPane() {
   const isZh = i18n.language?.startsWith('zh') ?? true
   const [events, setEvents] = useState<Map<string, ActivityEvent>>(new Map())
   const [collapsed, setCollapsed] = useState(true)
+  const openDrawer = useActivityStore((s) => s.setDrawerOpen)
+  const historyEvents = useActivityStore((s) => s.events)
+  const lastSeenAt = useActivityStore((s) => s.lastSeenAt)
+  const unread = unreadCount(historyEvents, lastSeenAt)
 
   // Subscribe once on mount.
   useEffect(() => {
@@ -87,7 +92,27 @@ export function ActivityPane() {
   const active = list.filter((e) => e.phase === 'start' || e.phase === 'progress')
   const settled = list.filter((e) => e.phase === 'done' || e.phase === 'error')
 
-  if (list.length === 0) return null
+  // When there's nothing in the transient pane, render a minimal floating
+  // button so the user can still reach the persistent drawer. Without this
+  // the entry point disappears whenever the pane drains, which defeats the
+  // "I can always see my recent activity" promise.
+  if (list.length === 0) {
+    return (
+      <button
+        data-testid="activity-drawer-launch-empty"
+        onClick={() => openDrawer(true)}
+        className="fixed bottom-7 right-3 z-40 h-9 w-9 inline-flex items-center justify-center rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg hover:bg-muted text-muted-foreground"
+        title={isZh ? '打开活动流' : 'Open activity drawer'}
+      >
+        <History className="h-4 w-4" />
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 min-w-[1rem] h-4 px-1 rounded-full bg-primary text-[10px] font-semibold text-primary-foreground inline-flex items-center justify-center">
+            {unread > 99 ? '99+' : unread}
+          </span>
+        )}
+      </button>
+    )
+  }
 
   return (
     <div className="fixed bottom-7 right-3 z-40 w-80 max-w-[calc(100vw-1.5rem)]">
@@ -112,6 +137,20 @@ export function ActivityPane() {
             )}
           </div>
           <div className="flex items-center gap-1">
+            <span
+              onClick={(e) => { e.stopPropagation(); openDrawer(true) }}
+              className="h-5 w-5 inline-flex items-center justify-center rounded hover:bg-muted text-muted-foreground relative"
+              title={isZh ? '打开完整活动流' : 'Open full drawer'}
+              role="button"
+              data-testid="activity-pane-open-drawer"
+            >
+              <History className="h-3 w-3" />
+              {unread > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[0.8rem] h-3 px-0.5 rounded-full bg-primary text-[9px] font-semibold text-primary-foreground inline-flex items-center justify-center leading-none">
+                  {unread > 99 ? '99+' : unread}
+                </span>
+              )}
+            </span>
             {settled.length > 0 && active.length === 0 && (
               <span
                 onClick={(e) => { e.stopPropagation(); dismissAll() }}

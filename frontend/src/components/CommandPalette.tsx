@@ -21,6 +21,7 @@ import { goBack, goForward } from '../lib/navigation'
 import { toolLabel, subTabLabel } from '../lib/navLabels'
 import { useHomeStore } from '../stores/homeStore'
 import { useToastStore } from '../stores/toastStore'
+import { useActivityStore } from '../stores/activityStore'
 import {
   InstallTool, InstallAllTools, StartGateway, StopGateway,
   AutoConfigureToolsForGateway, ApplyAllOptimizations,
@@ -62,6 +63,7 @@ export function CommandPalette() {
   const openBashGuard = useBashGuardStore((s) => s.setOpen)
   const openBudget = useBudgetStore((s) => s.setOpen)
   const openFeatureTour = useFeatureTourStore((s) => s.setOpen)
+  const openActivityDrawer = useActivityStore((s) => s.setDrawerOpen)
   const toast = useToastStore((s) => s.addToast)
 
   const refreshTools = useCallback(async () => {
@@ -233,6 +235,12 @@ export function CommandPalette() {
       category: 'action', icon: Activity,
       action: () => { openFeatureTour(true) },
     },
+    {
+      id: 'activity-drawer', labelKey: 'commandPalette.commands.openActivityDrawer',
+      keywords: ['activity', 'drawer', 'history', 'recent', 'log', '活动', '历史', '记录'],
+      category: 'action', icon: Activity,
+      action: () => { openActivityDrawer(true) },
+    },
     // Snapshot — quick "save current config so I can roll back if the next
     // thing breaks anything". Linked to the snapshot store; rollback UI
     // lives in PR-W1.5.
@@ -342,7 +350,7 @@ export function CommandPalette() {
         toast('success', `${toolMeta[name].label} launched`)
       },
     })),
-  ], [t, toast, setActiveTool, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour])
+  ], [t, toast, setActiveTool, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour, openActivityDrawer])
 
   const filtered = useMemo(() => {
     if (!query.trim()) return commands

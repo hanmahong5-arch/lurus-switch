@@ -1713,6 +1713,20 @@
     "allFixed": "All issues resolved!",
     "fixableCount": "{{count}} auto-fixable"
   },
+  "activityDrawer": {
+    "title": "Activity",
+    "clear": "Clear history",
+    "empty": "No activity recorded yet",
+    "emptyFiltered": "No entries match the current filter",
+    "filter": {
+      "all": "All",
+      "active": "Active",
+      "mutation": "Mutations",
+      "error": "Errors",
+      "auth": "Auth",
+      "system": "System"
+    }
+  },
   "commandPalette": {
     "placeholder": "Search commands...",
     "noResults": "No results found",
@@ -1745,6 +1759,7 @@
       "bashGuard": "Bash-Guard: block dangerous shell commands",
       "budgetWall": "Budget Wall: hard cap on token spend",
       "featureTour": "Show feature tour (Bash-Guard / Budget / Repo Audit / live activity)",
+      "openActivityDrawer": "Open activity drawer (recent operations)",
       "navBack": "Go Back",
       "navForward": "Go Forward",
       "goHome": "Go to Home",

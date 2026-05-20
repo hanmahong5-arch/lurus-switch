@@ -1715,6 +1715,20 @@
     "allFixed": "所有问题已解决！",
     "fixableCount": "{{count}} 项可自动修复"
   },
+  "activityDrawer": {
+    "title": "活动流",
+    "clear": "清空历史",
+    "empty": "暂无活动记录",
+    "emptyFiltered": "当前过滤无匹配条目",
+    "filter": {
+      "all": "全部",
+      "active": "进行中",
+      "mutation": "配置",
+      "error": "错误",
+      "auth": "认证",
+      "system": "系统"
+    }
+  },
   "commandPalette": {
     "placeholder": "搜索命令...",
     "noResults": "未找到结果",
@@ -1747,6 +1761,7 @@
       "bashGuard": "Bash-Guard：拦截危险 shell 命令",
       "budgetWall": "Budget Wall：花费硬上限",
       "featureTour": "重看功能指引（Bash-Guard / Budget / 仓库审计 / 实时活动）",
+      "openActivityDrawer": "打开活动流抽屉（最近操作历史）",
       "navBack": "返回上一页",
       "navForward": "前进到下一页",
       "goHome": "前往首页",
