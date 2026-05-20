@@ -18,6 +18,7 @@ import { BudgetModal } from './components/BudgetModal'
 import { useBudgetStore } from './stores/budgetStore'
 import { ActivityPane } from './components/ActivityPane'
 import { ActivityDrawer, useActivityIngest } from './components/ActivityDrawer'
+import { SnapshotsHub } from './components/snapshots/SnapshotsHub'
 import { FeatureTourModal } from './components/FeatureTourModal'
 import { useFeatureTourStore } from './stores/featureTourStore'
 import { HomePage } from './pages/HomePage'
@@ -353,6 +354,7 @@ function App() {
       <FeatureTourMount />
       <ActivityPane />
       <ActivityDrawer />
+      <SnapshotsHub />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
         <main className="flex-1 flex flex-col overflow-hidden">

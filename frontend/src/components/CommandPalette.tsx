@@ -22,6 +22,7 @@ import { toolLabel, subTabLabel } from '../lib/navLabels'
 import { useHomeStore } from '../stores/homeStore'
 import { useToastStore } from '../stores/toastStore'
 import { useActivityStore } from '../stores/activityStore'
+import { useSnapshotsHubStore } from '../stores/snapshotsHubStore'
 import {
   InstallTool, InstallAllTools, StartGateway, StopGateway,
   AutoConfigureToolsForGateway, ApplyAllOptimizations,
@@ -64,6 +65,7 @@ export function CommandPalette() {
   const openBudget = useBudgetStore((s) => s.setOpen)
   const openFeatureTour = useFeatureTourStore((s) => s.setOpen)
   const openActivityDrawer = useActivityStore((s) => s.setDrawerOpen)
+  const openSnapshotsHub = useSnapshotsHubStore((s) => s.setOpen)
   const toast = useToastStore((s) => s.addToast)
 
   const refreshTools = useCallback(async () => {
@@ -256,6 +258,12 @@ export function CommandPalette() {
         toast('success', t('commandPalette.snapshotSaved', '已保存配置快照：{{name}}', { name }))
       },
     },
+    {
+      id: 'open-snapshots-hub', labelKey: 'commandPalette.commands.openSnapshotsHub',
+      keywords: ['snapshot', 'rollback', 'restore', 'history', '快照', '回滚', '恢复'],
+      category: 'snapshot', icon: Camera,
+      action: () => { openSnapshotsHub(true) },
+    },
     // Mode switch — Personal / Reseller / EndUser. Suppressed (action no-ops
     // with a toast) when the build is mode-locked (white-label installer or
     // operator pinned via settings).
@@ -350,7 +358,7 @@ export function CommandPalette() {
         toast('success', `${toolMeta[name].label} launched`)
       },
     })),
-  ], [t, toast, setActiveTool, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour, openActivityDrawer])
+  ], [t, toast, setActiveTool, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour, openActivityDrawer, openSnapshotsHub])
 
   const filtered = useMemo(() => {
     if (!query.trim()) return commands
