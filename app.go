@@ -14,6 +14,7 @@ import (
 	"lurus-switch/internal/activity"
 	"lurus-switch/internal/bashguard"
 	"lurus-switch/internal/budget"
+	"lurus-switch/internal/diagnostics"
 	"lurus-switch/internal/hotkey"
 	"lurus-switch/internal/livesession"
 	"lurus-switch/internal/notify"
@@ -88,11 +89,13 @@ func (a *App) startup(ctx context.Context) {
 	if a.activityBus != nil {
 		a.activityBus.Bind(ctx)
 	}
+	diagnostics.Default.Mark("activity-bus")
 
 	// Wire undo handlers for state-mutating Wails bindings. Has to run
 	// after services are constructed (the journal lives there) but
 	// before any user interaction can record entries.
 	a.registerAuditUndoHandlers()
+	diagnostics.Default.Mark("audit-undo-handlers")
 
 	// White-label sidecar: if a signed whitelabel.json sits next to the
 	// running exe, lock the app to the embedded Hub URL + EndUser mode.
@@ -100,6 +103,7 @@ func (a *App) startup(ctx context.Context) {
 	// to let an EndUser silently fall back to Personal mode and dial home
 	// to hub.lurus.cn.
 	a.applyWhiteLabelSidecar()
+	diagnostics.Default.Mark("whitelabel-sidecar")
 
 	// Auto-start legacy gateway server if configured to do so.
 	if a.serverMgr != nil {
@@ -133,6 +137,7 @@ func (a *App) startup(ctx context.Context) {
 
 	// Migrate legacy proxy settings to relay store (one-time, idempotent).
 	a.migrateProxyToRelay()
+	diagnostics.Default.Mark("gateway-autostart")
 
 	// Sync tool connection status from actual config files (non-blocking).
 	go safeGo("sync-tool-status", func() { a.SyncToolConnectionStatus() })
@@ -166,6 +171,7 @@ func (a *App) startup(ctx context.Context) {
 	if a.redemptionStore != nil {
 		a.restartHeartbeatLocked()
 	}
+	diagnostics.Default.Mark("heartbeat-init")
 
 	// Live-session watcher: polls Claude/Codex/Gemini transcripts on disk
 	// and pushes "livesession:update" events whenever state changes so
@@ -174,16 +180,19 @@ func (a *App) startup(ctx context.Context) {
 		wailsRuntime.EventsEmit(ctx, "livesession:update")
 	})
 	a.liveWatcher.Start()
+	diagnostics.Default.Mark("live-watcher")
 
 	// Notify subsystem — opt-in remote push (Feishu first). Wired only
 	// when user enabled it AND filled in a webhook URL, so the rules
 	// engine isn't burning ticks on a no-op fan-out.
 	a.startNotifySubsystem()
+	diagnostics.Default.Mark("notify-subsystem")
 
 	// Tray: surface quota + gateway status in the system tray.
 	a.trayMgr = tray.New(a.trayQuotaSnapshot, a.trayGatewayStatus)
 	a.trayMgr.SetRelayProvider(&appRelayProvider{app: a})
 	a.trayMgr.Start(ctx)
+	diagnostics.Default.Mark("tray-start")
 
 	// Global hotkeys: quick-switch + show-window from anywhere.
 	a.hotkeyMgr = hotkey.New(appDataBaseDir(), func(binding string) {
@@ -193,6 +202,7 @@ func (a *App) startup(ctx context.Context) {
 	for _, e := range a.hotkeyMgr.Start(ctx) {
 		log.Printf("hotkey registration failed: binding=%s shortcut=%s err=%v", e.Binding, e.Shortcut, e.Err)
 	}
+	diagnostics.Default.Mark("hotkey-start")
 }
 
 // trayQuotaSnapshot is the tray's quota-usage provider. Returns UsedPercent = -1

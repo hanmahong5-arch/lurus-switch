@@ -9,6 +9,7 @@ import { GetAppSettings, SaveAppSettings, ClearAllSnapshots, ClearAllUserPrompts
 import { appconfig } from '../../wailsjs/go/models'
 import { useConfigStore, type AppMode, type UserLevel } from '../stores/configStore'
 import { RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES } from '../components/Sidebar'
+import { StartupPerformanceCard } from '../components/StartupPerformanceCard'
 
 type Tab = 'appearance' | 'proxy' | 'update' | 'data'
 
@@ -324,6 +325,8 @@ export function SettingsPage() {
                 </div>
               </SettingRow>
             </div>
+
+            <StartupPerformanceCard />
           </div>
         )}
 

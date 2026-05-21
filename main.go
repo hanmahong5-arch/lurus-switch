@@ -13,12 +13,16 @@ import (
 
 	"lurus-switch/internal/bashguard"
 	"lurus-switch/internal/deeplink"
+	"lurus-switch/internal/diagnostics"
 )
 
 //go:embed all:frontend/dist
 var assets embed.FS
 
 func main() {
+	// Stamp t0 for the startup-performance trace before anything else runs.
+	diagnostics.Default.MarkStart()
+
 	// CLI fast-path: when invoked as the Bash-Guard hook (Claude Code's
 	// PreToolUse), read JSON from stdin, evaluate, and exit BEFORE the
 	// Wails GUI initialises. This is what lets the same lurus-switch.exe
@@ -35,6 +39,7 @@ func main() {
 	}
 
 	app := NewApp()
+	diagnostics.Default.Mark("services-init")
 
 	// Deep-link single-instance guard.
 	// If another Switch process already holds the IPC channel, forward our
@@ -75,6 +80,9 @@ func main() {
 		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
 		OnStartup: func(ctx context.Context) {
 			app.startup(ctx)
+			// startup() returning means the GUI is interactive — background
+			// services may still be settling on safeGo goroutines.
+			diagnostics.Default.MarkGUIReady()
 			if dlServer != nil {
 				dlServer.Start(ctx, deeplink.MakeWailsHandler(ctx))
 			}
@@ -83,6 +91,11 @@ func main() {
 					deeplink.MakeWailsHandler(ctx)(payload)
 				}
 			}
+			// Persist the trace after the window is up so the next launch
+			// can show a delta. Best-effort — never block startup on disk IO.
+			go safeGo("startup-trace-persist", func() {
+				_, _ = diagnostics.Default.Persist(appDataBaseDir())
+			})
 		},
 		OnShutdown: func(ctx context.Context) {
 			app.shutdown(ctx)
