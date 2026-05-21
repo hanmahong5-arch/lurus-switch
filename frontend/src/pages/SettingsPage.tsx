@@ -11,8 +11,9 @@ import { useConfigStore, type AppMode, type UserLevel } from '../stores/configSt
 import { RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES } from '../components/Sidebar'
 import { StartupPerformanceCard } from '../components/StartupPerformanceCard'
 import { CustomProvidersSection } from '../components/CustomProvidersSection'
+import { BackupRestoreCard } from '../components/BackupRestoreCard'
 
-type Tab = 'appearance' | 'providers' | 'proxy' | 'update' | 'data'
+type Tab = 'appearance' | 'providers' | 'proxy' | 'update' | 'data' | 'backup'
 
 interface AppSettings {
   theme: string
@@ -105,6 +106,7 @@ export function SettingsPage() {
     { id: 'providers', label: t('settings.tabs.providers', '供应商') },
     { id: 'proxy', label: t('settings.tabs.proxy') },
     { id: 'update', label: t('settings.tabs.update') },
+    { id: 'backup', label: t('settings.tabs.backup', '备份') },
     { id: 'data', label: t('settings.tabs.data') },
   ]
 
@@ -333,6 +335,8 @@ export function SettingsPage() {
         )}
 
         {activeTab === 'providers' && <CustomProvidersSection />}
+
+        {activeTab === 'backup' && <BackupRestoreCard />}
 
         {activeTab === 'proxy' && (
           <div className="space-y-4">

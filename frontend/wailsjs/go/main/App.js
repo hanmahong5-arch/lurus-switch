@@ -1218,6 +1218,26 @@ export function TestCustomProvider(arg1) {
   return window['go']['main']['App']['TestCustomProvider'](arg1);
 }
 
+export function PickExportBundlePath() {
+  return window['go']['main']['App']['PickExportBundlePath']();
+}
+
+export function PickImportBundlePath() {
+  return window['go']['main']['App']['PickImportBundlePath']();
+}
+
+export function ExportConfigBundle(arg1, arg2) {
+  return window['go']['main']['App']['ExportConfigBundle'](arg1, arg2);
+}
+
+export function PreviewImportBundle(arg1) {
+  return window['go']['main']['App']['PreviewImportBundle'](arg1);
+}
+
+export function ApplyImportBundle(arg1, arg2) {
+  return window['go']['main']['App']['ApplyImportBundle'](arg1, arg2);
+}
+
 export function UndoAuditEntry(arg1) {
   return window['go']['main']['App']['UndoAuditEntry'](arg1);
 }

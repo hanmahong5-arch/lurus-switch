@@ -649,6 +649,16 @@ export function DeleteCustomProvider(arg1:string):Promise<void>;
 
 export function TestCustomProvider(arg1:any):Promise<any>;
 
+export function PickExportBundlePath():Promise<string>;
+
+export function PickImportBundlePath():Promise<string>;
+
+export function ExportConfigBundle(arg1:string,arg2:boolean):Promise<any>;
+
+export function PreviewImportBundle(arg1:string):Promise<any>;
+
+export function ApplyImportBundle(arg1:string,arg2:{[key: string]: boolean}):Promise<Array<string>>;
+
 export function UndoAuditEntry(arg1:string):Promise<void>;
 
 export function ListAuditCapabilities():Promise<Record<string,string>>;
