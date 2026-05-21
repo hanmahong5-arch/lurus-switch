@@ -1238,6 +1238,14 @@ export function ApplyImportBundle(arg1, arg2) {
   return window['go']['main']['App']['ApplyImportBundle'](arg1, arg2);
 }
 
+export function RunModelHealthCheck(arg1) {
+  return window['go']['main']['App']['RunModelHealthCheck'](arg1);
+}
+
+export function GetLastHealthCheckResults() {
+  return window['go']['main']['App']['GetLastHealthCheckResults']();
+}
+
 export function UndoAuditEntry(arg1) {
   return window['go']['main']['App']['UndoAuditEntry'](arg1);
 }

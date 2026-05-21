@@ -6,8 +6,9 @@ import { createGatewayClient, type GatewayModelMeta, type GatewayVendor } from '
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { ConfirmModal } from '../components/gateway/ConfirmModal'
+import { ModelHealthMatrix } from '../components/ModelHealthMatrix'
 
-type TabKey = 'models' | 'vendors' | 'sync'
+type TabKey = 'models' | 'vendors' | 'sync' | 'health'
 
 const MODEL_TYPES = ['chat', 'embedding', 'image', 'audio'] as const
 const STATUS_OPTIONS = [
@@ -354,6 +355,7 @@ export function GatewayModelPage() {
     { key: 'models', label: t('gateway.models', 'Models') },
     { key: 'vendors', label: t('gateway.vendors', 'Vendors') },
     { key: 'sync', label: t('gateway.sync', 'Sync') },
+    { key: 'health', label: t('gateway.health', '可用性自检') },
   ]
 
   return (
@@ -696,6 +698,8 @@ export function GatewayModelPage() {
           )}
         </>
       )}
+
+      {tab === 'health' && <ModelHealthMatrix includeCustom />}
 
       {/* ===== Model Create/Edit Modal ===== */}
       {showModelModal && editingModel && (

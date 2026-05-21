@@ -9,6 +9,7 @@ import {
 } from '../../wailsjs/go/main/App'
 import { useConfigStore } from '../stores/configStore'
 import { useDirtyGuard } from '../hooks/useDirtyGuard'
+import { ModelHealthMatrix } from '../components/ModelHealthMatrix'
 
 // The Wails-generated type for ListResellerDeployKinds is `main.resellerKindEntry`
 // (unexported in Go → no clean export from models.ts). Mirror the shape locally.
@@ -380,6 +381,12 @@ export function ResellerSetupWizard({ onComplete }: Props) {
                 {t('reseller.setup.doneDesc', '你现在可以在「Gateway 管理」页配置 channel、生成激活码、查看日志。')}
               </p>
             </div>
+
+            {/* Optional pre-launch self-check — skippable, never blocks entry. */}
+            <div className="text-left border border-border rounded-lg p-3">
+              <ModelHealthMatrix includeCustom />
+            </div>
+
             <button
               onClick={onComplete}
               className="px-5 py-2 rounded bg-purple-600 hover:bg-purple-500 text-white text-sm"

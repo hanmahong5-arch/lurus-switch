@@ -70,6 +70,10 @@ type services struct {
 	// custom-providers.json; nil-safe via the bindings.
 	customProviderStore *provider.CustomStore
 
+	// Batch model-availability tester (Wave2 AUT-1). Stateless; probes
+	// provider /v1/models endpoints with bounded concurrency.
+	catalogTester *modelcatalog.Tester
+
 	// Local API gateway (replaces serverctl for new architecture).
 	appRegistry *appreg.Registry
 	meterStore  *metering.Store
@@ -219,6 +223,7 @@ func newServices(appDataDir, version string) (*services, []string) {
 		redeemer:            redemption.NewRedeemer(version),
 		auditJournal:        auditJ,
 		customProviderStore: customProvStr,
+		catalogTester:       modelcatalog.NewTester(),
 	}
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {

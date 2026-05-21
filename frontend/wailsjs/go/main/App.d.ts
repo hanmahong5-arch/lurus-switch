@@ -659,6 +659,10 @@ export function PreviewImportBundle(arg1:string):Promise<any>;
 
 export function ApplyImportBundle(arg1:string,arg2:{[key: string]: boolean}):Promise<Array<string>>;
 
+export function RunModelHealthCheck(arg1:boolean):Promise<void>;
+
+export function GetLastHealthCheckResults():Promise<Array<any>>;
+
 export function UndoAuditEntry(arg1:string):Promise<void>;
 
 export function ListAuditCapabilities():Promise<Record<string,string>>;

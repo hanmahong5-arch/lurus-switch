@@ -12,6 +12,7 @@ import { RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES } from '../components/Sidebar'
 import { StartupPerformanceCard } from '../components/StartupPerformanceCard'
 import { CustomProvidersSection } from '../components/CustomProvidersSection'
 import { BackupRestoreCard } from '../components/BackupRestoreCard'
+import { ModelHealthMatrix } from '../components/ModelHealthMatrix'
 
 type Tab = 'appearance' | 'providers' | 'proxy' | 'update' | 'data' | 'backup'
 
@@ -334,7 +335,14 @@ export function SettingsPage() {
           </div>
         )}
 
-        {activeTab === 'providers' && <CustomProvidersSection />}
+        {activeTab === 'providers' && (
+          <div className="space-y-6">
+            <CustomProvidersSection />
+            <div className="border-t border-border pt-4">
+              <ModelHealthMatrix includeCustom />
+            </div>
+          </div>
+        )}
 
         {activeTab === 'backup' && <BackupRestoreCard />}
 
