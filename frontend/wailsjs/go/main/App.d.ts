@@ -641,6 +641,14 @@ export function GetStartupTrace():Promise<any>;
 
 export function GetStartupHistory():Promise<Array<any>>;
 
+export function ListCustomProviders():Promise<Array<any>>;
+
+export function SaveCustomProvider(arg1:any):Promise<any>;
+
+export function DeleteCustomProvider(arg1:string):Promise<void>;
+
+export function TestCustomProvider(arg1:any):Promise<any>;
+
 export function UndoAuditEntry(arg1:string):Promise<void>;
 
 export function ListAuditCapabilities():Promise<Record<string,string>>;

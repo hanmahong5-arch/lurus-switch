@@ -261,10 +261,7 @@ var builtinPresets = []Preset{
 		KeyFormat: "token-...", DocsURL: "https://docs.vllm.ai",
 		Models:      "(deployed model)", Description: "High-throughput inference server",
 	},
-	{
-		ID: "custom", Name: "Custom (OpenAI Compatible)", Icon: "custom", IconColor: "#6B7280",
-		Category: "self-hosted", BaseURL: "http://localhost:8080/v1",
-		KeyFormat: "...", DocsURL: "",
-		Models:      "", Description: "Any OpenAI-compatible API endpoint",
-	},
+	// NOTE: the former builtin "custom" placeholder was removed in favor of
+	// user-defined CustomProvider entries (see custom.go). Use the "Add
+	// Custom Provider" flow in Settings → Providers instead.
 }

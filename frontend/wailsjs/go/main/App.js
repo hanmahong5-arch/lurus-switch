@@ -1202,6 +1202,22 @@ export function GetStartupHistory() {
   return window['go']['main']['App']['GetStartupHistory']();
 }
 
+export function ListCustomProviders() {
+  return window['go']['main']['App']['ListCustomProviders']();
+}
+
+export function SaveCustomProvider(arg1) {
+  return window['go']['main']['App']['SaveCustomProvider'](arg1);
+}
+
+export function DeleteCustomProvider(arg1) {
+  return window['go']['main']['App']['DeleteCustomProvider'](arg1);
+}
+
+export function TestCustomProvider(arg1) {
+  return window['go']['main']['App']['TestCustomProvider'](arg1);
+}
+
 export function UndoAuditEntry(arg1) {
   return window['go']['main']['App']['UndoAuditEntry'](arg1);
 }

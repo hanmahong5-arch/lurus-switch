@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ChevronRight, Star, Globe, Server, Cloud, Laptop, X } from 'lucide-react'
+import { Search, ChevronRight, Star, Globe, Server, Cloud, Laptop, X, Trash2, Wrench } from 'lucide-react'
 import { cn } from '../lib/utils'
-import { GetProviderPresets } from '../../wailsjs/go/main/App'
+import { GetProviderPresets, ListCustomProviders, DeleteCustomProvider } from '../../wailsjs/go/main/App'
+import type { CustomProvider } from './CustomProviderForm'
 
 interface ProviderPreset {
   id: string
@@ -15,6 +16,8 @@ interface ProviderPreset {
   docsUrl: string
   models: string
   description: string
+  // True only for user-defined providers — drives the delete affordance.
+  custom?: boolean
 }
 
 interface ProviderPickerProps {
@@ -22,7 +25,7 @@ interface ProviderPickerProps {
   onClose: () => void
 }
 
-const CATEGORY_ORDER = ['official', 'china', 'proxy', 'cloud', 'self-hosted'] as const
+const CATEGORY_ORDER = ['official', 'china', 'proxy', 'cloud', 'self-hosted', 'custom'] as const
 
 const CATEGORY_META: Record<string, { label: string; labelZh: string; icon: typeof Star }> = {
   official:      { label: 'Official',    labelZh: '官方',     icon: Star },
@@ -30,32 +33,73 @@ const CATEGORY_META: Record<string, { label: string; labelZh: string; icon: type
   proxy:         { label: 'Aggregator',  labelZh: '聚合平台', icon: Server },
   cloud:         { label: 'Cloud',       labelZh: '云平台',   icon: Cloud },
   'self-hosted': { label: 'Self-Hosted', labelZh: '本地部署', icon: Laptop },
+  custom:        { label: 'Custom',      labelZh: '自定义',   icon: Wrench },
+}
+
+// Map a user-defined provider into the preset shape the picker renders.
+function customToPreset(c: CustomProvider): ProviderPreset {
+  return {
+    id: c.id,
+    name: c.name,
+    icon: 'custom',
+    iconColor: '#6B7280',
+    category: 'custom',
+    baseUrl: c.baseUrl,
+    keyFormat: 'sk-...',
+    docsUrl: c.docsUrl ?? '',
+    models: (c.defaultModels ?? []).join(', '),
+    description: c.description ?? c.baseUrl,
+    custom: true,
+  }
 }
 
 export function ProviderPicker({ onSelect, onClose }: ProviderPickerProps) {
   const { t, i18n } = useTranslation()
   const isZh = i18n.language?.startsWith('zh')
   const [presets, setPresets] = useState<ProviderPreset[]>([])
+  const [customs, setCustoms] = useState<ProviderPreset[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    GetProviderPresets()
-      .then((data: ProviderPreset[]) => setPresets(data || []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
+  const loadCustoms = useCallback(async () => {
+    try {
+      const list = (await ListCustomProviders()) as CustomProvider[]
+      setCustoms((list || []).map(customToPreset))
+    } catch {
+      setCustoms([])
+    }
   }, [])
 
+  useEffect(() => {
+    Promise.all([
+      GetProviderPresets()
+        .then((data: ProviderPreset[]) => setPresets(data || []))
+        .catch(() => {}),
+      loadCustoms(),
+    ]).finally(() => setLoading(false))
+  }, [loadCustoms])
+
+  const handleDeleteCustom = async (id: string) => {
+    try {
+      await DeleteCustomProvider(id)
+      await loadCustoms()
+    } catch {
+      // best-effort; surface nothing — list reloads on next open
+    }
+  }
+
+  const allPresets = useMemo(() => [...presets, ...customs], [presets, customs])
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return presets
+    if (!search.trim()) return allPresets
     const q = search.toLowerCase()
-    return presets.filter(
+    return allPresets.filter(
       p => p.name.toLowerCase().includes(q) ||
            p.id.toLowerCase().includes(q) ||
            p.description.toLowerCase().includes(q) ||
            p.models.toLowerCase().includes(q)
     )
-  }, [presets, search])
+  }, [allPresets, search])
 
   const grouped = useMemo(() => {
     const map = new Map<string, ProviderPreset[]>()
@@ -124,37 +168,51 @@ export function ProviderPicker({ onSelect, onClose }: ProviderPickerProps) {
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {items.map(preset => (
-                      <button
+                      <div
                         key={preset.id}
-                        onClick={() => onSelect(preset)}
                         className={cn(
-                          'flex items-center gap-3 p-3 rounded-lg border border-border',
-                          'hover:border-primary/50 hover:bg-muted/50 transition-colors text-left group'
+                          'relative flex items-center gap-3 p-3 rounded-lg border border-border',
+                          'hover:border-primary/50 hover:bg-muted/50 transition-colors group'
                         )}
                       >
-                        {/* Icon dot */}
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
-                          style={{ backgroundColor: preset.iconColor || '#6B7280' }}
+                        <button
+                          onClick={() => onSelect(preset)}
+                          className="flex items-center gap-3 flex-1 min-w-0 text-left"
                         >
-                          {preset.name.charAt(0)}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-sm font-medium truncate">{preset.name}</span>
-                            {preset.id === 'lurus' && (
-                              <span className="px-1 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary">
-                                {isZh ? '推荐' : 'Recommended'}
-                              </span>
-                            )}
+                          {/* Icon dot */}
+                          <div
+                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold text-white"
+                            style={{ backgroundColor: preset.iconColor || '#6B7280' }}
+                          >
+                            {preset.name.charAt(0)}
                           </div>
-                          <p className="text-xs text-muted-foreground truncate">{preset.description}</p>
-                        </div>
 
-                        <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors flex-shrink-0" />
-                      </button>
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm font-medium truncate">{preset.name}</span>
+                              {preset.id === 'lurus' && (
+                                <span className="px-1 py-0.5 text-[10px] font-medium rounded bg-primary/10 text-primary">
+                                  {isZh ? '推荐' : 'Recommended'}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{preset.description}</p>
+                          </div>
+                        </button>
+
+                        {preset.custom ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteCustom(preset.id) }}
+                            className="p-1 rounded hover:bg-red-500/10 text-red-500 flex-shrink-0"
+                            title={isZh ? '删除' : 'Delete'}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground/30 group-hover:text-primary transition-colors flex-shrink-0" />
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>

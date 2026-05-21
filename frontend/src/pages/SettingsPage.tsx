@@ -10,8 +10,9 @@ import { appconfig } from '../../wailsjs/go/models'
 import { useConfigStore, type AppMode, type UserLevel } from '../stores/configStore'
 import { RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES } from '../components/Sidebar'
 import { StartupPerformanceCard } from '../components/StartupPerformanceCard'
+import { CustomProvidersSection } from '../components/CustomProvidersSection'
 
-type Tab = 'appearance' | 'proxy' | 'update' | 'data'
+type Tab = 'appearance' | 'providers' | 'proxy' | 'update' | 'data'
 
 interface AppSettings {
   theme: string
@@ -101,6 +102,7 @@ export function SettingsPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'appearance', label: t('settings.tabs.appearance') },
+    { id: 'providers', label: t('settings.tabs.providers', '供应商') },
     { id: 'proxy', label: t('settings.tabs.proxy') },
     { id: 'update', label: t('settings.tabs.update') },
     { id: 'data', label: t('settings.tabs.data') },
@@ -329,6 +331,8 @@ export function SettingsPage() {
             <StartupPerformanceCard />
           </div>
         )}
+
+        {activeTab === 'providers' && <CustomProvidersSection />}
 
         {activeTab === 'proxy' && (
           <div className="space-y-4">

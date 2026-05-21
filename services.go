@@ -24,6 +24,7 @@ import (
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promoter"
 	"lurus-switch/internal/promptlib"
+	"lurus-switch/internal/provider"
 	"lurus-switch/internal/proxy"
 	"lurus-switch/internal/redemption"
 	"lurus-switch/internal/relay"
@@ -60,10 +61,14 @@ type services struct {
 	envMgr      *envmgr.Manager
 	tracker     *analytics.Tracker
 
-	serverMgr    *serverctl.Manager
-	relayStore   *relay.Store
-	promoterSvc  *promoter.Service
-	catalogMgr   *modelcatalog.Manager
+	serverMgr   *serverctl.Manager
+	relayStore  *relay.Store
+	promoterSvc *promoter.Service
+	catalogMgr  *modelcatalog.Manager
+
+	// User-defined provider endpoints (Wave2 EXT-1). Persisted to
+	// custom-providers.json; nil-safe via the bindings.
+	customProviderStore *provider.CustomStore
 
 	// Local API gateway (replaces serverctl for new architecture).
 	appRegistry *appreg.Registry
@@ -176,26 +181,31 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("audit journal: %v", aerr))
 	}
 
+	customProvStr, cpErr := provider.NewCustomStore(appDataDir)
+	if cpErr != nil {
+		warnings = append(warnings, fmt.Sprintf("custom provider store: %v", cpErr))
+	}
+
 	svc := &services{
-		store:       store,
-		validator:   validator.NewValidator(),
-		instMgr:     installer.NewManager(),
-		proxyMgr:    proxyMgr,
-		authSession: authSess,
-		selfUpdater: updater.NewSelfUpdater(version),
-		npmChecker:  updater.NewNpmChecker(),
-		processMon:  process.NewMonitor(),
-		snapshotStr: snapStr,
-		promptStr:   promptStr,
-		mcpStr:      mcpStr,
-		docMgr:      docmgr.NewManager(),
-		envMgr:      envmgr.NewManager(),
-		tracker:     tracker,
-		serverMgr:   serverctl.NewManager(appDataDir),
-		relayStore:  relayStr,
-		catalogMgr:  modelcatalog.NewManager(appDataDir),
-		appRegistry: appReg,
-		meterStore:  meterStr,
+		store:          store,
+		validator:      validator.NewValidator(),
+		instMgr:        installer.NewManager(),
+		proxyMgr:       proxyMgr,
+		authSession:    authSess,
+		selfUpdater:    updater.NewSelfUpdater(version),
+		npmChecker:     updater.NewNpmChecker(),
+		processMon:     process.NewMonitor(),
+		snapshotStr:    snapStr,
+		promptStr:      promptStr,
+		mcpStr:         mcpStr,
+		docMgr:         docmgr.NewManager(),
+		envMgr:         envmgr.NewManager(),
+		tracker:        tracker,
+		serverMgr:      serverctl.NewManager(appDataDir),
+		relayStore:     relayStr,
+		catalogMgr:     modelcatalog.NewManager(appDataDir),
+		appRegistry:    appReg,
+		meterStore:     meterStr,
 		database:       database,
 		agentStore:     agentStr,
 		agentConfigMgr: agentCfgMgr,
@@ -205,9 +215,10 @@ func newServices(appDataDir, version string) (*services, []string) {
 			}
 			return nil
 		}(),
-		redemptionStore: redemptionStr,
-		redeemer:        redemption.NewRedeemer(version),
-		auditJournal:    auditJ,
+		redemptionStore:     redemptionStr,
+		redeemer:            redemption.NewRedeemer(version),
+		auditJournal:        auditJ,
+		customProviderStore: customProvStr,
 	}
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {
