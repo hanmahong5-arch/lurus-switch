@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import { cn, safeArray } from '../lib/utils'
 import { errorToast } from '../lib/errorToast'
 import { exportErrorLog } from '../lib/errorLog'
+import { formatLocal } from '../lib/formatTime'
 import { useConnectivityStore } from '../stores/connectivityStore'
 import {
   useSwitchStore,
@@ -1684,7 +1685,7 @@ export function SwitchHubPage({ section = 'all' }: { section?: SwitchHubSection 
                       <div className="min-w-0">
                         <p className="text-xs font-medium truncate">{snap.label}</p>
                         <p className="text-[10px] text-muted-foreground">
-                          {new Date(snap.createdAt).toLocaleString()} — {snap.size} bytes
+                          {formatLocal(snap.createdAt)} — {snap.size} bytes
                         </p>
                       </div>
                       <button

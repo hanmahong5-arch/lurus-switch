@@ -8,6 +8,7 @@ import {
 import type { AgentProfile } from '../stores/agentStore'
 import { GetAgentOutput } from '../../wailsjs/go/main/App'
 import { cn } from '../lib/utils'
+import { formatLocal } from '../lib/formatTime'
 
 const OUTPUT_POLL_MS = 2_000
 const OUTPUT_MAX_LINES = 200
@@ -290,12 +291,6 @@ function PermBadge({ label, on, t }: { label: string; on: boolean; t: TFunction 
 
 function formatTime(iso: string): string {
   if (!iso) return '—'
-  try {
-    const d = new Date(iso)
-    if (Number.isNaN(d.getTime())) return iso
-    return d.toLocaleString()
-  } catch {
-    return iso
-  }
+  return formatLocal(iso)
 }
 

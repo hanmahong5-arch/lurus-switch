@@ -5,6 +5,7 @@ import {
   Cpu, Activity, KeyRound, MapPin,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { formatLocalTime } from '../lib/formatTime'
 import { GetToolRuntimes } from '../../wailsjs/go/main/App'
 import type { toolruntime } from '../../wailsjs/go/models'
 
@@ -110,7 +111,7 @@ export function RuntimeStatusPanel() {
         <div className="flex items-center gap-2">
           {lastRefreshed && (
             <span className="text-[10px] text-muted-foreground/60 tabular-nums">
-              {isZh ? '刷新于' : 'Refreshed'} {lastRefreshed.toLocaleTimeString()}
+              {isZh ? '刷新于' : 'Refreshed'} {formatLocalTime(lastRefreshed)}
             </span>
           )}
           <button

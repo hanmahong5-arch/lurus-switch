@@ -4,8 +4,17 @@ import {
   Shield, RefreshCw, Undo2, Filter as FilterIcon, ChevronDown, ChevronRight,
   CheckCircle2, CircleSlash, AlertTriangle,
 } from 'lucide-react'
-import { useAuditStore, type AuditEntry } from '../../stores/auditStore'
+import { useAuditStore, type AuditEntry, type StatsWindow } from '../../stores/auditStore'
 import { cn } from '../../lib/utils'
+import { formatLocalTime } from '../../lib/formatTime'
+
+// Trailing-window chips for the stats grid. 0 = all entries in the ring.
+const WINDOW_OPTIONS: { value: StatsWindow; labelKey: string; fallback: string }[] = [
+  { value: 0, labelKey: 'audit.window.all', fallback: '全部' },
+  { value: 3600000, labelKey: 'audit.window.1h', fallback: '1h' },
+  { value: 86400000, labelKey: 'audit.window.24h', fallback: '24h' },
+  { value: 604800000, labelKey: 'audit.window.7d', fallback: '7d' },
+]
 
 // Colored chip per outcome — auditors should see at a glance which
 // rows succeeded vs which got denied by capability gate vs which the
@@ -47,7 +56,7 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
           ? <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
           : <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />}
         <span className="text-[10px] text-muted-foreground tabular-nums w-24 shrink-0 font-mono">
-          {new Date(entry.timestamp).toLocaleTimeString()}
+          {formatLocalTime(entry.timestamp)}
         </span>
         <span className="text-xs font-mono shrink-0 max-w-[12rem] truncate">{entry.operation}</span>
         <OutcomeBadge outcome={entry.outcome} />
@@ -112,8 +121,8 @@ function EntryRow({ entry }: { entry: AuditEntry }) {
 export function AuditLogPanel() {
   const { t } = useTranslation()
   const {
-    entries, stats, principal, filter,
-    loading, error, load, loadCapabilities, setFilter, resetFilter,
+    entries, stats, principal, filter, statsWindow,
+    loading, error, load, loadCapabilities, setFilter, resetFilter, setStatsWindow,
   } = useAuditStore()
 
   useEffect(() => {
@@ -133,6 +142,21 @@ export function AuditLogPanel() {
     return Object.entries(stats.byOperation)
       .sort(([, a], [, b]) => b - a)
       .slice(0, 6)
+  }, [stats])
+
+  // Tool-dimension rollup — group ops by dotted prefix (channel.* → channel).
+  const byTool = useMemo(() => {
+    if (!stats?.byOperationPrefix) return []
+    return Object.entries(stats.byOperationPrefix)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6)
+  }, [stats])
+
+  // Fail rate as an integer percent; null when no data so we render "—"
+  // instead of a misleading 0%.
+  const failPct = useMemo(() => {
+    if (!stats || stats.total === 0) return null
+    return Math.round(stats.failRate * 1000) / 10
   }, [stats])
 
   return (
@@ -156,6 +180,41 @@ export function AuditLogPanel() {
               <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
             </button>
           </div>
+        </div>
+
+        {/* Window selector + fail rate */}
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <div className="flex rounded-md border border-border overflow-hidden">
+            {WINDOW_OPTIONS.map((w) => (
+              <button
+                key={w.value}
+                onClick={() => setStatsWindow(w.value)}
+                className={cn(
+                  'px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  statsWindow === w.value
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted/40 text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {t(w.labelKey, w.fallback)}
+              </button>
+            ))}
+          </div>
+          {failPct !== null && (
+            <span
+              className={cn(
+                'ml-auto text-[11px] tabular-nums px-2 py-0.5 rounded border',
+                failPct === 0
+                  ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30'
+                  : failPct < 10
+                    ? 'text-amber-500 bg-amber-500/10 border-amber-500/30'
+                    : 'text-red-500 bg-red-500/10 border-red-500/30',
+              )}
+              title={t('audit.failRateHint', '(已拒 + 错误) / 总数')}
+            >
+              {t('audit.failRate', '失败率')} {failPct}%
+            </span>
+          )}
         </div>
 
         {/* Stats strip */}
@@ -197,6 +256,26 @@ export function AuditLogPanel() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Tool dimension — ops rolled up by dotted prefix */}
+        {byTool.length > 0 && (
+          <div className="mb-3 text-[11px]">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+              {t('audit.byTool', '按工具维度')}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {byTool.map(([tool, n]) => (
+                <span
+                  key={tool}
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border bg-muted/30 font-mono"
+                >
+                  {tool}
+                  <span className="tabular-nums text-muted-foreground">{n}</span>
+                </span>
+              ))}
+            </div>
           </div>
         )}
 

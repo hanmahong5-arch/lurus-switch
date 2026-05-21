@@ -12,6 +12,7 @@ import {
 import type { main } from '../../wailsjs/go/models'
 import { useDirtyGuard } from '../hooks/useDirtyGuard'
 import { useToastStore } from '../stores/toastStore'
+import { formatLocal } from '../lib/formatTime'
 
 // PackagerPage — Reseller-only. Collects branding inputs and runs the
 // white-label packager, showing the resulting binary path + sha256 for
@@ -396,7 +397,7 @@ export function PackagerPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium truncate">{h.brandName}</span>
                       <span className="text-[10px] text-muted-foreground/70 tabular-nums">
-                        {h.builtAt ? new Date(h.builtAt).toLocaleString() : '—'}
+                        {formatLocal(h.builtAt)}
                       </span>
                     </div>
                     <div className="text-[10px] text-muted-foreground font-mono break-all truncate">{h.binaryPath}</div>

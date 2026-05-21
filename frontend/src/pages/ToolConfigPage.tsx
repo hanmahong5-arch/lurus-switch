@@ -8,6 +8,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { errorToast } from '../lib/errorToast'
+import { formatLocal } from '../lib/formatTime'
 import { useConfigStore, type ConfigPreset, type ToolsSubTab } from '../stores/configStore'
 import { useToastStore } from '../stores/toastStore'
 import { useDashboardStore } from '../stores/dashboardStore'
@@ -291,7 +292,7 @@ export function ToolConfigPage() {
   const handleTakeSnapshot = async () => {
     setSnapshotBusy(true)
     try {
-      await TakeConfigSnapshot(tool, snapshotLabel || new Date().toLocaleString())
+      await TakeConfigSnapshot(tool, snapshotLabel || formatLocal(new Date()))
       setSnapshotLabel('')
       await loadSnapshots()
       toast('success', 'Snapshot saved')
@@ -740,7 +741,7 @@ export function ToolConfigPage() {
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-2.5 w-2.5" />
-                      {new Date(snap.createdAt).toLocaleString()}
+                      {formatLocal(snap.createdAt)}
                     </div>
                     <button
                       onClick={() => handleRestoreSnapshot(snap.id)}

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"lurus-switch/internal/capability"
 )
@@ -132,6 +133,73 @@ func TestStats_Aggregates(t *testing.T) {
 	}
 	if s.ByOperation["channel.create"] != 2 {
 		t.Errorf("channel.create count = %d", s.ByOperation["channel.create"])
+	}
+}
+
+func TestStatsWindow_FailRateZeroTotal(t *testing.T) {
+	j := newTestJournal(t)
+	// FailRate must NOT be NaN/Inf when Total is zero — UI relies on a
+	// clean numeric 0 to render an em-dash chip.
+	s := j.StatsWindow(time.Now().Add(time.Hour))
+	if s.Total != 0 {
+		t.Fatalf("Total=%d, want 0", s.Total)
+	}
+	if s.FailRate != 0 {
+		t.Errorf("FailRate=%v, want 0", s.FailRate)
+	}
+}
+
+func TestStatsWindow_FailRateMixed(t *testing.T) {
+	j := newTestJournal(t)
+	// 2 ok + 1 denied + 1 error → fail rate = 2/4 = 0.5.
+	j.Record("channel.create", "ch-1", nil, nil, nil)
+	j.Record("channel.create", "ch-2", nil, nil, nil)
+	j.Record("channel.create", "ch-3", nil, nil, &capability.Error{Required: capability.CapChannelWrite, Principal: "x"})
+	j.Record("channel.delete", "ch-4", nil, nil, errors.New("upstream 500"))
+
+	s := j.Stats()
+	if s.Total != 4 {
+		t.Fatalf("Total=%d, want 4", s.Total)
+	}
+	if s.FailRate != 0.5 {
+		t.Errorf("FailRate=%v, want 0.5", s.FailRate)
+	}
+	if s.ByOperationPrefix["channel"] != 4 {
+		t.Errorf("ByOperationPrefix[channel]=%d, want 4", s.ByOperationPrefix["channel"])
+	}
+}
+
+func TestStatsWindow_LastHour(t *testing.T) {
+	j := newTestJournal(t)
+	j.Record("channel.create", "old", nil, nil, nil)
+	// Backdate by hand — the hot ring exposes Timestamp on the Entry.
+	j.mu.Lock()
+	j.hot[0].Timestamp = time.Now().Add(-2 * time.Hour)
+	j.mu.Unlock()
+	j.Record("channel.create", "new", nil, nil, nil)
+
+	since := time.Now().Add(-1 * time.Hour)
+	s := j.StatsWindow(since)
+	if s.Total != 1 {
+		t.Errorf("expected 1 entry inside last hour, got %d", s.Total)
+	}
+	if s.WindowStart == nil || !s.WindowStart.Equal(since) {
+		t.Errorf("WindowStart not propagated: %v", s.WindowStart)
+	}
+}
+
+func TestOpPrefix(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"channel.create", "channel"},
+		{"audit.undo", "audit"},
+		{"snapshot", "snapshot"},
+		{"", "unknown"},
+		{"a.b.c", "a"},
+	}
+	for _, c := range cases {
+		if got := opPrefix(c.in); got != c.want {
+			t.Errorf("opPrefix(%q) = %q, want %q", c.in, got, c.want)
+		}
 	}
 }
 

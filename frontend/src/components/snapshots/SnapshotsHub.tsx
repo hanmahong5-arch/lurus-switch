@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { TOOL_ORDER, TOOL_DISPLAY } from '../../lib/toolMeta'
+import { formatLocal } from '../../lib/formatTime'
 import { useSnapshotsHubStore } from '../../stores/snapshotsHubStore'
 import { useToastStore } from '../../stores/toastStore'
 import {
@@ -107,7 +108,7 @@ export function SnapshotsHub() {
         tool,
         labelDraft.trim() ||
           t('snapshotsHub.defaultLabel', '手动快照 {{date}}', {
-            date: new Date().toLocaleString(),
+            date: formatLocal(new Date()),
           }),
       )
       setLabelDraft('')
@@ -313,7 +314,7 @@ export function SnapshotsHub() {
                                   <div className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
                                     <span className="inline-flex items-center gap-1">
                                       <Clock className="h-2.5 w-2.5" />
-                                      {new Date(snap.createdAt).toLocaleString()}
+                                      {formatLocal(snap.createdAt)}
                                     </span>
                                     <span className="opacity-70 font-mono">{formatBytes(snap.size)}</span>
                                   </div>
@@ -410,7 +411,7 @@ export function SnapshotsHub() {
                 <p className="text-muted-foreground">
                   {t('snapshotsHub.restoreTo', '将恢复到 {{label}}（{{date}}）', {
                     label: pendingRestore.snap.label || pendingRestore.snap.id,
-                    date: new Date(pendingRestore.snap.createdAt).toLocaleString(),
+                    date: formatLocal(pendingRestore.snap.createdAt),
                   })}
                 </p>
                 <div className="flex justify-end gap-2 pt-1">

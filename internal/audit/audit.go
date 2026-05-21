@@ -32,25 +32,25 @@ import (
 )
 
 const (
-	auditDir     = "audit"
-	hotRingSize  = 500
+	auditDir    = "audit"
+	hotRingSize = 500
 )
 
 // Entry is a single journaled mutation.
 type Entry struct {
-	ID         string    `json:"id"`         // ULID-ish: nanoseconds + counter
-	Timestamp  time.Time `json:"timestamp"`
-	Principal  string    `json:"principal"`  // who: "user:marvin", "agent:sales-1"
-	CapsHeld   []string  `json:"capsHeld"`   // caps the principal had at the moment
-	Operation  string    `json:"operation"`  // dotted op name e.g. "channel.create"
-	Target     string    `json:"target"`     // free-form: id of the affected entity
-	Before     any       `json:"before,omitempty"` // pre-state snapshot
-	After      any       `json:"after,omitempty"`  // post-state snapshot
-	Outcome    string    `json:"outcome"`    // "ok" | "denied" | "error"
-	Error      string    `json:"error,omitempty"`
-	UndoneAt   *time.Time `json:"undoneAt,omitempty"`
-	UndoneBy   string    `json:"undoneBy,omitempty"`
-	Reversible bool      `json:"reversible"` // can Undo() touch this op?
+	ID         string            `json:"id"` // ULID-ish: nanoseconds + counter
+	Timestamp  time.Time         `json:"timestamp"`
+	Principal  string            `json:"principal"`        // who: "user:marvin", "agent:sales-1"
+	CapsHeld   []string          `json:"capsHeld"`         // caps the principal had at the moment
+	Operation  string            `json:"operation"`        // dotted op name e.g. "channel.create"
+	Target     string            `json:"target"`           // free-form: id of the affected entity
+	Before     any               `json:"before,omitempty"` // pre-state snapshot
+	After      any               `json:"after,omitempty"`  // post-state snapshot
+	Outcome    string            `json:"outcome"`          // "ok" | "denied" | "error"
+	Error      string            `json:"error,omitempty"`
+	UndoneAt   *time.Time        `json:"undoneAt,omitempty"`
+	UndoneBy   string            `json:"undoneBy,omitempty"`
+	Reversible bool              `json:"reversible"` // can Undo() touch this op?
 	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
@@ -62,11 +62,11 @@ type UndoFunc func(entry Entry) error
 
 // Journal is the append-only log + per-op undo registry.
 type Journal struct {
-	mu          sync.RWMutex
-	baseDir     string
-	hot         []Entry            // most recent first
+	mu           sync.RWMutex
+	baseDir      string
+	hot          []Entry             // most recent first
 	undoHandlers map[string]UndoFunc // keyed by Operation
-	idCounter   atomic.Uint64
+	idCounter    atomic.Uint64
 }
 
 // NewJournal opens the journal rooted at appDataDir/audit/.
@@ -176,9 +176,9 @@ func (j *Journal) List(limit int, filter Filter) []Entry {
 
 // Filter narrows what List returns.
 type Filter struct {
-	Principal string // substring match
-	Operation string // substring match
-	Outcome   string // exact match: "ok" / "denied" / "error" / ""
+	Principal      string // substring match
+	Operation      string // substring match
+	Outcome        string // exact match: "ok" / "denied" / "error" / ""
 	OnlyReversible bool
 	OnlyUndone     bool
 	OnlyNotUndone  bool
@@ -207,33 +207,70 @@ func (f Filter) matches(e Entry) bool {
 }
 
 func contains(s, sub string) bool {
-	if sub == "" { return true }
+	if sub == "" {
+		return true
+	}
 	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub { return true }
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
 	}
 	return false
 }
 
 // Stats summarizes the hot ring for at-a-glance dashboard.
+//
+// FailRate is (denied + error) / total expressed as 0..1. It is zero
+// when Total == 0 — the caller is expected to render "—" or hide the
+// chip in that case, not interpret 0.0 as "perfect health".
+//
+// ByOperationPrefix groups counts by the dotted-name prefix (e.g.
+// `channel.create` + `channel.delete` both roll up under `channel`).
+// Lets the UI show "tool-dimension" without introducing a new field on
+// Entry. Empty operation names roll up under "unknown".
 type Stats struct {
-	Total       int            `json:"total"`
-	OK          int            `json:"ok"`
-	Denied      int            `json:"denied"`
-	Error       int            `json:"error"`
-	Undone      int            `json:"undone"`
-	ByPrincipal map[string]int `json:"byPrincipal"`
-	ByOperation map[string]int `json:"byOperation"`
+	Total             int            `json:"total"`
+	OK                int            `json:"ok"`
+	Denied            int            `json:"denied"`
+	Error             int            `json:"error"`
+	Undone            int            `json:"undone"`
+	FailRate          float64        `json:"failRate"`
+	WindowStart       *time.Time     `json:"windowStart,omitempty"`
+	ByPrincipal       map[string]int `json:"byPrincipal"`
+	ByOperation       map[string]int `json:"byOperation"`
+	ByOperationPrefix map[string]int `json:"byOperationPrefix"`
 }
 
 func (j *Journal) Stats() Stats {
+	return j.computeStats(time.Time{})
+}
+
+// StatsWindow returns Stats over entries with Timestamp >= since. A
+// zero `since` includes everything in the hot ring.
+//
+// The window applies to all aggregations — Total / OK / Denied / Error /
+// Undone / ByPrincipal / ByOperation / ByOperationPrefix all reflect the
+// same time slice, so the UI never shows an inconsistent stats grid.
+func (j *Journal) StatsWindow(since time.Time) Stats {
+	return j.computeStats(since)
+}
+
+func (j *Journal) computeStats(since time.Time) Stats {
 	j.mu.RLock()
 	defer j.mu.RUnlock()
 	out := Stats{
-		ByPrincipal: make(map[string]int),
-		ByOperation: make(map[string]int),
+		ByPrincipal:       make(map[string]int),
+		ByOperation:       make(map[string]int),
+		ByOperationPrefix: make(map[string]int),
 	}
-	out.Total = len(j.hot)
+	if !since.IsZero() {
+		out.WindowStart = &since
+	}
 	for _, e := range j.hot {
+		if !since.IsZero() && e.Timestamp.Before(since) {
+			continue
+		}
+		out.Total++
 		switch e.Outcome {
 		case "ok":
 			out.OK++
@@ -247,8 +284,26 @@ func (j *Journal) Stats() Stats {
 		}
 		out.ByPrincipal[e.Principal]++
 		out.ByOperation[e.Operation]++
+		out.ByOperationPrefix[opPrefix(e.Operation)]++
+	}
+	if out.Total > 0 {
+		out.FailRate = float64(out.Denied+out.Error) / float64(out.Total)
 	}
 	return out
+}
+
+// opPrefix extracts the dotted-name root of an op. "channel.create" → "channel".
+// "audit.undo" → "audit". Empty / no-dot → returned as-is (or "unknown").
+func opPrefix(op string) string {
+	if op == "" {
+		return "unknown"
+	}
+	for i := 0; i < len(op); i++ {
+		if op[i] == '.' {
+			return op[:i]
+		}
+	}
+	return op
 }
 
 // Undo invokes the registered handler for the entry's operation,
@@ -306,14 +361,14 @@ func (j *Journal) Undo(entryID string) error {
 	// instead append a synthetic "undone" marker entry — auditors can
 	// reconstruct state by replaying the log.
 	marker := Entry{
-		ID:        j.nextID(now),
-		Timestamp: now,
-		Principal: tok.Principal,
-		CapsHeld:  tok.CapsList(),
-		Operation: "audit.undo",
-		Target:    entryID,
-		After:     map[string]string{"undoneEntry": entryID, "originalOp": updated.Operation},
-		Outcome:   "ok",
+		ID:         j.nextID(now),
+		Timestamp:  now,
+		Principal:  tok.Principal,
+		CapsHeld:   tok.CapsList(),
+		Operation:  "audit.undo",
+		Target:     entryID,
+		After:      map[string]string{"undoneEntry": entryID, "originalOp": updated.Operation},
+		Outcome:    "ok",
 		Reversible: false, // undo of an undo is meaningless
 	}
 	j.append(marker)

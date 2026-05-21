@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RefreshCw } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { formatLocalTime } from '../../lib/formatTime'
 import { useAuthStore } from '../../stores/authStore'
 import { useBillingStore } from '../../stores/billingStore'
 import { useConfigStore } from '../../stores/configStore'
@@ -86,7 +87,7 @@ export function HomeAccountHero() {
   }
 
   const lastRefreshLabel = lastRefreshedAt
-    ? new Date(lastRefreshedAt).toLocaleTimeString()
+    ? formatLocalTime(lastRefreshedAt)
     : '—'
 
   return (

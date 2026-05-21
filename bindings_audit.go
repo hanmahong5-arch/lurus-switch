@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"lurus-switch/internal/audit"
 	"lurus-switch/internal/capability"
@@ -53,6 +54,29 @@ func (a *App) GetAuditStats() (*audit.Stats, error) {
 		}, nil
 	}
 	s := a.auditJournal.Stats()
+	return &s, nil
+}
+
+// GetAuditStatsWindow returns aggregate counts over the trailing time
+// window (in milliseconds). windowMs <= 0 means "all entries". Powers
+// the 1h / 24h / 7d stats toggle in the audit dashboard.
+func (a *App) GetAuditStatsWindow(windowMs int64) (*audit.Stats, error) {
+	if err := capability.RequireCurrent(capability.CapAuditRead); err != nil {
+		return nil, err
+	}
+	if a.auditJournal == nil {
+		return &audit.Stats{
+			ByPrincipal:       map[string]int{},
+			ByOperation:       map[string]int{},
+			ByOperationPrefix: map[string]int{},
+		}, nil
+	}
+	if windowMs <= 0 {
+		s := a.auditJournal.Stats()
+		return &s, nil
+	}
+	since := time.Now().Add(-time.Duration(windowMs) * time.Millisecond)
+	s := a.auditJournal.StatsWindow(since)
 	return &s, nil
 }
 

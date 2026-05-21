@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import {
-  ListAuditEntries, GetAuditStats, UndoAuditEntry, ListAuditCapabilities,
+  ListAuditEntries, GetAuditStatsWindow, UndoAuditEntry, ListAuditCapabilities,
   GetCurrentPrincipal,
 } from '../../wailsjs/go/main/App'
 
@@ -30,9 +30,15 @@ export interface AuditStats {
   denied: number
   error: number
   undone: number
+  failRate: number
+  windowStart?: string | null
   byPrincipal: Record<string, number>
   byOperation: Record<string, number>
+  byOperationPrefix: Record<string, number>
 }
+
+// Trailing window options for the stats grid, in milliseconds. 0 = all.
+export type StatsWindow = 0 | 3600000 | 86400000 | 604800000
 
 export interface AuditFilter {
   principal: string
@@ -58,6 +64,7 @@ interface State {
   capabilities: Record<string, string>
   principal: string
   filter: AuditFilter
+  statsWindow: StatsWindow
   loading: boolean
   error: string | null
   undoingId: string | null
@@ -66,6 +73,7 @@ interface State {
   loadCapabilities: () => Promise<void>
   setFilter: (patch: Partial<AuditFilter>) => void
   resetFilter: () => void
+  setStatsWindow: (w: StatsWindow) => void
   undo: (entryId: string) => Promise<void>
 }
 
@@ -75,6 +83,7 @@ export const useAuditStore = create<State>((set, get) => ({
   capabilities: {},
   principal: '',
   filter: defaultFilter,
+  statsWindow: 0,
   loading: false,
   error: null,
   undoingId: null,
@@ -85,7 +94,7 @@ export const useAuditStore = create<State>((set, get) => ({
       const f = get().filter
       const [entries, stats, principal] = await Promise.all([
         ListAuditEntries(200, f as any),
-        GetAuditStats(),
+        GetAuditStatsWindow(get().statsWindow),
         GetCurrentPrincipal(),
       ])
       set({
@@ -115,6 +124,11 @@ export const useAuditStore = create<State>((set, get) => ({
 
   resetFilter: () => {
     set({ filter: defaultFilter })
+    get().load()
+  },
+
+  setStatsWindow: (w) => {
+    set({ statsWindow: w })
     get().load()
   },
 

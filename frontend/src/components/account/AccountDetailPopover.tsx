@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RefreshCw, ExternalLink, X } from 'lucide-react'
 import { cn } from '../../lib/utils'
+import { formatLocal } from '../../lib/formatTime'
 import { useAuthStore } from '../../stores/authStore'
 import { useBillingStore } from '../../stores/billingStore'
 import { useGatewayStore } from '../../stores/gatewayStore'
@@ -304,7 +305,7 @@ export function AccountDetailPopover({ open, onClose, anchorRef }: Props) {
               <div className="text-xs">
                 <p className="text-muted-foreground/70">{t('account.detail.enduser.heartbeat', '最后心跳')}</p>
                 <p className="font-mono text-[10px]">
-                  {new Date(endUserStatus.lastHeartbeat).toLocaleString()}
+                  {formatLocal(endUserStatus.lastHeartbeat)}
                 </p>
               </div>
             )}

@@ -5,6 +5,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
+import { formatLocalTime } from '../lib/formatTime'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
 import {
   useActivityStore,
@@ -74,6 +75,16 @@ export function ActivityDrawer() {
       [...events].sort(
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
       ),
+    [events],
+  )
+
+  // Count of error-phase / error-tagged events for the filter badge so
+  // the user sees there's something wrong without opening the filter.
+  const errorCount = useMemo(
+    () =>
+      events.filter(
+        (ev) => ev.phase === 'error' || ev.tags?.includes('error') === true,
+      ).length,
     [events],
   )
 
@@ -150,13 +161,18 @@ export function ActivityDrawer() {
               key={f.id}
               onClick={() => setFilter(f.id)}
               className={cn(
-                'px-2.5 py-1 rounded text-[11px] font-medium border transition-colors whitespace-nowrap',
+                'px-2.5 py-1 rounded text-[11px] font-medium border transition-colors whitespace-nowrap inline-flex items-center gap-1',
                 filter === f.id
                   ? 'bg-primary/10 border-primary/40 text-primary'
                   : 'border-border text-muted-foreground hover:bg-muted',
               )}
             >
               {t(f.labelKey, f.fallback)}
+              {f.id === 'error' && errorCount > 0 && (
+                <span className="inline-flex items-center justify-center min-w-[1rem] h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold tabular-nums">
+                  {errorCount > 99 ? '99+' : errorCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -190,9 +206,7 @@ function DrawerRow({ ev, isZh }: { ev: ActivityEvent; isZh: boolean }) {
   const isDone = ev.phase === 'done'
 
   const ts = new Date(ev.updatedAt)
-  const tsLabel = isNaN(ts.getTime())
-    ? ev.updatedAt
-    : ts.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  const tsLabel = isNaN(ts.getTime()) ? ev.updatedAt : formatLocalTime(ts)
 
   return (
     <li className="px-4 py-2.5 text-xs">

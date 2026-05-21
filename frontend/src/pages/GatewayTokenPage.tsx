@@ -4,6 +4,7 @@ import { Key, Plus, Trash2, RefreshCw, AlertCircle, Edit2, Copy, Check } from 'l
 import { useGatewayStore } from '../stores/gatewayStore'
 import { useConfigStore } from '../stores/configStore'
 import { makeTokenSource, type TokenSource, type GatewayToken } from '../lib/tokenSource'
+import { formatLocalDate } from '../lib/formatTime'
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { StatusBadge } from '../components/gateway/StatusBadge'
@@ -129,7 +130,7 @@ export function GatewayTokenPage() {
 
   const maskKey = (key: string) => key ? key.slice(0, 8) + '••••••••' : '-'
   const formatDate = (ts: number) =>
-    ts > 0 ? new Date(ts * 1000).toLocaleDateString() : t('gateway.tokenNeverExpires')
+    ts > 0 ? formatLocalDate(ts * 1000) : t('gateway.tokenNeverExpires')
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {

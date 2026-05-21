@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
+import { formatLocal } from '../lib/formatTime'
 import { useToastStore } from '../stores/toastStore'
 import {
   BashGuardListRules, BashGuardClaudeStatus, BashGuardInstallClaude,
@@ -311,7 +312,7 @@ function LogTab({ blocks, isZh }: { blocks: bashguard.BlockEntry[]; isZh: boolea
           SEVERITY_COLOR[b.severity as keyof typeof SEVERITY_COLOR] ?? 'border-border bg-muted/20',
         )}>
           <div className="flex items-center gap-2 text-[10px] tabular-nums opacity-80">
-            <span>{new Date(b.time).toLocaleString()}</span>
+            <span>{formatLocal(b.time)}</span>
             <span className="font-mono">·</span>
             <span className="font-mono uppercase tracking-wider">{b.severity}</span>
             <span className="font-mono">·</span>

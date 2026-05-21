@@ -4,6 +4,7 @@ import { FileText, RefreshCw, AlertCircle, Trash2, BarChart3 } from 'lucide-reac
 import { useGatewayStore } from '../stores/gatewayStore'
 import { useConfigStore } from '../stores/configStore'
 import { makeLogSource, type LogSource, type GatewayLog, type GatewayLogStat } from '../lib/logSource'
+import { formatLocal } from '../lib/formatTime'
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { DateRangePicker } from '../components/gateway/DateRangePicker'
@@ -151,7 +152,7 @@ export function GatewayLogPage() {
   }
 
   const formatTime = (ts: number) =>
-    ts > 0 ? new Date(ts * 1000).toLocaleString() : '-'
+    ts > 0 ? formatLocal(ts * 1000) : '-'
 
   const tabs: { key: LogTab; label: string }[] = [
     { key: 'usage', label: t('gateway.usageLogs') },

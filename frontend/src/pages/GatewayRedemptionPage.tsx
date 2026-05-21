@@ -9,6 +9,7 @@ import {
   type RedemptionSource,
   type GatewayRedemption,
 } from '../lib/redemptionSource'
+import { formatLocal } from '../lib/formatTime'
 import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { StatusBadge } from '../components/gateway/StatusBadge'
@@ -144,7 +145,7 @@ export function GatewayRedemptionPage() {
     key ? key.slice(0, 6) + '\u2022\u2022\u2022\u2022' : '-'
 
   const formatTime = (ts: number) =>
-    ts > 0 ? new Date(ts * 1000).toLocaleString() : '-'
+    ts > 0 ? formatLocal(ts * 1000) : '-'
 
   if (!source) {
     return (

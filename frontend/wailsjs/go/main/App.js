@@ -1190,6 +1190,18 @@ export function GetAuditStats() {
   return window['go']['main']['App']['GetAuditStats']();
 }
 
+export function GetAuditStatsWindow(arg1) {
+  return window['go']['main']['App']['GetAuditStatsWindow'](arg1);
+}
+
+export function GetStartupTrace() {
+  return window['go']['main']['App']['GetStartupTrace']();
+}
+
+export function GetStartupHistory() {
+  return window['go']['main']['App']['GetStartupHistory']();
+}
+
 export function UndoAuditEntry(arg1) {
   return window['go']['main']['App']['UndoAuditEntry'](arg1);
 }

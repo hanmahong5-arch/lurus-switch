@@ -8,6 +8,7 @@ import {
 } from '../../wailsjs/go/main/App'
 import type { main } from '../../wailsjs/go/models'
 import { TOOL_ORDER, TOOL_DISPLAY } from '../lib/toolMeta'
+import { formatLocal } from '../lib/formatTime'
 import { useDashboardStore } from '../stores/dashboardStore'
 import { useConfigStore } from '../stores/configStore'
 
@@ -77,13 +78,9 @@ export function EndUserMainPage({ onDeactivated }: Props) {
   }
   const formatDate = (iso?: string) => {
     if (!iso) return '—'
-    try {
-      const d = new Date(iso)
-      if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
-      return d.toLocaleString()
-    } catch {
-      return '—'
-    }
+    const d = new Date(iso)
+    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—'
+    return formatLocal(d)
   }
 
   // Days remaining until expiry. null = no valid expiresAt (no countdown).

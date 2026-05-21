@@ -635,6 +635,12 @@ export function ListAuditEntries(arg1:number,arg2:any):Promise<Array<any>>;
 
 export function GetAuditStats():Promise<any>;
 
+export function GetAuditStatsWindow(arg1:number):Promise<any>;
+
+export function GetStartupTrace():Promise<any>;
+
+export function GetStartupHistory():Promise<Array<any>>;
+
 export function UndoAuditEntry(arg1:string):Promise<void>;
 
 export function ListAuditCapabilities():Promise<Record<string,string>>;
