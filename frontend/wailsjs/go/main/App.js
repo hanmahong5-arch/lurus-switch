@@ -26,6 +26,10 @@ export function ApplyAllToolRelays() {
   return window['go']['main']['App']['ApplyAllToolRelays']();
 }
 
+export function ApplyChangePlan(arg1) {
+  return window['go']['main']['App']['ApplyChangePlan'](arg1);
+}
+
 export function ApplyClaudePreset(arg1) {
   return window['go']['main']['App']['ApplyClaudePreset'](arg1);
 }
@@ -36,6 +40,10 @@ export function ApplyCodexPreset(arg1) {
 
 export function ApplyGeminiPreset(arg1) {
   return window['go']['main']['App']['ApplyGeminiPreset'](arg1);
+}
+
+export function ApplyImportBundle(arg1, arg2) {
+  return window['go']['main']['App']['ApplyImportBundle'](arg1, arg2);
 }
 
 export function ApplyMCPServerToTool(arg1, arg2) {
@@ -162,6 +170,10 @@ export function BudgetSetConfig(arg1) {
   return window['go']['main']['App']['BudgetSetConfig'](arg1);
 }
 
+export function BuildChangePlan(arg1, arg2) {
+  return window['go']['main']['App']['BuildChangePlan'](arg1, arg2);
+}
+
 export function BuildWhiteLabelPackage(arg1) {
   return window['go']['main']['App']['BuildWhiteLabelPackage'](arg1);
 }
@@ -274,6 +286,10 @@ export function DeleteConfigSnapshot(arg1, arg2) {
   return window['go']['main']['App']['DeleteConfigSnapshot'](arg1, arg2);
 }
 
+export function DeleteCustomProvider(arg1) {
+  return window['go']['main']['App']['DeleteCustomProvider'](arg1);
+}
+
 export function DeleteDepartment(arg1) {
   return window['go']['main']['App']['DeleteDepartment'](arg1);
 }
@@ -372,6 +388,10 @@ export function ExportClaudeConfig(arg1) {
 
 export function ExportCodexConfig(arg1) {
   return window['go']['main']['App']['ExportCodexConfig'](arg1);
+}
+
+export function ExportConfigBundle(arg1, arg2) {
+  return window['go']['main']['App']['ExportConfigBundle'](arg1, arg2);
 }
 
 export function ExportConversation(arg1, arg2, arg3, arg4) {
@@ -502,6 +522,10 @@ export function GetAuditStats() {
   return window['go']['main']['App']['GetAuditStats']();
 }
 
+export function GetAuditStatsWindow(arg1) {
+  return window['go']['main']['App']['GetAuditStatsWindow'](arg1);
+}
+
 export function GetAuthState() {
   return window['go']['main']['App']['GetAuthState']();
 }
@@ -626,6 +650,10 @@ export function GetGeminiPresets() {
   return window['go']['main']['App']['GetGeminiPresets']();
 }
 
+export function GetLastHealthCheckResults() {
+  return window['go']['main']['App']['GetLastHealthCheckResults']();
+}
+
 export function GetLiveSessions() {
   return window['go']['main']['App']['GetLiveSessions']();
 }
@@ -720,6 +748,14 @@ export function GetSessionTranscript(arg1) {
 
 export function GetSessionsForDLPHit(arg1) {
   return window['go']['main']['App']['GetSessionsForDLPHit'](arg1);
+}
+
+export function GetStartupHistory() {
+  return window['go']['main']['App']['GetStartupHistory']();
+}
+
+export function GetStartupTrace() {
+  return window['go']['main']['App']['GetStartupTrace']();
 }
 
 export function GetSystemEnvironment() {
@@ -938,6 +974,10 @@ export function ListAllAPIKeys() {
   return window['go']['main']['App']['ListAllAPIKeys']();
 }
 
+export function ListApplyIntents() {
+  return window['go']['main']['App']['ListApplyIntents']();
+}
+
 export function ListAuditCapabilities() {
   return window['go']['main']['App']['ListAuditCapabilities']();
 }
@@ -968,6 +1008,10 @@ export function ListConfigSnapshots(arg1) {
 
 export function ListConversations(arg1) {
   return window['go']['main']['App']['ListConversations'](arg1);
+}
+
+export function ListCustomProviders() {
+  return window['go']['main']['App']['ListCustomProviders']();
 }
 
 export function ListDLPHits(arg1) {
@@ -1094,6 +1138,14 @@ export function PackageClaudeConfig(arg1) {
   return window['go']['main']['App']['PackageClaudeConfig'](arg1);
 }
 
+export function PickExportBundlePath() {
+  return window['go']['main']['App']['PickExportBundlePath']();
+}
+
+export function PickImportBundlePath() {
+  return window['go']['main']['App']['PickImportBundlePath']();
+}
+
 export function PickRelayForTool(arg1) {
   return window['go']['main']['App']['PickRelayForTool'](arg1);
 }
@@ -1112,6 +1164,10 @@ export function PingGatewayUpstream() {
 
 export function PingLurusAPI() {
   return window['go']['main']['App']['PingLurusAPI']();
+}
+
+export function PreviewImportBundle(arg1) {
+  return window['go']['main']['App']['PreviewImportBundle'](arg1);
 }
 
 export function PreviewWhiteLabelLogo(arg1) {
@@ -1198,6 +1254,10 @@ export function RunEnvironmentCheck() {
   return window['go']['main']['App']['RunEnvironmentCheck']();
 }
 
+export function RunModelHealthCheck(arg1) {
+  return window['go']['main']['App']['RunModelHealthCheck'](arg1);
+}
+
 export function SaveAppSettings(arg1) {
   return window['go']['main']['App']['SaveAppSettings'](arg1);
 }
@@ -1216,6 +1276,10 @@ export function SaveCodexConfig(arg1, arg2) {
 
 export function SaveContextFile(arg1) {
   return window['go']['main']['App']['SaveContextFile'](arg1);
+}
+
+export function SaveCustomProvider(arg1) {
+  return window['go']['main']['App']['SaveCustomProvider'](arg1);
 }
 
 export function SaveGatewayConfig(arg1) {
@@ -1342,6 +1406,10 @@ export function TakeConfigSnapshot(arg1, arg2) {
   return window['go']['main']['App']['TakeConfigSnapshot'](arg1, arg2);
 }
 
+export function TestCustomProvider(arg1) {
+  return window['go']['main']['App']['TestCustomProvider'](arg1);
+}
+
 export function TestHubConnection(arg1, arg2) {
   return window['go']['main']['App']['TestHubConnection'](arg1, arg2);
 }
@@ -1428,60 +1496,4 @@ export function WriteDebugDump() {
 
 export function ZipWhiteLabelOutputDir(arg1) {
   return window['go']['main']['App']['ZipWhiteLabelOutputDir'](arg1);
-}
-
-export function GetAuditStatsWindow(arg1) {
-  return window['go']['main']['App']['GetAuditStatsWindow'](arg1);
-}
-
-export function GetStartupTrace() {
-  return window['go']['main']['App']['GetStartupTrace']();
-}
-
-export function GetStartupHistory() {
-  return window['go']['main']['App']['GetStartupHistory']();
-}
-
-export function ListCustomProviders() {
-  return window['go']['main']['App']['ListCustomProviders']();
-}
-
-export function SaveCustomProvider(arg1) {
-  return window['go']['main']['App']['SaveCustomProvider'](arg1);
-}
-
-export function DeleteCustomProvider(arg1) {
-  return window['go']['main']['App']['DeleteCustomProvider'](arg1);
-}
-
-export function TestCustomProvider(arg1) {
-  return window['go']['main']['App']['TestCustomProvider'](arg1);
-}
-
-export function PickExportBundlePath() {
-  return window['go']['main']['App']['PickExportBundlePath']();
-}
-
-export function PickImportBundlePath() {
-  return window['go']['main']['App']['PickImportBundlePath']();
-}
-
-export function ExportConfigBundle(arg1, arg2) {
-  return window['go']['main']['App']['ExportConfigBundle'](arg1, arg2);
-}
-
-export function PreviewImportBundle(arg1) {
-  return window['go']['main']['App']['PreviewImportBundle'](arg1);
-}
-
-export function ApplyImportBundle(arg1, arg2) {
-  return window['go']['main']['App']['ApplyImportBundle'](arg1, arg2);
-}
-
-export function RunModelHealthCheck(arg1) {
-  return window['go']['main']['App']['RunModelHealthCheck'](arg1);
-}
-
-export function GetLastHealthCheckResults() {
-  return window['go']['main']['App']['GetLastHealthCheckResults']();
 }

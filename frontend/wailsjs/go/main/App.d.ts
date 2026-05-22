@@ -3,6 +3,7 @@
 import {main} from '../models';
 import {dlp} from '../models';
 import {optimizer} from '../models';
+import {configapply} from '../models';
 import {config} from '../models';
 import {mcp} from '../models';
 import {repoaudit} from '../models';
@@ -19,6 +20,7 @@ import {healthscore} from '../models';
 import {orgsync} from '../models';
 import {connectivity} from '../models';
 import {proxydetect} from '../models';
+import {configsync} from '../models';
 import {modelcatalog} from '../models';
 import {conversation} from '../models';
 import {livesession} from '../models';
@@ -38,6 +40,7 @@ import {notify} from '../models';
 import {appreg} from '../models';
 import {sysenv} from '../models';
 import {serverctl} from '../models';
+import {diagnostics} from '../models';
 import {toolmanifest} from '../models';
 import {toolruntime} from '../models';
 import {topology} from '../models';
@@ -64,11 +67,15 @@ export function ApplyAllOptimizations():Promise<Array<optimizer.FixResult>>;
 
 export function ApplyAllToolRelays():Promise<Record<string, string>>;
 
+export function ApplyChangePlan(arg1:configapply.ChangePlan):Promise<configapply.ApplyResult>;
+
 export function ApplyClaudePreset(arg1:string):Promise<config.ClaudeConfig>;
 
 export function ApplyCodexPreset(arg1:string):Promise<config.CodexConfig>;
 
 export function ApplyGeminiPreset(arg1:string):Promise<config.GeminiConfig>;
+
+export function ApplyImportBundle(arg1:string,arg2:Record<string, boolean>):Promise<Array<string>>;
 
 export function ApplyMCPServerToTool(arg1:string,arg2:mcp.MCPServer):Promise<void>;
 
@@ -132,6 +139,8 @@ export function BudgetResetSession():Promise<void>;
 
 export function BudgetSetConfig(arg1:budget.Config):Promise<void>;
 
+export function BuildChangePlan(arg1:string,arg2:Record<string, any>):Promise<configapply.ChangePlan>;
+
 export function BuildWhiteLabelPackage(arg1:main.WhiteLabelInputs):Promise<main.WhiteLabelOutput>;
 
 export function CheckAllToolHealth():Promise<Record<string, toolhealth.HealthResult>>;
@@ -188,6 +197,8 @@ export function DeleteCodexConfig(arg1:string):Promise<void>;
 
 export function DeleteConfigSnapshot(arg1:string,arg2:string):Promise<void>;
 
+export function DeleteCustomProvider(arg1:string):Promise<void>;
+
 export function DeleteDepartment(arg1:string):Promise<void>;
 
 export function DeleteEnvironmentVariable(arg1:string):Promise<void>;
@@ -237,6 +248,8 @@ export function EnsureServerBinary():Promise<void>;
 export function ExportClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
 
 export function ExportCodexConfig(arg1:config.CodexConfig):Promise<string>;
+
+export function ExportConfigBundle(arg1:string,arg2:boolean):Promise<configsync.Manifest>;
 
 export function ExportConversation(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<string>;
 
@@ -302,6 +315,8 @@ export function GetAppVersion():Promise<string>;
 
 export function GetAuditStats():Promise<audit.Stats>;
 
+export function GetAuditStatsWindow(arg1:number):Promise<audit.Stats>;
+
 export function GetAuthState():Promise<auth.AuthState>;
 
 export function GetBuiltinMCPPresets():Promise<Array<mcp.MCPPreset>>;
@@ -364,6 +379,8 @@ export function GetGatewayURL():Promise<string>;
 
 export function GetGeminiPresets():Promise<Array<preset.Preset>>;
 
+export function GetLastHealthCheckResults():Promise<Array<modelcatalog.TestResult>>;
+
 export function GetLiveSessions():Promise<Array<livesession.LiveSession>>;
 
 export function GetModelSummaries(arg1:string):Promise<Array<metering.ModelSummary>>;
@@ -411,6 +428,10 @@ export function GetServerURL():Promise<string>;
 export function GetSessionTranscript(arg1:string):Promise<Array<conversation.Event>>;
 
 export function GetSessionsForDLPHit(arg1:string):Promise<Array<conversation.ConversationMeta>>;
+
+export function GetStartupHistory():Promise<Array<diagnostics.Trace>>;
+
+export function GetStartupTrace():Promise<diagnostics.Trace>;
 
 export function GetSystemEnvironment():Promise<sysenv.SystemEnvironment>;
 
@@ -520,6 +541,8 @@ export function ListAgents(arg1:agent.ListFilter):Promise<Array<agent.Profile>>;
 
 export function ListAllAPIKeys():Promise<Array<envmgr.KeyEntry>>;
 
+export function ListApplyIntents():Promise<Array<string>>;
+
 export function ListAuditCapabilities():Promise<Record<string, string>>;
 
 export function ListAuditEntries(arg1:number,arg2:main.AuditFilter):Promise<Array<audit.Entry>>;
@@ -535,6 +558,8 @@ export function ListCodexConfigs():Promise<Array<string>>;
 export function ListConfigSnapshots(arg1:string):Promise<Array<snapshot.SnapshotMeta>>;
 
 export function ListConversations(arg1:conversation.ConversationFilter):Promise<Array<conversation.ConversationMeta>>;
+
+export function ListCustomProviders():Promise<Array<provider.CustomProvider>>;
 
 export function ListDLPHits(arg1:number):Promise<Array<dlp.HitRecord>>;
 
@@ -598,6 +623,10 @@ export function OpenWhiteLabelOutputDir(arg1:string):Promise<void>;
 
 export function PackageClaudeConfig(arg1:config.ClaudeConfig):Promise<string>;
 
+export function PickExportBundlePath():Promise<string>;
+
+export function PickImportBundlePath():Promise<string>;
+
 export function PickRelayForTool(arg1:string):Promise<relay.PickResult>;
 
 export function PickRepoAndAudit():Promise<repoaudit.AuditReport>;
@@ -607,6 +636,8 @@ export function PingEndpoint(arg1:string):Promise<number>;
 export function PingGatewayUpstream():Promise<main.UpstreamHealthResult>;
 
 export function PingLurusAPI():Promise<boolean>;
+
+export function PreviewImportBundle(arg1:string):Promise<configsync.BundlePreview>;
 
 export function PreviewWhiteLabelLogo(arg1:string):Promise<Record<string, any>>;
 
@@ -650,6 +681,8 @@ export function RunDiagnostics():Promise<main.DiagnosticsReport>;
 
 export function RunEnvironmentCheck():Promise<main.EnvironmentCheck>;
 
+export function RunModelHealthCheck(arg1:boolean):Promise<void>;
+
 export function SaveAppSettings(arg1:appconfig.AppSettings):Promise<void>;
 
 export function SaveClaudeConfig(arg1:string,arg2:config.ClaudeConfig):Promise<void>;
@@ -659,6 +692,8 @@ export function SaveClaudeHooks(arg1:Record<string, any>):Promise<void>;
 export function SaveCodexConfig(arg1:string,arg2:config.CodexConfig):Promise<void>;
 
 export function SaveContextFile(arg1:docmgr.ContextFile):Promise<void>;
+
+export function SaveCustomProvider(arg1:provider.CustomProvider):Promise<provider.CustomProvider>;
 
 export function SaveGatewayConfig(arg1:gateway.Config):Promise<void>;
 
@@ -722,6 +757,8 @@ export function SyncToolConnectionStatus():Promise<void>;
 
 export function TakeConfigSnapshot(arg1:string,arg2:string):Promise<void>;
 
+export function TestCustomProvider(arg1:provider.CustomProvider):Promise<main.CustomProviderTestResult>;
+
 export function TestHubConnection(arg1:string,arg2:string):Promise<string>;
 
 export function TestNotify():Promise<void>;
@@ -765,31 +802,3 @@ export function WhiteLabelPreflight(arg1:string,arg2:string):Promise<main.Prefli
 export function WriteDebugDump():Promise<string>;
 
 export function ZipWhiteLabelOutputDir(arg1:string):Promise<string>;
-
-export function GetAuditStatsWindow(arg1:number):Promise<any>;
-
-export function GetStartupTrace():Promise<any>;
-
-export function GetStartupHistory():Promise<Array<any>>;
-
-export function ListCustomProviders():Promise<Array<any>>;
-
-export function SaveCustomProvider(arg1:any):Promise<any>;
-
-export function DeleteCustomProvider(arg1:string):Promise<void>;
-
-export function TestCustomProvider(arg1:any):Promise<any>;
-
-export function PickExportBundlePath():Promise<string>;
-
-export function PickImportBundlePath():Promise<string>;
-
-export function ExportConfigBundle(arg1:string,arg2:boolean):Promise<any>;
-
-export function PreviewImportBundle(arg1:string):Promise<any>;
-
-export function ApplyImportBundle(arg1:string,arg2:{[key: string]: boolean}):Promise<Array<string>>;
-
-export function RunModelHealthCheck(arg1:boolean):Promise<void>;
-
-export function GetLastHealthCheckResults():Promise<Array<any>>;
