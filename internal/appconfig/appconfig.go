@@ -42,6 +42,12 @@ type AppSettings struct {
 	// OIDC authentication settings (Zitadel).
 	AuthClientID string `json:"authClientId,omitempty"`
 	AuthIssuer   string `json:"authIssuer,omitempty"` // default: "https://auth.lurus.cn"
+
+	// AuthPlatformURL overrides the platform-core base URL used to fetch
+	// /api/v1/account/me + /api/v1/wallet after login. Distinct from
+	// AuthIssuer (which points at Zitadel). Empty = use built-in default
+	// (auth.DefaultPlatformBaseURL = https://identity.lurus.cn).
+	AuthPlatformURL string `json:"authPlatformUrl,omitempty"`
 }
 
 // ResellerConfig holds the per-Reseller Hub deployment context.

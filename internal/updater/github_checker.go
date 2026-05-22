@@ -60,7 +60,10 @@ func (g *GitHubChecker) CheckUpdate(name, currentVersion string) (*UpdateInfo, e
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned HTTP %d", resp.StatusCode)
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("更新仓库 %s/%s 不存在或暂未发布 Release（HTTP 404）", g.owner, g.repo)
+		}
+		return nil, fmt.Errorf("GitHub API returned HTTP %d for %s/%s", resp.StatusCode, g.owner, g.repo)
 	}
 
 	var release githubRelease

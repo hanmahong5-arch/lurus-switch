@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Button, Card, Modal } from '../components/ui'
 import {
   Layers, Plus, Trash2, TestTube, RefreshCw, AlertCircle,
-  Edit2, Copy, Download, ChevronDown, Check,
+  Edit2, Copy, Download, ChevronDown, Check, Tag,
 } from 'lucide-react'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { useConfigStore } from '../stores/configStore'
@@ -347,38 +348,35 @@ export function GatewayChannelPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Layers className="h-6 w-6 text-blue-400" />
+          <Layers className="h-6 w-6 text-primary" />
           {t('gateway.channels')}
         </h2>
         <div className="flex gap-2">
           {caps?.fixAbilities && (
-            <button
-              onClick={handleFixAbilities}
-              title="Fix Abilities"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm text-muted-foreground"
-            >
+            <Button variant="secondary" size="sm" onClick={handleFixAbilities} title="Fix Abilities">
               Fix Abilities
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => load(page)}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
+            loading={loading}
+            icon={!loading ? <RefreshCw className="h-4 w-4" /> : undefined}
+          />
+          <Button
+            size="sm"
             onClick={() => { setEditing({ status: 1, type: 1 }); setShowModal(true) }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm"
+            icon={<Plus className="h-4 w-4" />}
           >
-            <Plus className="h-4 w-4" />
             {t('gateway.addChannel', 'Add Channel')}
-          </button>
+          </Button>
         </div>
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-red-900/20 rounded px-3 py-2">{error}</div>
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2 font-mono">▸ {error}</div>
       )}
 
       {/* Search + Filters */}
@@ -418,185 +416,200 @@ export function GatewayChannelPage() {
 
       {/* Batch operations toolbar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-indigo-500/30 bg-indigo-950/20 text-sm">
-          <span className="text-muted-foreground">
-            {selectedIds.size} {t('gateway.selected', 'selected')}
+        <Card variant="recessed" className="flex items-center gap-2 px-3 py-2 border-primary/30 bg-primary/10">
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+            ▸ {selectedIds.size} {t('gateway.selected', 'selected')}
           </span>
           <div className="h-4 w-px bg-border" />
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setConfirmDelete('batch')}
-            className="px-2.5 py-1 rounded hover:bg-red-900/30 text-red-400 text-xs font-medium"
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            className="hover:text-red-400 hover:bg-red-500/10"
           >
             {t('gateway.batchDelete', 'Batch Delete')}
-          </button>
+          </Button>
           {caps?.batchEnableDisable && (
             <>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleBatchEnable}
-                className="px-2.5 py-1 rounded hover:bg-green-900/30 text-green-400 text-xs font-medium"
+                icon={<Check className="h-3.5 w-3.5" />}
+                className="hover:text-emerald-400 hover:bg-emerald-500/10"
               >
                 {t('gateway.batchEnable', 'Batch Enable')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={handleBatchDisable}
-                className="px-2.5 py-1 rounded hover:bg-muted text-muted-foreground text-xs font-medium"
               >
                 {t('gateway.batchDisable', 'Batch Disable')}
-              </button>
+              </Button>
             </>
           )}
           {caps?.batchSetTag && (
           <div className="relative">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowBatchTagInput((prev) => !prev)}
-              className="px-2.5 py-1 rounded hover:bg-muted text-blue-400 text-xs font-medium"
+              icon={<Tag className="h-3.5 w-3.5" />}
+              className="hover:text-primary"
             >
               {t('gateway.setTag', 'Set Tag')}
-            </button>
+            </Button>
             {showBatchTagInput && (
-              <div className="absolute top-full left-0 mt-1 z-20 flex items-center gap-1 bg-card border border-border rounded-md p-2 shadow-lg">
+              <div className="absolute top-full left-0 mt-1 z-20 flex items-center gap-1 bg-card-elevated border border-rule-strong rounded-md p-2 shadow-card-elevated">
                 <input
                   type="text"
                   value={batchTagValue}
                   onChange={(e) => setBatchTagValue(e.target.value)}
                   placeholder="tag"
-                  className="px-2 py-1 rounded border border-border bg-background text-xs w-28"
+                  className="px-2 py-1 rounded border border-border bg-background text-xs font-mono w-28 focus:outline-none focus:ring-1 focus:ring-primary"
                   autoFocus
                   onKeyDown={(e) => e.key === 'Enter' && handleBatchSetTag()}
                 />
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={handleBatchSetTag}
                   disabled={!batchTagValue.trim()}
-                  className="p-1 rounded bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50"
-                >
-                  <Check className="h-3.5 w-3.5" />
-                </button>
+                  icon={<Check className="h-3.5 w-3.5" />}
+                />
               </div>
             )}
           </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Table */}
-      <div className="rounded-lg border border-border overflow-hidden">
+      <Card variant="default" className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-muted-foreground">
-            <tr>
+          <thead className="bg-card-recessed">
+            <tr className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
               <th className="w-10 px-3 py-2">
                 <input
                   type="checkbox"
                   checked={allSelected}
                   onChange={toggleSelectAll}
-                  className="rounded border-border cursor-pointer accent-indigo-500"
+                  className="rounded border-border cursor-pointer accent-primary"
                 />
               </th>
-              <th className="text-left px-4 py-2">ID</th>
-              <th className="text-left px-4 py-2">{t('gateway.channelName', 'Name')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.channelType', 'Type')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.channelTag', 'Tag')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.channelStatus', 'Status')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.channelBalance', 'Balance')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.channelTest', 'Test')}</th>
-              <th className="text-right px-4 py-2">{t('gateway.actions', 'Actions')}</th>
+              <th className="text-left px-4 py-2">[ ID ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.channelName', 'Name').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.channelType', 'Type').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.channelTag', 'Tag').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.channelStatus', 'Status').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.channelBalance', 'Balance').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.channelTest', 'Test').toUpperCase()} ]</th>
+              <th className="text-right px-4 py-2">[ {t('gateway.actions', 'Actions').toUpperCase()} ]</th>
             </tr>
           </thead>
           <tbody>
             {channels.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center py-8 text-muted-foreground">
-                  {loading ? t('status.loading') : t('gateway.noChannels', 'No channels')}
+                <td colSpan={9} className="text-center py-8 text-muted-foreground font-mono">
+                  ▪ {loading ? t('status.loading') : t('gateway.noChannels', 'No channels')}
                 </td>
               </tr>
             )}
             {channels.map((ch) => (
-              <tr key={ch.id} className="border-t border-border hover:bg-muted/30">
+              <tr key={ch.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                 <td className="w-10 px-3 py-2">
                   <input
                     type="checkbox"
                     checked={selectedIds.has(ch.id)}
                     onChange={() => toggleSelect(ch.id)}
-                    className="rounded border-border cursor-pointer accent-indigo-500"
+                    className="rounded border-border cursor-pointer accent-primary"
                   />
                 </td>
-                <td className="px-4 py-2 text-muted-foreground">{ch.id}</td>
+                <td className="px-4 py-2 text-muted-foreground font-mono tabular-nums">{ch.id}</td>
                 <td className="px-4 py-2 font-medium">{ch.name}</td>
-                <td className="px-4 py-2 text-xs">
+                <td className="px-4 py-2 text-xs font-mono">
                   {CHANNEL_TYPES[ch.type] ?? `Type ${ch.type}`}
                 </td>
                 <td className="px-4 py-2">
                   {ch.tag ? (
-                    <span className="text-xs rounded px-1.5 py-0.5 bg-blue-900/30 text-blue-400">
+                    <span className="font-mono text-[10px] uppercase tracking-[0.08em] rounded px-1.5 py-0.5 bg-primary/10 text-primary border border-primary/30">
                       {ch.tag}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">-</span>
+                    <span className="text-muted-foreground font-mono">-</span>
                   )}
                 </td>
                 <td className="px-4 py-2">
                   <button
                     onClick={() => handleToggleStatus(ch)}
                     title={ch.status === 1 ? 'Click to disable' : 'Click to enable'}
-                    className="cursor-pointer"
+                    className="transition-opacity hover:opacity-80"
                   >
                     <StatusBadge status={ch.status === 1 ? 'enabled' : 'disabled'} />
                   </button>
                 </td>
-                <td className="px-4 py-2 font-mono text-xs">{ch.balance ?? '-'}</td>
-                <td className="px-4 py-2 text-xs text-muted-foreground max-w-[200px] truncate" title={testResults[ch.id]}>
+                <td className="px-4 py-2 font-mono text-xs tabular-nums">{ch.balance ?? '-'}</td>
+                <td className="px-4 py-2 text-xs text-muted-foreground max-w-[200px] truncate font-mono" title={testResults[ch.id]}>
                   {testResults[ch.id] ?? '-'}
                 </td>
                 <td className="px-4 py-2 text-right">
                   <div className="flex justify-end gap-1">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => {
                         setEditing({ ...ch })
                         setShowModal(true)
                       }}
                       title="Edit"
-                      className="p-1 hover:text-blue-400"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
+                      icon={<Edit2 className="h-3.5 w-3.5" />}
+                      className="hover:text-primary"
+                    />
                     {caps?.copy && (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleCopy(ch.id)}
                         title="Copy"
-                        className="p-1 hover:text-indigo-400"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </button>
+                        icon={<Copy className="h-3.5 w-3.5" />}
+                        className="hover:text-primary"
+                      />
                     )}
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleTest(ch.id)}
                       title="Test"
-                      className="p-1 hover:text-green-400"
-                    >
-                      <TestTube className="h-4 w-4" />
-                    </button>
+                      icon={<TestTube className="h-3.5 w-3.5" />}
+                      className="hover:text-emerald-400"
+                    />
                     {caps?.fetchModels && (
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleFetchModels(ch.id)}
                         title="Fetch Models"
-                        className="p-1 hover:text-yellow-400"
-                      >
-                        <Download className="h-4 w-4" />
-                      </button>
+                        icon={<Download className="h-3.5 w-3.5" />}
+                        className="hover:text-amber-400"
+                      />
                     )}
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setConfirmDelete(ch.id)}
                       title="Delete"
-                      className="p-1 hover:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      icon={<Trash2 className="h-3.5 w-3.5" />}
+                      className="hover:text-red-400 hover:bg-red-500/10"
+                    />
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       {/* Pagination */}
       <Pagination
@@ -609,77 +622,83 @@ export function GatewayChannelPage() {
       {/* Tag Operations Panel — hidden when the data source doesn't expose
           tag bulk endpoints (e.g. Reseller Hub doesn't bind these yet). */}
       {caps?.tagOperations && (
-      <div className="rounded-lg border border-border overflow-hidden">
+      <Card variant="default" className="overflow-hidden">
         <button
           onClick={() => setShowTagOps((prev) => !prev)}
-          className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/30 hover:bg-muted/50 text-sm font-medium"
+          className="w-full flex items-center justify-between px-4 py-2.5 bg-card-recessed hover:bg-muted/50 transition-colors"
         >
-          <span>{t('gateway.tagOperations', 'Tag Operations')}</span>
-          <ChevronDown className={`h-4 w-4 transition-transform ${showTagOps ? 'rotate-180' : ''}`} />
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+            [ {t('gateway.tagOperations', 'Tag Operations').toUpperCase()} ]
+          </span>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${showTagOps ? 'rotate-180' : ''}`} />
         </button>
         {showTagOps && (
           <div className="px-4 py-4 space-y-4">
             {/* Enable / Disable by tag */}
             <div className="flex items-end gap-3 flex-wrap">
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.tagName', 'Tag')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.tagName', 'Tag')}</span>
                 <input
                   type="text"
                   value={tagOpInput}
                   onChange={(e) => setTagOpInput(e.target.value)}
                   placeholder="tag-name"
-                  className="mt-1 block w-48 rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 block w-48 rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </label>
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleEnableByTag}
                 disabled={!tagOpInput.trim()}
-                className="px-3 py-1.5 rounded bg-green-700 hover:bg-green-600 text-white text-sm disabled:opacity-50"
+                className="bg-emerald-600 hover:bg-emerald-500 ring-emerald-500/40"
               >
                 {t('gateway.enableByTag', 'Enable by Tag')}
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={handleDisableByTag}
                 disabled={!tagOpInput.trim()}
-                className="px-3 py-1.5 rounded bg-muted hover:bg-muted/80 text-sm border border-border disabled:opacity-50"
               >
                 {t('gateway.disableByTag', 'Disable by Tag')}
-              </button>
+              </Button>
             </div>
 
             {/* Edit tag (old -> new) */}
             <div className="flex items-end gap-3 flex-wrap border-t border-border pt-4">
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.oldTag', 'Old Tag')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.oldTag', 'Old Tag')}</span>
                 <input
                   type="text"
                   value={tagOpOldTag}
                   onChange={(e) => setTagOpOldTag(e.target.value)}
                   placeholder="old-tag"
-                  className="mt-1 block w-40 rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 block w-40 rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </label>
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.newTag', 'New Tag')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.newTag', 'New Tag')}</span>
                 <input
                   type="text"
                   value={tagOpNewTag}
                   onChange={(e) => setTagOpNewTag(e.target.value)}
                   placeholder="new-tag"
-                  className="mt-1 block w-40 rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 block w-40 rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </label>
-              <button
+              <Button
+                variant="primary"
+                size="sm"
                 onClick={handleEditTag}
                 disabled={!tagOpOldTag.trim() || !tagOpNewTag.trim()}
-                className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50"
               >
                 {t('gateway.editTag', 'Edit Tag')}
-              </button>
+              </Button>
             </div>
           </div>
         )}
-      </div>
+      </Card>
       )}
 
       {/* Delete Confirm Modal */}
@@ -699,22 +718,30 @@ export function GatewayChannelPage() {
       />
 
       {/* Create/Edit Modal */}
-      {showModal && editing && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-[560px] max-h-[85vh] overflow-y-auto space-y-4">
-            <h3 className="font-semibold text-lg">
-              {editing.id
-                ? t('gateway.editChannel', 'Edit Channel')
-                : t('gateway.addChannel', 'Add Channel')
-              }
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
+      <Modal
+        open={showModal && !!editing}
+        onClose={() => { setShowModal(false); setEditing(null) }}
+        title={editing?.id ? t('gateway.editChannel', 'Edit Channel') : t('gateway.addChannel', 'Add Channel')}
+        icon={editing?.id ? Edit2 : Plus}
+        size="xl"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => { setShowModal(false); setEditing(null) }}>
+              {t('settings.data.cancel')}
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              {t('settings.save')}
+            </Button>
+          </>
+        }
+      >
+        {editing && (
+          <div className="grid grid-cols-2 gap-4">
               {/* Name */}
               <label className="block text-sm col-span-2">
-                <span className="text-muted-foreground">{t('gateway.channelName', 'Name')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelName', 'Name')}</span>
                 <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.name ?? ''}
                   onChange={(e) => setEditing({ ...editing, name: e.target.value })}
                 />
@@ -722,12 +749,12 @@ export function GatewayChannelPage() {
 
               {/* Type */}
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.channelType', 'Type')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelType', 'Type')}</span>
                 <div className="relative mt-1">
                   <select
                     value={editing.type ?? 1}
                     onChange={(e) => setEditing({ ...editing, type: Number(e.target.value) })}
-                    className="w-full appearance-none rounded border border-border bg-background px-3 py-1.5 text-sm pr-8 cursor-pointer"
+                    className="w-full appearance-none rounded border border-border bg-background px-3 py-1.5 text-sm pr-8 cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
                   >
                     {Object.entries(CHANNEL_TYPES).map(([value, label]) => (
                       <option key={value} value={value}>{label}</option>
@@ -739,9 +766,9 @@ export function GatewayChannelPage() {
 
               {/* Tag */}
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.channelTag', 'Tag')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelTag', 'Tag')}</span>
                 <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.tag ?? ''}
                   onChange={(e) => setEditing({ ...editing, tag: e.target.value })}
                 />
@@ -749,9 +776,9 @@ export function GatewayChannelPage() {
 
               {/* Key (multi-key textarea) */}
               <label className="block text-sm col-span-2">
-                <span className="text-muted-foreground">{t('gateway.channelKey', 'API Key')} (one per line for multi-key)</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelKey', 'API Key')} (one per line for multi-key)</span>
                 <textarea
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono h-20 resize-y"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono h-20 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.key ?? ''}
                   onChange={(e) => setEditing({ ...editing, key: e.target.value })}
                   placeholder="sk-..."
@@ -760,9 +787,9 @@ export function GatewayChannelPage() {
 
               {/* Base URL */}
               <label className="block text-sm col-span-2">
-                <span className="text-muted-foreground">{t('gateway.channelBaseURL', 'Base URL')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelBaseURL', 'Base URL')}</span>
                 <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.base_url ?? ''}
                   onChange={(e) => setEditing({ ...editing, base_url: e.target.value })}
                   placeholder="https://api.openai.com"
@@ -771,9 +798,9 @@ export function GatewayChannelPage() {
 
               {/* Models (textarea) */}
               <label className="block text-sm col-span-2">
-                <span className="text-muted-foreground">{t('gateway.channelModels', 'Models')} (comma-separated)</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelModels', 'Models')} (comma-separated)</span>
                 <textarea
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm h-16 resize-y"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono h-16 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.models ?? ''}
                   onChange={(e) => setEditing({ ...editing, models: e.target.value })}
                   placeholder="gpt-4o,claude-3-5-sonnet"
@@ -782,9 +809,9 @@ export function GatewayChannelPage() {
 
               {/* Group */}
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.channelGroup', 'Group')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelGroup', 'Group')}</span>
                 <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.group ?? ''}
                   onChange={(e) => setEditing({ ...editing, group: e.target.value })}
                   placeholder="default"
@@ -793,10 +820,10 @@ export function GatewayChannelPage() {
 
               {/* Priority */}
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.channelPriority', 'Priority')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelPriority', 'Priority')}</span>
                 <input
                   type="number"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.priority ?? 0}
                   onChange={(e) => setEditing({ ...editing, priority: Number(e.target.value) })}
                 />
@@ -804,10 +831,10 @@ export function GatewayChannelPage() {
 
               {/* Weight */}
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.channelWeight', 'Weight')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelWeight', 'Weight')}</span>
                 <input
                   type="number"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.weight ?? 0}
                   onChange={(e) => setEditing({ ...editing, weight: Number(e.target.value) })}
                 />
@@ -819,16 +846,16 @@ export function GatewayChannelPage() {
                   type="checkbox"
                   checked={(editing.auto_ban ?? 0) === 1}
                   onChange={(e) => setEditing({ ...editing, auto_ban: e.target.checked ? 1 : 0 })}
-                  className="rounded border-border accent-indigo-500"
+                  className="rounded border-border accent-primary"
                 />
-                <span className="text-muted-foreground">{t('gateway.channelAutoBan', 'Auto Ban')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelAutoBan', 'Auto Ban')}</span>
               </label>
 
               {/* Model Mapping (JSON textarea) */}
               <label className="block text-sm col-span-2">
-                <span className="text-muted-foreground">{t('gateway.channelModelMapping', 'Model Mapping')} (JSON)</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelModelMapping', 'Model Mapping')} (JSON)</span>
                 <textarea
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono h-20 resize-y"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono h-20 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.model_mapping ?? ''}
                   onChange={(e) => setEditing({ ...editing, model_mapping: e.target.value })}
                   placeholder='{"gpt-4": "gpt-4-turbo"}'
@@ -837,32 +864,16 @@ export function GatewayChannelPage() {
 
               {/* Other (textarea) */}
               <label className="block text-sm col-span-2">
-                <span className="text-muted-foreground">{t('gateway.channelOther', 'Other')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.channelOther', 'Other')}</span>
                 <textarea
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm h-16 resize-y"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono h-16 resize-y focus:outline-none focus:ring-1 focus:ring-primary"
                   value={editing.other ?? ''}
                   onChange={(e) => setEditing({ ...editing, other: e.target.value })}
                 />
               </label>
             </div>
-
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => { setShowModal(false); setEditing(null) }}
-                className="px-4 py-1.5 rounded border border-border text-sm hover:bg-muted"
-              >
-                {t('settings.data.cancel')}
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-sm"
-              >
-                {t('settings.save')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }

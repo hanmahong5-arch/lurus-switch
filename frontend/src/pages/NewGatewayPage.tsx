@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import {
   Settings, BarChart3, Smartphone, Network,
-  Layers, Key, Box, Users, Gift, FileText, CreditCard, Settings2, Shield,
+  Layers, Key, Box, Users, Gift, FileText, CreditCard, Settings2, Shield, Package,
 } from 'lucide-react'
 import { useConfigStore, type GatewaySubTab } from '../stores/configStore'
 import { useBillingStore } from '../stores/billingStore'
@@ -18,6 +18,7 @@ import { GatewayRedemptionPage } from './GatewayRedemptionPage'
 import { GatewayLogPage } from './GatewayLogPage'
 import { GatewaySubscriptionPage } from './GatewaySubscriptionPage'
 import { GatewaySettingsPage } from './GatewaySettingsPage'
+import { ToolReleasePage } from './ToolReleasePage'
 import { AdminPage } from './AdminPage'
 import { AuditLogPanel } from '../components/gateway/AuditLogPanel'
 
@@ -70,6 +71,7 @@ export function NewGatewayPage() {
     { id: 'redemptions', label: t('gateway.redemptions'), icon: Gift },
     { id: 'logs', label: t('gateway.logs'), icon: FileText },
     { id: 'subscriptions', label: t('gateway.subscriptions'), icon: CreditCard },
+    { id: 'tool-releases', label: t('gateway.toolReleases', '工具上架'), icon: Package },
     { id: 'admin-settings', label: t('gateway.gatewaySettings'), icon: Settings2 },
   ]
   const rootTabs: TabDef[] = [
@@ -84,14 +86,17 @@ export function NewGatewayPage() {
         key={tab.id}
         onClick={() => setSubTab('gateway', tab.id)}
         className={cn(
-          'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md transition-colors whitespace-nowrap',
+          'flex items-center gap-1.5 px-3 py-2 -mb-px border-b-2 transition-all duration-150 whitespace-nowrap',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-t-sm',
           isActive
-            ? 'border-b-2 border-primary text-foreground bg-background'
-            : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+            ? 'border-primary text-primary'
+            : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50',
         )}
       >
-        <Icon className="h-4 w-4" />
-        {tab.label}
+        <Icon className="h-3.5 w-3.5" />
+        <span className={isActive ? 'font-mono text-[11px] tracking-[0.12em]' : 'text-sm font-medium'}>
+          {isActive ? `[ ${tab.label.toUpperCase()} ]` : tab.label}
+        </span>
       </button>
     )
   }
@@ -122,6 +127,8 @@ export function NewGatewayPage() {
         return <GatewayRequiredGuard><GatewaySubscriptionPage /></GatewayRequiredGuard>
       case 'admin-settings':
         return <GatewayRequiredGuard><GatewaySettingsPage /></GatewayRequiredGuard>
+      case 'tool-releases':
+        return <ToolReleasePage />
       case 'system':
         return (
           <div className="h-full overflow-y-auto p-6 space-y-6">

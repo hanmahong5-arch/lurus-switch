@@ -46,11 +46,28 @@ type GatewayStatus struct {
 	Port    int
 }
 
+// RelayMenuEntry feeds the "切到提供方 →" submenu. Title is the display
+// label; ID is sent back to ApplyAllToolRelays via the click event.
+type RelayMenuEntry struct {
+	ID    string
+	Title string
+	State string // "closed" / "open" / "half_open" / ""; rendered as a hint
+}
+
+// RelayProvider supplies the relay submenu population + current-pick
+// summary for the tooltip. nil-safe: when not provided, the relay
+// submenu is hidden and the tooltip shows only gateway state.
+type RelayProvider interface {
+	ListEntries() []RelayMenuEntry
+	CurrentPickSummary() string // e.g. "Relay: lurus-primary (47ms)"
+}
+
 // Manager owns the systray lifecycle.
 // All exported methods are nil-safe — calling them on a nil Manager is a no-op.
 type Manager struct {
 	quotaProvider   func() QuotaSnapshot
 	gatewayProvider func() GatewayStatus
+	relayProvider   RelayProvider
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -72,6 +89,16 @@ func New(quotaProvider func() QuotaSnapshot, gatewayProvider func() GatewayStatu
 		gatewayProvider: gatewayProvider,
 		lastQuota:       QuotaSnapshot{UsedPercent: -1},
 	}
+}
+
+// SetRelayProvider attaches the optional relay-menu provider. Call
+// before Start; safe to call after, but the submenu won't refresh
+// without a Stop/Start cycle.
+func (m *Manager) SetRelayProvider(p RelayProvider) {
+	if m == nil {
+		return
+	}
+	m.relayProvider = p
 }
 
 // Start runs the tray event loop. It returns immediately; the tray runs on a
@@ -115,7 +142,7 @@ func (m *Manager) onReady() {
 		systray.SetIcon(iconICO)
 	}
 	q0, gw0 := m.snapshot()
-	systray.SetTooltip(buildTooltip(q0, gw0))
+	systray.SetTooltip(buildTooltip(q0, gw0, m.relaySummary()))
 
 	// Build menu.
 	mShow := systray.AddMenuItem("Show Window", "Show the main window")
@@ -123,13 +150,47 @@ func (m *Manager) onReady() {
 	systray.AddSeparator()
 	mSwitchProvider := systray.AddMenuItem("Switch Provider...", "Open provider command palette")
 	mGatewayToggle := systray.AddMenuItem("Toggle Gateway", "Start or stop the local gateway")
+
+	// Relay quick-switch submenu (optional). Built once at onReady from
+	// the current endpoint list; users can refresh by relaunching the
+	// app — endpoint changes are rare.
+	mRelay := systray.AddMenuItem("Switch Relay →", "Apply a relay endpoint to every configured tool")
+	var relayClicks []relayClick
+	if m.relayProvider != nil {
+		entries := m.relayProvider.ListEntries()
+		for _, ent := range entries {
+			label := ent.Title
+			if ent.State == "open" {
+				label += " (circuit open)"
+			} else if ent.State == "half_open" {
+				label += " (probing)"
+			}
+			item := mRelay.AddSubMenuItem(label, ent.Title)
+			relayClicks = append(relayClicks, relayClick{id: ent.ID, item: item})
+		}
+		if len(entries) == 0 {
+			disabled := mRelay.AddSubMenuItem("(no endpoints configured)", "")
+			disabled.Disable()
+		}
+	} else {
+		mRelay.Hide()
+	}
+
+	mOpenSession := systray.AddMenuItem("Open Last Conversation", "Open the most-recent CLI session")
+
 	systray.AddSeparator()
 	mOpenConfig := systray.AddMenuItem("Open Config Folder", "Open app data directory")
 	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Exit Lurus Switch")
 
 	// Background: poll state and handle menu clicks.
-	go m.loop(mShow, mHide, mSwitchProvider, mGatewayToggle, mOpenConfig, mQuit)
+	go m.loop(mShow, mHide, mSwitchProvider, mGatewayToggle, mOpenSession, mOpenConfig, mQuit, relayClicks)
+}
+
+// relayClick pairs a submenu item with the RelayEndpoint ID it represents.
+type relayClick struct {
+	id   string
+	item *systray.MenuItem
 }
 
 // onExit is called by systray when the tray is torn down.
@@ -142,7 +203,8 @@ func (m *Manager) onExit() {
 // loop handles menu clicks and periodic badge updates.
 // Runs on a plain goroutine (not the OS-locked one).
 func (m *Manager) loop(
-	mShow, mHide, mSwitchProvider, mGatewayToggle, mOpenConfig, mQuit *systray.MenuItem,
+	mShow, mHide, mSwitchProvider, mGatewayToggle, mOpenSession, mOpenConfig, mQuit *systray.MenuItem,
+	relayClicks []relayClick,
 ) {
 	ticker := time.NewTicker(refreshInterval)
 	defer ticker.Stop()
@@ -174,6 +236,21 @@ func (m *Manager) loop(
 			wailsRuntime.EventsEmit(m.ctx, "tray:gateway-toggle", nil)
 		}
 	})
+
+	mOpenSession.Click(func() {
+		if m.ctx != nil {
+			wailsRuntime.EventsEmit(m.ctx, "tray:open-last-session", nil)
+		}
+	})
+
+	for _, rc := range relayClicks {
+		rcCopy := rc // capture per-iteration
+		rcCopy.item.Click(func() {
+			if m.ctx != nil {
+				wailsRuntime.EventsEmit(m.ctx, "tray:apply-relay", rcCopy.id)
+			}
+		})
+	}
 
 	mOpenConfig.Click(func() {
 		if m.ctx != nil {
@@ -221,6 +298,15 @@ func (m *Manager) snapshot() (QuotaSnapshot, GatewayStatus) {
 // updateTooltip applies the current badge state to the tray tooltip.
 func (m *Manager) updateTooltip() {
 	q, gw := m.snapshot()
-	systray.SetTooltip(buildTooltip(q, gw))
+	systray.SetTooltip(buildTooltip(q, gw, m.relaySummary()))
+}
+
+// relaySummary returns the relay-state hint used in the tooltip. Empty
+// string when no relay provider is wired so the tooltip stays terse.
+func (m *Manager) relaySummary() string {
+	if m == nil || m.relayProvider == nil {
+		return ""
+	}
+	return m.relayProvider.CurrentPickSummary()
 }
 

@@ -162,6 +162,38 @@ func (r *Registry) ResetToken(id string) (string, error) {
 	return newToken, nil
 }
 
+// SetOwnership binds an app to an employee + cost-center for
+// chargeback attribution. Empty strings clear the binding. Returns
+// the updated app on success.
+func (r *Registry) SetOwnership(id, employeeID, costCenter string) (*App, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	app, ok := r.apps[id]
+	if !ok {
+		return nil, fmt.Errorf("app %q not found", id)
+	}
+	app.OwnerEmployeeID = employeeID
+	app.CostCenter = costCenter
+	if err := r.saveLocked(); err != nil {
+		return nil, fmt.Errorf("save registry: %w", err)
+	}
+	cp := *app
+	return &cp, nil
+}
+
+// LookupOwnership returns the (employee, cost-center) pair bound to
+// the given app. Both empty when the app is unattributed. The lookup
+// runs on the gateway request hot path, so it stays read-locked and
+// allocation-free.
+func (r *Registry) LookupOwnership(appID string) (employeeID, costCenter string) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if a, ok := r.apps[appID]; ok {
+		return a.OwnerEmployeeID, a.CostCenter
+	}
+	return "", ""
+}
+
 // SetConnected marks an app as connected or disconnected.
 func (r *Registry) SetConnected(id string, connected bool) error {
 	r.mu.Lock()

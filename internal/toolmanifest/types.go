@@ -8,11 +8,17 @@ type Manifest struct {
 
 // ToolEntry describes one tool in the manifest.
 // Type is one of: "npm" | "binary" | "desktop".
+//
+// Status defaults to "stable" when empty. "coming-soon" signals "we're
+// shipping this but no installable artifact is hosted yet" — install
+// flows short-circuit with a friendly message instead of calling GitHub
+// (which would 404 on placeholder owner/repo pairs).
 type ToolEntry struct {
 	Type          string                   `json:"type"`
 	NpmPackage    string                   `json:"npm_package,omitempty"`
 	LatestVersion string                   `json:"latest_version"`
 	Platforms     map[string]PlatformAsset `json:"platforms,omitempty"`
+	Status        string                   `json:"status,omitempty"`
 }
 
 // PlatformAsset holds the download URL and optional SHA-256 checksum for one
@@ -60,4 +66,19 @@ func (m *Manifest) GetLatestVersion(toolName string) string {
 		return ""
 	}
 	return entry.LatestVersion
+}
+
+// IsComingSoon reports whether the manifest entry exists but is flagged
+// "coming-soon" (no installable artifact yet). UI surfaces this so the
+// install button is replaced with an "敬请期待" placeholder, and the
+// installer short-circuits so users never see a raw GitHub 404.
+func (m *Manifest) IsComingSoon(toolName string) bool {
+	if m == nil {
+		return false
+	}
+	entry, ok := m.Tools[toolName]
+	if !ok {
+		return false
+	}
+	return entry.Status == "coming-soon"
 }

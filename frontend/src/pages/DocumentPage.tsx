@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Save, FolderOpen, FileText, Loader2, RefreshCw, Plus } from 'lucide-react'
+import { Save, FolderOpen, FileText, Loader2, RefreshCw, Plus, FolderSearch } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { errorToast } from '../lib/errorToast'
 import { useToastStore } from '../stores/toastStore'
+import { Button, Card, Modal } from '../components/ui'
 import { GetContextFile, SaveContextFile, OpenFolderAndScanContext } from '../../wailsjs/go/main/App'
 
 interface ContextFile {
@@ -25,7 +26,7 @@ const TOOLS: { id: Tool; label: string; color: string }[] = [
 ]
 
 const TOOL_FILE_NAMES: Record<Tool, Record<Scope, string>> = {
-  claude: { global: '~/CLAUDE.md', project: '<项目目录>/CLAUDE.md' },
+  claude: { global: '~/.claude/CLAUDE.md', project: '<项目目录>/CLAUDE.md' },
   gemini: { global: '~/.gemini/GEMINI.md', project: '<项目目录>/.gemini/GEMINI.md' },
   picoclaw: { global: '~/.picoclaw/SYSTEM.md', project: '~/.picoclaw/SYSTEM.md' },
   nullclaw: { global: '~/.nullclaw/SYSTEM.md', project: '~/.nullclaw/SYSTEM.md' },
@@ -174,41 +175,41 @@ export function DocumentPage() {
 
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted/10 shrink-0">
-        <span className="text-xs text-muted-foreground font-mono truncate flex-1">
+        <span className="text-xs text-muted-foreground font-mono truncate flex-1 tabular-nums">
           {contextFile ? contextFile.path : '...'}
           {contextFile && !contextFile.exists && (
-            <span className="ml-2 text-amber-500">{t('contextDoc.fileNotExist')}</span>
+            <span className="ml-2 text-amber-400">▸ {t('contextDoc.fileNotExist')}</span>
           )}
         </span>
         <div className="flex items-center gap-1">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => loadFile(activeTool, activeScope)}
             disabled={loading}
-            className="flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted transition-colors disabled:opacity-50"
+            loading={loading}
+            icon={!loading ? <RefreshCw className="h-3 w-3" /> : undefined}
           >
-            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             {t('contextDoc.refresh')}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={handleScanFolder}
-            className="flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted transition-colors"
+            icon={<FolderOpen className="h-3 w-3" />}
           >
-            <FolderOpen className="h-3 w-3" />
             {t('contextDoc.scanDir')}
-          </button>
-          <button
+          </Button>
+          <Button
+            size="sm"
             onClick={handleSave}
             disabled={saving || loading}
-            className={cn(
-              'flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors disabled:opacity-50',
-              saved
-                ? 'bg-green-500/20 text-green-500 border border-green-500/30'
-                : 'bg-primary text-primary-foreground hover:bg-primary/90'
-            )}
+            loading={saving}
+            icon={!saving ? <Save className="h-3 w-3" /> : undefined}
+            className={saved ? 'bg-emerald-500/20 text-emerald-400 ring-emerald-500/40 hover:bg-emerald-500/25' : ''}
           >
-            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
             {saved ? t('contextDoc.saved') : t('contextDoc.save')}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -232,9 +233,11 @@ export function DocumentPage() {
         </div>
 
         {/* Right Panel */}
-        <div className="w-48 border-l border-border flex flex-col shrink-0 bg-muted/10">
+        <div className="w-48 border-l border-border flex flex-col shrink-0 bg-card-recessed">
           <div className="p-3 border-b border-border">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t('contextDoc.quickInsert')}</p>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              [ {t('contextDoc.quickInsert').toUpperCase()} ]
+            </p>
           </div>
           <div className="flex-1 overflow-y-auto p-2 space-y-1">
             {TEMPLATES.map((tpl) => (
@@ -243,15 +246,15 @@ export function DocumentPage() {
                 onClick={() => insertTemplate(tpl.content)}
                 className="w-full flex items-center gap-2 px-2 py-1.5 text-xs text-left rounded hover:bg-muted transition-colors"
               >
-                <Plus className="h-3 w-3 text-muted-foreground shrink-0" />
+                <Plus className="h-3 w-3 text-primary shrink-0" />
                 {t(tpl.label)}
               </button>
             ))}
           </div>
           <div className="p-3 border-t border-border">
             <div className="text-xs text-muted-foreground space-y-1">
-              <p className="font-medium">{t('contextDoc.filePath')}</p>
-              <p className="font-mono text-xs break-all opacity-70">
+              <p className="font-mono text-[10px] uppercase tracking-[0.18em]">[ {t('contextDoc.filePath').toUpperCase()} ]</p>
+              <p className="font-mono text-xs break-all opacity-70 tabular-nums">
                 {TOOL_FILE_NAMES[activeTool][activeScope]}
               </p>
             </div>
@@ -260,35 +263,40 @@ export function DocumentPage() {
       </div>
 
       {/* Scanned files modal */}
-      {showScanned && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="font-semibold mb-4">{t('contextDoc.scannedFiles')}</h3>
-            {scannedFiles.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('contextDoc.noFilesFound')}</p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {scannedFiles.map((f, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleLoadScanned(f)}
-                    className="w-full text-left px-3 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
-                  >
-                    <p className="font-medium">{f.tool} — {f.scope}</p>
-                    <p className="text-xs text-muted-foreground font-mono truncate">{f.path}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={() => setShowScanned(false)}
-              className="mt-4 w-full px-4 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
-            >
-              {t('contextDoc.close')}
-            </button>
+      <Modal
+        open={showScanned}
+        onClose={() => setShowScanned(false)}
+        title={t('contextDoc.scannedFiles')}
+        icon={FolderSearch}
+        size="md"
+        footer={
+          <Button variant="secondary" size="sm" onClick={() => setShowScanned(false)}>
+            {t('contextDoc.close')}
+          </Button>
+        }
+      >
+        {scannedFiles.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('contextDoc.noFilesFound')}</p>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {scannedFiles.map((f, i) => (
+              <Card
+                key={i}
+                as="button"
+                variant="default"
+                onClick={() => handleLoadScanned(f)}
+                className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+              >
+                <p className="font-medium">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground mr-1.5">[ {f.tool.toUpperCase()} ]</span>
+                  {f.scope}
+                </p>
+                <p className="text-xs text-muted-foreground font-mono truncate tabular-nums">{f.path}</p>
+              </Card>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }

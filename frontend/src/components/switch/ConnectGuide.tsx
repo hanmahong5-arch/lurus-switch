@@ -198,7 +198,7 @@ export function ConnectGuide({ appId, appName, token, gatewayUrl, tier, onClose 
     s.replace(/\{\{URL\}\}/g, gatewayUrl).replace(/\{\{TOKEN\}\}/g, token)
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-card border border-border rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">

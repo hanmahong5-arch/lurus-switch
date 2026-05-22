@@ -67,7 +67,7 @@ func TestResolveTier_GatewayRunning(t *testing.T) {
 func TestBuildTooltip_ContainsTier(t *testing.T) {
 	q := QuotaSnapshot{UsedPercent: 90, BalanceText: "¥10.00"}
 	gw := GatewayStatus{Running: true, Port: 19090}
-	tip := buildTooltip(q, gw)
+	tip := buildTooltip(q, gw, "")
 	if tip == "" {
 		t.Fatal("tooltip should not be empty")
 	}
@@ -80,7 +80,7 @@ func TestBuildTooltip_ContainsTier(t *testing.T) {
 func TestBuildTooltip_GatewayStopped(t *testing.T) {
 	q := QuotaSnapshot{UsedPercent: 10}
 	gw := GatewayStatus{Running: false}
-	tip := buildTooltip(q, gw)
+	tip := buildTooltip(q, gw, "")
 	// Gray prefix because gateway is down.
 	if !strings.Contains(tip, "[○]") {
 		t.Errorf("expected gray prefix [○] in tooltip, got %q", tip)
@@ -90,7 +90,7 @@ func TestBuildTooltip_GatewayStopped(t *testing.T) {
 func TestBuildTooltip_UnknownQuota(t *testing.T) {
 	q := QuotaSnapshot{UsedPercent: -1}
 	gw := GatewayStatus{Running: true, Port: 19090}
-	tip := buildTooltip(q, gw)
+	tip := buildTooltip(q, gw, "")
 	if tip == "" {
 		t.Fatal("tooltip should not be empty for unknown quota")
 	}

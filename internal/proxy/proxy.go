@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+
+	"lurus-switch/internal/netproxy"
 )
 
 // ProxySettings holds the NewAPI proxy configuration
@@ -18,6 +20,12 @@ type ProxySettings struct {
 	UserToken       string            `json:"userToken,omitempty"`
 	Model           string            `json:"model,omitempty"`
 	ToolModels      map[string]string `json:"toolModels,omitempty"`
+
+	// UpstreamProxy lets users route every outbound HTTP call (Anthropic
+	// relay, GitHub updater, npm checker, etc.) through their own
+	// HTTP / HTTPS / SOCKS5 proxy. Switch ships no censorship-evasion
+	// logic of its own; this is purely a "BYO VPN" hook.
+	UpstreamProxy *netproxy.Settings `json:"upstreamProxy,omitempty"`
 }
 
 // ModelForTool returns the model for a specific tool, falling back to the global model.

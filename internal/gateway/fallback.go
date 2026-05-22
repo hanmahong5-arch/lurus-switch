@@ -22,6 +22,20 @@ type FallbackChain struct {
 	mu       sync.RWMutex
 	entries  []FallbackEntry
 	maxRetry int // max entries to try (0 = try all)
+
+	// observer is invoked once per upstream attempt with the endpoint
+	// name (or "primary") and a success/failure verdict. Used by the
+	// relay router's circuit breaker; nil-safe.
+	observer func(endpointName string, ok bool, errMsg string)
+}
+
+// SetObserver wires a per-attempt callback into the chain. The observer
+// fires after every primary AND fallback attempt — success returns
+// ok=true, anything that trips shouldFallback returns ok=false.
+func (fc *FallbackChain) SetObserver(fn func(endpointName string, ok bool, errMsg string)) {
+	fc.mu.Lock()
+	defer fc.mu.Unlock()
+	fc.observer = fn
 }
 
 // FallbackEntry is one upstream endpoint in the chain.
@@ -86,10 +100,26 @@ func (fc *FallbackChain) TryUpstream(
 ) (resp *http.Response, servedBy string, err error) {
 	client := &http.Client{Timeout: upstreamTimeout}
 
+	fc.mu.RLock()
+	observer := fc.observer
+	fc.mu.RUnlock()
+
 	// Try primary first.
 	resp, err = fc.doRequest(client, method, primaryURL, path, query, body, headers, primaryToken)
 	if !shouldFallback(resp, err) {
+		if observer != nil {
+			observer("primary", true, "")
+		}
 		return resp, "primary", nil
+	}
+	if observer != nil {
+		msg := ""
+		if err != nil {
+			msg = err.Error()
+		} else if resp != nil {
+			msg = fmt.Sprintf("status %d", resp.StatusCode)
+		}
+		observer("primary", false, msg)
 	}
 	// Close failed response body if any.
 	if resp != nil {
@@ -109,7 +139,19 @@ func (fc *FallbackChain) TryUpstream(
 		}
 		resp, err = fc.doRequest(client, method, entry.URL, path, query, body, headers, entry.Token)
 		if !shouldFallback(resp, err) {
+			if observer != nil {
+				observer(entry.Name, true, "")
+			}
 			return resp, entry.Name, nil
+		}
+		if observer != nil {
+			msg := ""
+			if err != nil {
+				msg = err.Error()
+			} else if resp != nil {
+				msg = fmt.Sprintf("status %d", resp.StatusCode)
+			}
+			observer(entry.Name, false, msg)
 		}
 		if resp != nil {
 			io.Copy(io.Discard, resp.Body)

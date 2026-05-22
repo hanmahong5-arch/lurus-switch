@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useClassifiedError } from '../lib/useClassifiedError'
 import { InlineError } from '../components/InlineError'
+import { Button, Card } from '../components/ui'
 import {
   ListPrompts, SavePrompt, DeletePrompt, GetBuiltinPrompts,
   ExportPrompts, ImportPrompts,
@@ -145,42 +146,51 @@ export function PromptLibraryPage() {
   return (
     <div className="h-full flex overflow-hidden">
       {/* Left: Category + Search */}
-      <div className="w-48 border-r border-border bg-muted/30 flex flex-col shrink-0">
+      <div className="w-48 border-r border-border bg-card-recessed flex flex-col shrink-0">
         <div className="p-3 border-b border-border">
           <h2 className="text-sm font-semibold flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-purple-400" />
+            <BookOpen className="h-4 w-4 text-primary" />
             {t('promptLib.title')}
           </h2>
         </div>
         <div className="p-2 space-y-1">
-          {CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={cn(
-                'w-full text-left px-3 py-2 rounded-md text-sm transition-colors',
-                category === cat
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
-            >
-              {t(CATEGORY_I18N_KEYS[cat])}
-            </button>
-          ))}
+          {CATEGORIES.map((cat) => {
+            const isActive = category === cat
+            return (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={cn(
+                  'w-full text-left px-3 py-2 rounded-md transition-all duration-150',
+                  isActive
+                    ? 'bg-primary/15 text-primary border-l-2 border-l-primary font-mono text-xs tracking-[0.06em]'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground text-sm',
+                )}
+              >
+                {isActive ? `[ ${t(CATEGORY_I18N_KEYS[cat]).toUpperCase()} ]` : t(CATEGORY_I18N_KEYS[cat])}
+              </button>
+            )
+          })}
         </div>
         <div className="mt-auto p-2 space-y-1 border-t border-border">
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleExport}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+            className="w-full justify-start"
+            icon={<Download className="h-3.5 w-3.5" />}
           >
-            <Download className="h-3.5 w-3.5" /> {t('promptLib.exportBtn')}
-          </button>
-          <button
+            {t('promptLib.exportBtn')}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleImport}
-            className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md"
+            className="w-full justify-start"
+            icon={<Upload className="h-3.5 w-3.5" />}
           >
-            <Upload className="h-3.5 w-3.5" /> {t('promptLib.importBtn')}
-          </button>
+            {t('promptLib.importBtn')}
+          </Button>
         </div>
       </div>
 
@@ -197,15 +207,17 @@ export function PromptLibraryPage() {
               className="w-full pl-8 pr-3 py-1.5 text-xs bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
             />
           </div>
-          <button
+          <Button
+            size="sm"
+            className="w-full justify-center"
             onClick={() => {
               setEditPrompt({ category: 'custom', targetTools: ['all'] })
               setShowEditor(true)
             }}
-            className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            icon={<Plus className="h-3.5 w-3.5" />}
           >
-            <Plus className="h-3.5 w-3.5" /> {t('promptLib.newPrompt')}
-          </button>
+            {t('promptLib.newPrompt')}
+          </Button>
         </div>
 
         {error && (
@@ -224,7 +236,7 @@ export function PromptLibraryPage() {
               onClick={() => { setSelected(p); setShowEditor(false) }}
               className={cn(
                 'w-full text-left px-3 py-3 border-b border-border hover:bg-muted/50 transition-colors',
-                selected?.id === p.id && 'bg-muted'
+                selected?.id === p.id && 'bg-muted border-l-2 border-l-primary'
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -235,7 +247,7 @@ export function PromptLibraryPage() {
                   </p>
                   <div className="flex flex-wrap gap-1 mt-1">
                     {p.tags?.slice(0, 2).map((t) => (
-                      <span key={t} className="text-xs bg-muted px-1.5 py-0.5 rounded">
+                      <span key={t} className="font-mono text-[10px] bg-card-recessed px-1.5 py-0.5 rounded text-muted-foreground">
                         {t}
                       </span>
                     ))}
@@ -244,7 +256,7 @@ export function PromptLibraryPage() {
                 {!p.id.startsWith('builtin-') && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(p.id) }}
-                    className="p-1 text-muted-foreground hover:text-red-500 transition-colors shrink-0"
+                    className="p-1 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded transition-colors shrink-0"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -285,19 +297,19 @@ export function PromptLibraryPage() {
                 className="w-full px-3 py-2 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary resize-none font-mono"
               />
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
                   onClick={() => { setShowEditor(false); setEditPrompt({}) }}
-                  className="px-4 py-2 text-sm border border-border rounded-md hover:bg-muted transition-colors"
                 >
                   {t('promptLib.cancel')}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={handleSave}
                   disabled={saving}
-                  className="px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+                  loading={saving}
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : t('promptLib.save')}
-                </button>
+                  {t('promptLib.save')}
+                </Button>
               </div>
             </div>
           </div>
@@ -307,36 +319,38 @@ export function PromptLibraryPage() {
               <div>
                 <h3 className="font-semibold">{selected.name}</h3>
                 <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs bg-muted px-2 py-0.5 rounded">{selected.category}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] bg-card-recessed text-muted-foreground px-2 py-0.5 rounded">[ {selected.category.toUpperCase()} ]</span>
                   {selected.tags?.map((t) => (
-                    <span key={t} className="text-xs bg-muted px-2 py-0.5 rounded text-muted-foreground">{t}</span>
+                    <span key={t} className="font-mono text-[10px] bg-card-recessed px-2 py-0.5 rounded text-muted-foreground">{t}</span>
                   ))}
                 </div>
               </div>
               <div className="flex gap-2">
-                <button
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={handleCopy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-muted transition-colors"
+                  icon={<Copy className="h-3.5 w-3.5" />}
                 >
-                  <Copy className="h-3.5 w-3.5" />
                   {copied ? t('promptLib.copied') : t('promptLib.copy')}
-                </button>
+                </Button>
                 {!selected.id.startsWith('builtin-') && (
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => {
                       setEditPrompt({ ...selected })
                       setShowEditor(true)
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-md hover:bg-muted transition-colors"
                   >
                     {t('promptLib.edit')}
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
-            <div className="bg-muted/50 rounded-lg p-4">
+            <Card variant="recessed" className="p-4">
               <pre className="text-sm whitespace-pre-wrap font-sans">{selected.content}</pre>
-            </div>
+            </Card>
           </div>
         ) : (
           <div className="h-full flex items-center justify-center text-muted-foreground text-sm">

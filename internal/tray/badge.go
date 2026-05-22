@@ -50,7 +50,7 @@ func resolveTier(q QuotaSnapshot, gw GatewayStatus) BadgeTier {
 }
 
 // buildTooltip constructs the tray tooltip string from current state.
-func buildTooltip(q QuotaSnapshot, gw GatewayStatus) string {
+func buildTooltip(q QuotaSnapshot, gw GatewayStatus, relaySummary string) string {
 	tierPrefix := tierEmoji(resolveTier(q, gw))
 	gwInfo := ""
 	if gw.Running {
@@ -62,7 +62,11 @@ func buildTooltip(q QuotaSnapshot, gw GatewayStatus) string {
 	if q.BalanceText != "" {
 		balance = " | " + q.BalanceText
 	}
-	return fmt.Sprintf("%s Lurus Switch%s%s", tierPrefix, gwInfo, balance)
+	relay := ""
+	if relaySummary != "" {
+		relay = " | " + relaySummary
+	}
+	return fmt.Sprintf("%s Lurus Switch%s%s%s", tierPrefix, gwInfo, balance, relay)
 }
 
 // tierEmoji returns a short ASCII/emoji prefix for the tier (tooltip use only).

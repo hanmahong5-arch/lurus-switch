@@ -32,10 +32,19 @@ func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 		// Update last-seen (non-blocking).
 		go s.registry.TouchLastSeen(appID)
 
+		// Pull the chargeback dimensions off the registry record so
+		// downstream metering can attribute the cost to the right
+		// employee + cost-center. Empty when the admin hasn't bound
+		// the app yet — the chargeback page surfaces those in the
+		// "unattributed" bucket.
+		empID, cc := s.registry.LookupOwnership(appID)
+
 		// Inject metadata for downstream handlers.
 		meta := &RequestMeta{
-			AppID:     appID,
-			StartTime: time.Now(),
+			AppID:           appID,
+			StartTime:       time.Now(),
+			OwnerEmployeeID: empID,
+			CostCenter:      cc,
 		}
 		ctx := context.WithValue(r.Context(), metaKey, meta)
 		next(w, r.WithContext(ctx))

@@ -45,4 +45,10 @@ type RequestMeta struct {
 	StartTime time.Time
 	Model     string
 	ServedBy  string // which upstream actually served this request ("primary" or fallback name)
+
+	// Enterprise dimensions sourced from the per-app registry record.
+	// Empty in Personal/Reseller installs; the chargeback report
+	// buckets unattributed traffic separately.
+	OwnerEmployeeID string
+	CostCenter      string
 }

@@ -16,10 +16,17 @@ type Bindings map[string]string
 //
 // "quickSwitch" opens command palette.
 // "showWindow"  brings the main window to the foreground.
+// "show-live"   brings the main window forward AND jumps to the Live
+//               Sessions Inspector page in one keystroke.
+//
+// CommandOrControl is the Electron-style cross-platform modifier: it parses
+// to Cmd on macOS and Ctrl on Windows/Linux, so the same default chord
+// works everywhere without per-OS forks.
 func DefaultBindings() Bindings {
 	return Bindings{
 		"quickSwitch": "Ctrl+Shift+S",
 		"showWindow":  "Ctrl+Shift+W",
+		"show-live":   "CommandOrControl+Shift+L",
 	}
 }
 

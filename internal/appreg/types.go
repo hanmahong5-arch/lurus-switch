@@ -36,6 +36,13 @@ type App struct {
 	CreatedAt   time.Time `json:"createdAt"`
 	LastSeenAt  time.Time `json:"lastSeenAt,omitempty"` // last API call timestamp
 	Connected   bool      `json:"connected"`            // whether currently configured to use Switch
+
+	// Enterprise-mode chargeback fields. Populated via SetOwnership
+	// either manually (admin binds Bob's "Cursor" instance to him) or
+	// automatically by the SSO bridge when a fresh login matches an
+	// employee in the org chart.
+	OwnerEmployeeID string `json:"ownerEmployeeId,omitempty"`
+	CostCenter      string `json:"costCenter,omitempty"` // mirrors orgsync Department.CostCenter
 }
 
 // BuiltinTool defines a pre-known tool that Switch can auto-detect and configure.

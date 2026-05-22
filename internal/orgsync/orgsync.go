@@ -387,6 +387,24 @@ func (s *Store) DeactivateEmployee(id string) error {
 	return s.saveLocked()
 }
 
+// ReactivateEmployee re-enables a previously deactivated employee.
+// Mirror of DeactivateEmployee — used by CSV import when an offboarded
+// employee shows up again on a fresh roster.
+func (s *Store) ReactivateEmployee(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	e, ok := s.Employees[id]
+	if !ok {
+		return fmt.Errorf("employee %q not found", id)
+	}
+	if e.Active {
+		return nil
+	}
+	e.Active = true
+	e.UpdatedAt = time.Now()
+	return s.saveLocked()
+}
+
 // FindEmployeeBySSO returns the employee bound to the given OIDC sub
 // claim, or nil if none. Used by the SSO login flow to map an external
 // identity to an internal record.

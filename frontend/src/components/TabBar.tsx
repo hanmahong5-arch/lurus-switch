@@ -23,14 +23,24 @@ export function TabBar({ tabs, activeTab, onTabChange }: TabBarProps) {
             key={tab.id}
             onClick={() => onTabChange(tab.id)}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-t-md transition-colors',
+              'group inline-flex items-center gap-1.5 px-3 py-2 -mb-px transition-all duration-150',
+              'border-b-2 border-transparent',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-t-sm',
               isActive
-                ? 'border-b-2 border-primary text-foreground bg-background'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                ? 'border-primary text-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             )}
           >
-            {Icon && <Icon className="h-4 w-4" />}
-            {tab.label}
+            {Icon && <Icon className="h-3.5 w-3.5" />}
+            <span
+              className={cn(
+                isActive
+                  ? 'font-mono text-[11px] tracking-[0.12em]'
+                  : 'text-sm font-medium',
+              )}
+            >
+              {isActive ? `[ ${tab.label.toUpperCase()} ]` : tab.label}
+            </span>
           </button>
         )
       })}

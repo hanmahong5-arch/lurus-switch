@@ -10,6 +10,7 @@ import (
 	"lurus-switch/internal/appconfig"
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/modelcatalog"
+	"lurus-switch/internal/netproxy"
 	"lurus-switch/internal/proxy"
 	"lurus-switch/internal/proxydetect"
 )
@@ -38,9 +39,22 @@ func (a *App) SaveProxySettings(s *proxy.ProxySettings) error {
 			return fmt.Errorf("invalid API endpoint URL: must start with http:// or https://")
 		}
 	}
+	// Validate the upstream proxy config before persisting so a typo
+	// doesn't get saved and silently break every outbound request.
+	if s.UpstreamProxy != nil && s.UpstreamProxy.Enabled {
+		if _, err := netproxy.BuildTransport(*s.UpstreamProxy); err != nil {
+			return fmt.Errorf("upstream proxy config invalid: %w", err)
+		}
+	}
 	if err := a.proxyMgr.SaveSettings(s); err != nil {
 		return err
 	}
+	// Live-apply: subsequent outbound requests pick up the new transport.
+	up := netproxy.Settings{}
+	if s.UpstreamProxy != nil {
+		up = *s.UpstreamProxy
+	}
+	_ = netproxy.Apply(up) // already validated above
 
 	a.billingMu.Lock()
 	if s.UserToken != "" && s.APIEndpoint != "" {
@@ -184,6 +198,8 @@ func (a *App) QuickSetup(model string) map[string]string {
 }
 
 // SwitchModel changes the model for all installed tools without reconfiguring endpoint/key.
+// Captures the prior model into the audit Before snapshot so the Undo
+// handler can revert to the previous selection.
 func (a *App) SwitchModel(model string) map[string]string {
 	result := make(map[string]string)
 
@@ -193,9 +209,21 @@ func (a *App) SwitchModel(model string) map[string]string {
 		result["error"] = err.Error()
 		return result
 	}
+
+	prevModel := ""
+	if a.proxyMgr != nil {
+		prevModel = a.proxyMgr.GetSettings().Model
+	}
+
 	var swErr error
 	defer func() {
-		a.recordOutcome(auditOpModelSwitch, model, map[string]any{"model": model, "result": result}, swErr)
+		a.recordOutcomeFull(
+			auditOpModelSwitch,
+			model,
+			map[string]any{"model": prevModel},
+			map[string]any{"model": model, "result": result},
+			swErr,
+		)
 	}()
 
 	if a.proxyMgr == nil {

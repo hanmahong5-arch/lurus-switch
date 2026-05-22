@@ -110,7 +110,7 @@ func resolveContextPath(tool, scope, projectDir string) (string, error) {
 	switch tool {
 	case "claude":
 		if scope == "global" {
-			return filepath.Join(home, "CLAUDE.md"), nil
+			return filepath.Join(home, ".claude", "CLAUDE.md"), nil
 		}
 		if projectDir == "" {
 			return "", fmt.Errorf("projectDir required for project scope")

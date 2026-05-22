@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Shield, Activity, RefreshCw, Loader2, ExternalLink, Server, Monitor } from 'lucide-react'
+import { Button, Card } from '../components/ui'
 import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { errorToast } from '../lib/errorToast'
@@ -109,50 +110,52 @@ export function AdminPage() {
         {/* Header */}
         <div>
           <h2 className="text-lg font-semibold flex items-center gap-2">
-            <Shield className="h-5 w-5 text-red-400" />
+            <Shield className="h-5 w-5 text-primary" />
             {t('admin.title')}
           </h2>
           <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
         </div>
 
         {/* API Health */}
-        <div className="border border-border rounded-lg p-4 space-y-3">
+        <Card variant="default" className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              {t('admin.serviceStatus')}
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-2">
+              <Activity className="h-3.5 w-3.5" />
+              [ {t('admin.serviceStatus').toUpperCase()} ]
             </h3>
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={pingAPI}
               disabled={pingLoading}
-              className="flex items-center gap-1 px-2 py-1 text-xs border border-border rounded hover:bg-muted transition-colors disabled:opacity-50"
+              loading={pingLoading}
+              icon={!pingLoading ? <RefreshCw className="h-3 w-3" /> : undefined}
             >
-              {pingLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
               {t('dashboard.refresh')}
-            </button>
+            </Button>
           </div>
           <div className="flex items-center gap-3">
             <div className={cn(
               'h-2.5 w-2.5 rounded-full',
-              apiOnline === null ? 'bg-muted' : apiOnline ? 'bg-green-500' : 'bg-red-500'
+              apiOnline === null ? 'bg-muted' : apiOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'
             )} />
-            <span className="text-sm">
+            <span className="text-sm font-mono">
               Lurus API —{' '}
               {apiOnline === null
                 ? t('admin.checking')
                 : apiOnline
-                ? <span className="text-green-500">{t('admin.online')}</span>
-                : <span className="text-red-500">{t('admin.offline')}</span>
+                ? <span className="text-emerald-400">▸ {t('admin.online')}</span>
+                : <span className="text-red-400">▪ {t('admin.offline')}</span>
               }
             </span>
           </div>
-        </div>
+        </Card>
 
         {/* System Info */}
-        <div className="border border-border rounded-lg p-4 space-y-3">
-          <h3 className="text-sm font-semibold flex items-center gap-2">
-            <Monitor className="h-4 w-4 text-muted-foreground" />
-            {t('admin.systemInfo')}
+        <Card variant="default" className="p-4 space-y-3">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-2">
+            <Monitor className="h-3.5 w-3.5" />
+            [ {t('admin.systemInfo').toUpperCase()} ]
           </h3>
           {sysInfo ? (
             <div className="grid grid-cols-2 gap-2 text-sm">
@@ -162,8 +165,8 @@ export function AdminPage() {
                 { label: t('admin.arch'), value: sysInfo.goarch },
               ].map(({ label, value }) => (
                 <div key={label}>
-                  <p className="text-xs text-muted-foreground">{label}</p>
-                  <p className="font-mono text-xs">{value}</p>
+                  <p className="text-xs text-muted-foreground font-mono">{label}</p>
+                  <p className="font-mono text-xs tabular-nums">{value}</p>
                 </div>
               ))}
             </div>
@@ -173,28 +176,25 @@ export function AdminPage() {
               {t('status.loading')}
             </div>
           )}
-        </div>
+        </Card>
 
         {/* Self Update */}
-        <div className="border border-border rounded-lg p-4 space-y-3">
+        <Card variant="default" className="p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold">{t('admin.appUpdate')}</h3>
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">[ {t('admin.appUpdate').toUpperCase()} ]</h3>
             {updateInfo?.updateAvailable ? (
-              <button
+              <Button
+                size="sm"
                 onClick={applyUpdate}
                 disabled={updating}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors disabled:opacity-50"
+                loading={updating}
               >
-                {updating ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                 {t('dashboard.updateTo', { version: updateInfo.latestVersion })}
-              </button>
+              </Button>
             ) : (
-              <button
-                onClick={checkUpdate}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded hover:bg-muted transition-colors"
-              >
+              <Button variant="secondary" size="sm" onClick={checkUpdate}>
                 {t('dashboard.checkUpdates')}
-              </button>
+              </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
@@ -204,22 +204,23 @@ export function AdminPage() {
                 : t('admin.upToDate')
               : t('admin.checkUpdateHint')}
           </p>
-        </div>
+        </Card>
 
         {/* Tool Summary */}
-        <div className="border border-border rounded-lg overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Server className="h-4 w-4 text-muted-foreground" />
-              {t('admin.toolSummary')}
+        <Card variant="default" className="overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card-recessed">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-2">
+              <Server className="h-3.5 w-3.5" />
+              [ {t('admin.toolSummary').toUpperCase()} ]
             </h3>
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={loadTools}
               disabled={toolsLoading}
-              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-            >
-              {toolsLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            </button>
+              loading={toolsLoading}
+              icon={!toolsLoading ? <RefreshCw className="h-3.5 w-3.5" /> : undefined}
+            />
           </div>
           {TOOL_ORDER.map((name) => {
             const tool = tools[name]
@@ -229,21 +230,21 @@ export function AdminPage() {
                 <div className="flex items-center gap-3">
                   {tool?.installed ? (
                     <>
-                      <span className="text-xs text-muted-foreground font-mono">{tool.version || 'n/a'}</span>
-                      <span className="text-xs bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">{t('admin.installed')}</span>
+                      <span className="text-xs text-muted-foreground font-mono tabular-nums">{tool.version || 'n/a'}</span>
+                      <span className="text-xs bg-emerald-500/15 text-emerald-400 px-1.5 py-0.5 rounded font-mono">▸ {t('admin.installed')}</span>
                     </>
                   ) : (
-                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded">{t('admin.notInstalled')}</span>
+                    <span className="text-xs bg-card-recessed text-muted-foreground px-1.5 py-0.5 rounded font-mono">▪ {t('admin.notInstalled')}</span>
                   )}
                 </div>
               </div>
             )
           })}
-        </div>
+        </Card>
 
         {/* Quick Links */}
-        <div className="border border-border rounded-lg p-4 space-y-3">
-          <h3 className="text-sm font-semibold">{t('admin.quickLinks')}</h3>
+        <Card variant="default" className="p-4 space-y-3">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">[ {t('admin.quickLinks').toUpperCase()} ]</h3>
           <div className="space-y-2">
             {QUICK_LINKS.map(({ labelKey, url }) => (
               <a
@@ -251,14 +252,14 @@ export function AdminPage() {
                 href={url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between px-3 py-2 text-sm border border-border rounded hover:bg-muted transition-colors"
+                className="flex items-center justify-between px-3 py-2 text-sm border border-border rounded hover:bg-muted hover:border-rule-strong transition-all duration-150"
               >
                 <span>{t(labelKey)}</span>
                 <ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />
               </a>
             ))}
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   )

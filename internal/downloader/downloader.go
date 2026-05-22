@@ -6,12 +6,26 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 )
 
 const downloadChunkSize = 64 * 1024 // 64 KB
+
+// shortURL strips query strings and trims long URLs so error toasts don't
+// drown the user in 1KB pre-signed AWS signatures. The full URL stays in
+// the wrapped error chain for log forensics.
+func shortURL(raw string) string {
+	if u, err := url.Parse(raw); err == nil && u.Host != "" {
+		return u.Scheme + "://" + u.Host + u.Path
+	}
+	if len(raw) > 96 {
+		return raw[:96] + "…"
+	}
+	return raw
+}
 
 // Options configures a DownloadFile operation.
 type Options struct {
@@ -32,12 +46,12 @@ func DownloadFile(ctx context.Context, url, destPath string, opts Options) error
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("download failed for %s: %w", url, err)
+		return fmt.Errorf("下载失败 %s: %w", shortURL(url), err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("download returned HTTP %d for %s", resp.StatusCode, url)
+		return fmt.Errorf("下载返回 HTTP %d (%s)", resp.StatusCode, shortURL(url))
 	}
 
 	if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {

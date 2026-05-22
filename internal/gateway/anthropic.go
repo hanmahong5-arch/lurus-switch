@@ -38,6 +38,13 @@ func (s *Server) handleAnthropicMessages(w http.ResponseWriter, r *http.Request)
 	}
 	r.Body.Close()
 
+	// DLP middleware — scan the raw Anthropic body before translation.
+	rawBody, dlpBlocked, dlpReason := s.applyDLPRequest(rawBody, r.URL.Path)
+	if dlpBlocked {
+		writeAnthropicError(w, http.StatusUnavailableForLegalReasons, "permission_error", dlpReason)
+		return
+	}
+
 	var req translator.AnthropicRequest
 	if err := json.Unmarshal(rawBody, &req); err != nil {
 		writeAnthropicError(w, http.StatusBadRequest, "invalid_request_error",

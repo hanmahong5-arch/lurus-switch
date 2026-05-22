@@ -6,7 +6,7 @@ import { useToastStore } from '../stores/toastStore'
 import { useRepoAuditStore } from '../stores/repoAuditStore'
 import { useBashGuardStore } from '../stores/bashGuardStore'
 import { useBudgetStore } from '../stores/budgetStore'
-import { LaunchTool } from '../../wailsjs/go/main/App'
+import { LaunchToolInTerminal } from '../../wailsjs/go/main/App'
 
 // Verb-first entry points so users discover features by stating intent
 // ("I want to add a relay") rather than navigating by category. Sits at
@@ -107,10 +107,20 @@ export function HomeIntentPanel() {
       accent: 'text-purple-400',
       onClick: async () => {
         try {
-          await LaunchTool('claude', [])
-          toast('success', isZh ? 'Claude Code 已启动' : 'Claude Code launched')
+          // LaunchToolInTerminal opens a real terminal window so the user
+          // sees the CLI output. LaunchTool's silent-spawn path inherited
+          // Switch's stdio and didn't surface anything — terrible UX.
+          await LaunchToolInTerminal('claude')
+          toast('success', isZh ? 'Claude Code 已在新终端启动' : 'Claude Code launched in a new terminal')
         } catch (e) {
-          toast('error', String(e))
+          const msg = e instanceof Error ? e.message : String(e)
+          if (msg.startsWith('not-found:')) {
+            toast('warning', msg.replace(/^not-found:\s*/, ''))
+          } else if (msg.startsWith('broken-bin:')) {
+            toast('warning', msg.replace(/^broken-bin:\s*/, ''))
+          } else {
+            toast('error', msg)
+          }
         }
       },
     },

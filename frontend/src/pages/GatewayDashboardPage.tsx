@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { useConfigStore } from '../stores/configStore'
+import { Button, Card, KpiCard } from '../components/ui'
 import {
   makeDashboardSource,
   type DashboardSource,
@@ -159,55 +160,49 @@ export function GatewayDashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <BarChart3 className="h-6 w-6 text-indigo-400" />
+          <BarChart3 className="h-6 w-6 text-primary" />
           {t('gateway.dashboard', 'Dashboard')}
         </h2>
-        <button
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={load}
           disabled={loading}
-          className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+          loading={loading}
+          icon={!loading ? <RefreshCw className="h-4 w-4" /> : undefined}
+        />
       </div>
 
       {/* Error */}
       {error && (
-        <div className="text-sm text-red-400 bg-red-900/20 rounded px-3 py-2">{error}</div>
+        <Card variant="default" className="text-sm text-red-400 bg-red-500/10 border-red-500/30 px-3 py-2 font-mono">▸ {error}</Card>
       )}
 
       {/* Stat Cards 2x2 */}
       <div className="grid grid-cols-2 gap-4">
-        {statCards.map((card) => {
-          const Icon = card.icon
-          return (
-            <div
-              key={card.label}
-              className="rounded-lg border border-border bg-card p-4 flex items-center gap-4"
-            >
-              <Icon className={`h-8 w-8 ${card.color} shrink-0`} />
-              <div className="min-w-0">
-                <p className="text-sm text-muted-foreground truncate">{card.label}</p>
-                <p className="text-2xl font-bold">{card.value.toLocaleString()}</p>
-              </div>
-            </div>
-          )
-        })}
+        {statCards.map((card) => (
+          <KpiCard
+            key={card.label}
+            icon={card.icon}
+            label={card.label}
+            value={card.value.toLocaleString()}
+          />
+        ))}
       </div>
 
       {/* Quota Trend Chart */}
-      <div className="rounded-lg border border-border bg-card p-5 space-y-3">
-        <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-          {t('gateway.dashboard.quotaTrend', 'Quota Trend (14 days)')}
+      <Card variant="elevated" className="p-5 space-y-3">
+        <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          [ {t('gateway.dashboard.quotaTrend', 'Quota Trend (14 days)').toUpperCase()} ]
         </h3>
         <SimpleBarChart data={quotaDates as unknown as Record<string, unknown>[]} labelKey="date" valueKey="quota" />
-      </div>
+      </Card>
 
       {/* Performance Panel */}
       {performanceStats && (
-        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-            {t('gateway.dashboard.performance', 'Performance')}
+        <Card variant="elevated" className="p-5 space-y-3">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            [ {t('gateway.dashboard.performance', 'Performance').toUpperCase()} ]
           </h3>
           <div className="space-y-2">
             {perfRows.map((row) => {
@@ -221,12 +216,12 @@ export function GatewayDashboardPage() {
                     <Icon className="h-4 w-4" />
                     {row.label}
                   </span>
-                  <span className="font-mono">{row.value}</span>
+                  <span className="font-mono tabular-nums">{row.value}</span>
                 </div>
               )
             })}
           </div>
-        </div>
+        </Card>
       )}
     </div>
   )

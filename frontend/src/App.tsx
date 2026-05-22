@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import './style.css'
-import { Sidebar, RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES, ENDUSER_VISIBLE_PAGES } from './components/Sidebar'
+import { Sidebar, RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES, ENDUSER_VISIBLE_PAGES, ADMIN_PAGES } from './components/Sidebar'
 import { PageHeader } from './components/PageHeader'
 import { StatusBar } from './components/StatusBar'
 import { ErrorBoundary } from './components/ErrorBoundary'
@@ -30,10 +31,17 @@ import { AccountPage } from './pages/AccountPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { PromoterHubPage } from './pages/PromoterHubPage'
 import { PackagerPage } from './pages/PackagerPage'
+import { DLPAdminPage } from './pages/DLPAdminPage'
+import { OrgChartPage } from './pages/OrgChartPage'
+import { AgentTemplateGalleryPage } from './pages/AgentTemplateGalleryPage'
+import { ChargebackPage } from './pages/ChargebackPage'
+import { ConversationsPage } from './pages/ConversationsPage'
+import { LiveSessionsPage } from './pages/LiveSessionsPage'
 import { AppModeSelectPage } from './pages/AppModeSelectPage'
 import { ResellerSetupWizard } from './pages/ResellerSetupWizard'
 import { EndUserActivationPage } from './pages/EndUserActivationPage'
 import { EndUserMainPage } from './pages/EndUserMainPage'
+import { DesignSystemPage } from './pages/_DesignSystemPage'
 import { useConfigStore, migrateLegacyRoute, migrateLegacyAppMode, type AppMode, type UserLevel } from './stores/configStore'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import { usePlatformEvents } from './hooks/usePlatformEvents'
@@ -48,12 +56,22 @@ import i18n from './i18n'
 
 // Legacy startup pages map to new routes
 const VALID_STARTUP_PAGES: ReadonlySet<string> = new Set([
-  'home', 'agents', 'tools', 'gateway', 'workspace', 'account', 'settings',
+  'home', 'agents', 'conversations', 'tools', 'gateway', 'workspace', 'account', 'settings',
   // Legacy values still accepted for backward compatibility
   'dashboard', 'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw',
 ])
 
 function App() {
+  // Dev-only Storybook-lite gate. Visit `/#design` to load the design system
+  // showcase, bypassing onboarding / mode picker / wizards. Hash is reactive
+  // so back/forward works without page reload.
+  const [designMode, setDesignMode] = useState(() => window.location.hash === '#design')
+  useEffect(() => {
+    const onHash = () => setDesignMode(window.location.hash === '#design')
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [])
+
   const { activeTool, setActiveTool, appMode, setAppMode, setUserLevel, setSubTab } = useConfigStore()
   useNavPersist()
   useKeyboardShortcuts()
@@ -221,6 +239,11 @@ function App() {
     return () => { if (unsub) unsub() }
   }, [appMode])
 
+  // Dev-only design-system showcase. `/#design` short-circuits every gate.
+  if (designMode) {
+    return <DesignSystemPage />
+  }
+
   // Loading state while checking onboarding status. We surface which
   // step is still pending so users see *what* Switch is doing during
   // the boot serial-load (GetAppSettings → mode resolve → reseller /
@@ -312,6 +335,14 @@ function App() {
         ? <EndUserMainPage onDeactivated={() => setEndUserState('unactivated')} />
         : <HomePage />
     }
+    // Admin pages (DLP / org chart / agent gallery) require Reseller
+    // or Enterprise mode. Stale state from a mode switch shouldn't
+    // expose them.
+    if (ADMIN_PAGES.has(activeTool) && appMode !== 'reseller' && appMode !== 'enterprise') {
+      return appMode === 'enduser'
+        ? <EndUserMainPage onDeactivated={() => setEndUserState('unactivated')} />
+        : <HomePage />
+    }
     if (appMode === 'enduser' && !ENDUSER_VISIBLE_PAGES.has(activeTool)) {
       return <EndUserMainPage onDeactivated={() => setEndUserState('unactivated')} />
     }
@@ -321,6 +352,8 @@ function App() {
         return appMode === 'enduser'
           ? <EndUserMainPage onDeactivated={() => setEndUserState('unactivated')} />
           : <HomePage />
+      case 'live':
+        return <LiveSessionsPage />
       case 'agents':
         return <AgentsPage />
       case 'tools':
@@ -337,6 +370,16 @@ function App() {
         return <PromoterHubPage />
       case 'packager':
         return <PackagerPage />
+      case 'dlp':
+        return <DLPAdminPage />
+      case 'orgchart':
+        return <OrgChartPage />
+      case 'agent-templates':
+        return <AgentTemplateGalleryPage />
+      case 'chargeback':
+        return <ChargebackPage />
+      case 'conversations':
+        return <ConversationsPage />
       default:
         return <HomePage />
     }
@@ -361,7 +404,18 @@ function App() {
           <PageHeader />
           <div className="flex-1 overflow-hidden">
             <ErrorBoundary>
-              {renderPage()}
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={`${activeTool}:${useConfigStore.getState().subTabState[activeTool] ?? ''}`}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -2 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="h-full"
+                >
+                  {renderPage()}
+                </motion.div>
+              </AnimatePresence>
             </ErrorBoundary>
           </div>
         </main>

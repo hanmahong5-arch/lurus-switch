@@ -22,6 +22,13 @@ const (
 	callbackPath = "/auth/callback"
 )
 
+// productionClientID is the Zitadel OIDC app id for switch-desktop on
+// auth.lurus.cn. Registered 2026-05-12 as a NATIVE app + PKCE + loopback
+// (devMode=true so http://localhost is permitted). Self-hosters who run
+// their own Zitadel can override via the AuthClientID app setting; the
+// user-supplied value in app-settings.json wins over this default.
+const productionClientID = "372642785217478778"
+
 // OIDCConfig holds the OIDC provider configuration.
 type OIDCConfig struct {
 	Issuer      string
@@ -31,23 +38,33 @@ type OIDCConfig struct {
 }
 
 // DefaultConfig returns the default OIDC configuration for Lurus.
+// ClientID defaults to the production switch-desktop app on auth.lurus.cn;
+// users on a self-hosted Zitadel override it via Settings > Auth Client ID.
 func DefaultConfig() OIDCConfig {
 	return OIDCConfig{
 		Issuer:      "https://auth.lurus.cn",
-		ClientID:    "",
+		ClientID:    productionClientID,
 		RedirectURI: fmt.Sprintf("http://localhost:%d%s", callbackPort, callbackPath),
 		Scopes:      []string{"openid", "profile", "email", "offline_access"},
 	}
 }
 
 // TokenResponse holds the tokens returned by the OIDC provider.
+//
+// UserInfo is populated by exchangeCode after a successful token exchange:
+// Zitadel's id_token only carries the sub claim by default, so name / email
+// / picture come from a follow-up call to the standard OIDC /userinfo
+// endpoint. The field is unexported on the wire (json:"-") because it isn't
+// part of the OIDC token response — it's a derived enrichment we attach
+// before handing the response back to the caller.
 type TokenResponse struct {
-	AccessToken  string `json:"access_token"`
-	TokenType    string `json:"token_type"`
-	ExpiresIn    int    `json:"expires_in"`
-	RefreshToken string `json:"refresh_token,omitempty"`
-	IDToken      string `json:"id_token,omitempty"`
-	Scope        string `json:"scope,omitempty"`
+	AccessToken  string    `json:"access_token"`
+	TokenType    string    `json:"token_type"`
+	ExpiresIn    int       `json:"expires_in"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	IDToken      string    `json:"id_token,omitempty"`
+	Scope        string    `json:"scope,omitempty"`
+	UserInfo     *UserInfo `json:"-"`
 }
 
 func generateCodeVerifier() (string, error) {
@@ -203,7 +220,53 @@ func exchangeCode(ctx context.Context, cfg OIDCConfig, code, codeVerifier string
 		return nil, fmt.Errorf("parse token response: %w", err)
 	}
 
+	// Fetch /userinfo so the session has a populated UserInfo regardless of
+	// whether Zitadel embedded the profile claims in the id_token (it
+	// doesn't by default — only sub is guaranteed). Best-effort: a failure
+	// here is logged and tokens still flow through, the session will then
+	// fall back to id_token claim decoding.
+	if u, uErr := fetchUserInfo(ctx, cfg, tokenResp.AccessToken); uErr == nil {
+		tokenResp.UserInfo = u
+	}
+
 	return &tokenResp, nil
+}
+
+// fetchUserInfo calls the OIDC /userinfo endpoint with the access_token and
+// returns the user profile claims. Endpoint path is the OIDC spec one
+// (configurable in cfg.Issuer); 4xx/5xx is treated as an error so callers
+// can decide whether to fall back to id_token decoding.
+func fetchUserInfo(ctx context.Context, cfg OIDCConfig, accessToken string) (*UserInfo, error) {
+	if accessToken == "" {
+		return nil, fmt.Errorf("userinfo: empty access_token")
+	}
+	url := strings.TrimRight(cfg.Issuer, "/") + "/oidc/v1/userinfo"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("userinfo: build request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("userinfo: request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("userinfo: read body: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("userinfo: HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var info UserInfo
+	if err := json.Unmarshal(body, &info); err != nil {
+		return nil, fmt.Errorf("userinfo: parse: %w", err)
+	}
+	return &info, nil
 }
 
 // RefreshAccessToken uses a refresh token to obtain a new access token.

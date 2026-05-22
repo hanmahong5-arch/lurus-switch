@@ -32,7 +32,9 @@ export function migrateLegacyAppMode(raw: string | undefined | null): AppMode {
 // 11 admin sub-tabs live under gateway/* now.
 export type ActiveTool =
   | 'home'
+  | 'live'          // live-session inspector — what is the CLI doing right now
   | 'agents'
+  | 'conversations'
   | 'tools'
   | 'gateway'
   | 'workspace'
@@ -40,6 +42,12 @@ export type ActiveTool =
   | 'settings'
   | 'promotion'
   | 'packager'
+  // Admin: DLP / org chart / agent gallery / chargeback — surfaced in
+  // Reseller and Enterprise modes only (gated in Sidebar.tsx).
+  | 'dlp'
+  | 'orgchart'
+  | 'agent-templates'
+  | 'chargeback'
 
 // Sub-tab identifiers for each page
 export type ToolsSubTab = 'claude' | 'codex' | 'gemini' | 'picoclaw' | 'nullclaw' | 'zeroclaw' | 'openclaw' | 'mcp' | 'snapshots'
@@ -51,6 +59,7 @@ export type GatewaySubTab =
   // Admin — Reseller mode (newapi admin scope)
   | 'dashboard' | 'channels' | 'tokens' | 'models' | 'users'
   | 'redemptions' | 'logs' | 'subscriptions' | 'admin-settings'
+  | 'tool-releases'
   // Root — Reseller mode (newapi root scope: option/oauth/performance/ratio)
   | 'system'
 export type WorkspaceSubTab = 'prompts' | 'context' | 'process'

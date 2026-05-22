@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { CreditCard, Plus, Trash2, Edit2, RefreshCw, AlertCircle, Link } from 'lucide-react'
+import { Button, Card } from '../components/ui'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { createGatewayClient, type GatewaySubscriptionPlan } from '../lib/gateway-api'
 import { ConfirmModal } from '../components/gateway/ConfirmModal'
@@ -137,142 +138,146 @@ export function GatewaySubscriptionPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <CreditCard className="h-6 w-6 text-emerald-400" />
+          <CreditCard className="h-6 w-6 text-primary" />
           {t('gateway.subscriptions', 'Subscriptions')}
         </h2>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={loadPlans}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+            loading={loading}
+            icon={!loading ? <RefreshCw className="h-4 w-4" /> : undefined}
+          />
           {tab === 'plans' && (
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm"
-            >
-              <Plus className="h-4 w-4" />
+            <Button size="sm" onClick={openCreate} icon={<Plus className="h-4 w-4" />}>
               {t('gateway.addPlan', 'Add Plan')}
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-red-900/20 rounded px-3 py-2">{error}</div>
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2 font-mono">▸ {error}</div>
       )}
 
       {/* Tab Bar */}
       <div className="flex border-b border-border">
-        {tabs.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => setTab(item.id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === item.id
-                ? 'border-indigo-500 text-foreground'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
+        {tabs.map((item) => {
+          const isActive = tab === item.id
+          return (
+            <button
+              key={item.id}
+              onClick={() => setTab(item.id)}
+              className={`px-4 py-2 -mb-px border-b-2 transition-all duration-150 ${
+                isActive
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <span className={isActive ? 'font-mono text-[11px] tracking-[0.12em]' : 'text-sm font-medium'}>
+                {isActive ? `[ ${item.label.toUpperCase()} ]` : item.label}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* Plans Tab */}
       {tab === 'plans' && (
-        <div className="rounded-lg border border-border overflow-hidden">
+        <Card variant="default" className="overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-muted-foreground">
-              <tr>
-                <th className="text-left px-4 py-2">ID</th>
-                <th className="text-left px-4 py-2">{t('gateway.planName', 'Name')}</th>
-                <th className="text-left px-4 py-2">{t('gateway.planLevel', 'Level')}</th>
-                <th className="text-left px-4 py-2">{t('gateway.planPricing', 'Pricing')}</th>
-                <th className="text-left px-4 py-2">{t('gateway.planDuration', 'Duration (days)')}</th>
-                <th className="text-left px-4 py-2">{t('gateway.planQuota', 'Quota')}</th>
-                <th className="text-left px-4 py-2">{t('gateway.planGroup', 'Group')}</th>
-                <th className="text-left px-4 py-2">{t('gateway.planStatus', 'Status')}</th>
-                <th className="text-right px-4 py-2">{t('gateway.actions', 'Actions')}</th>
+            <thead className="bg-card-recessed">
+              <tr className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                <th className="text-left px-4 py-2">[ ID ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planName', 'Name').toUpperCase()} ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planLevel', 'Level').toUpperCase()} ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planPricing', 'Pricing').toUpperCase()} ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planDuration', 'Duration (days)').toUpperCase()} ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planQuota', 'Quota').toUpperCase()} ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planGroup', 'Group').toUpperCase()} ]</th>
+                <th className="text-left px-4 py-2">[ {t('gateway.planStatus', 'Status').toUpperCase()} ]</th>
+                <th className="text-right px-4 py-2">[ {t('gateway.actions', 'Actions').toUpperCase()} ]</th>
               </tr>
             </thead>
             <tbody>
               {plans.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="text-center py-8 text-muted-foreground">
-                    {loading ? t('status.loading') : t('gateway.noPlans', 'No plans')}
+                  <td colSpan={9} className="text-center py-8 text-muted-foreground font-mono">
+                    ▪ {loading ? t('status.loading') : t('gateway.noPlans', 'No plans')}
                   </td>
                 </tr>
               )}
               {plans.map((plan) => (
-                <tr key={plan.id} className="border-t border-border hover:bg-muted/30">
-                  <td className="px-4 py-2 text-muted-foreground">{plan.id}</td>
+                <tr key={plan.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                  <td className="px-4 py-2 text-muted-foreground font-mono tabular-nums">{plan.id}</td>
                   <td className="px-4 py-2 font-medium">{plan.name}</td>
-                  <td className="px-4 py-2">{plan.level}</td>
-                  <td className="px-4 py-2 font-mono">{plan.pricing}</td>
-                  <td className="px-4 py-2">{plan.duration}</td>
-                  <td className="px-4 py-2 font-mono">{plan.quota}</td>
-                  <td className="px-4 py-2">{plan.group || '-'}</td>
+                  <td className="px-4 py-2 font-mono tabular-nums">{plan.level}</td>
+                  <td className="px-4 py-2 font-mono tabular-nums">{plan.pricing}</td>
+                  <td className="px-4 py-2 font-mono tabular-nums">{plan.duration}</td>
+                  <td className="px-4 py-2 font-mono tabular-nums">{plan.quota}</td>
+                  <td className="px-4 py-2 font-mono">{plan.group || '-'}</td>
                   <td className="px-4 py-2">
-                    <span className={`text-xs rounded px-1.5 py-0.5 ${
+                    <span className={`font-mono text-[10px] uppercase tracking-[0.08em] rounded px-1.5 py-0.5 ${
                       plan.status === 1
-                        ? 'bg-green-900/40 text-green-400'
-                        : 'bg-muted text-muted-foreground'
+                        ? 'bg-emerald-500/15 text-emerald-400'
+                        : 'bg-card-recessed text-muted-foreground'
                     }`}>
-                      {plan.status === 1 ? 'Enabled' : 'Disabled'}
+                      {plan.status === 1 ? '▸ Enabled' : '▪ Disabled'}
                     </span>
                   </td>
                   <td className="px-4 py-2 text-right">
                     <div className="flex justify-end gap-1">
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => openEdit(plan)}
                         title="Edit"
-                        className="p-1 hover:text-indigo-400"
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </button>
-                      <button
+                        icon={<Edit2 className="h-3.5 w-3.5" />}
+                        className="hover:text-primary"
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setConfirmDelete(plan.id)}
                         title="Delete"
-                        className="p-1 hover:text-red-400"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                        className="hover:text-red-400 hover:bg-red-500/10"
+                      />
                     </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Card>
       )}
 
       {/* Bind Tab */}
       {tab === 'bind' && (
         <div className="space-y-6">
           {/* Bind Form */}
-          <div className="rounded-lg border border-border p-4 space-y-4">
-            <h3 className="text-sm font-semibold flex items-center gap-2">
-              <Link className="h-4 w-4" />
-              {t('gateway.bindSubscription', 'Bind Subscription')}
+          <Card variant="default" className="p-4 space-y-4">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground flex items-center gap-2">
+              <Link className="h-3.5 w-3.5 text-primary" />
+              [ {t('gateway.bindSubscription', 'Bind Subscription').toUpperCase()} ]
             </h3>
             <div className="flex items-end gap-3">
               <label className="block text-sm flex-1">
-                <span className="text-muted-foreground">{t('gateway.userId', 'User ID')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.userId', 'User ID')}</span>
                 <input
                   type="number"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
                   value={bindUserId}
                   onChange={(e) => setBindUserId(e.target.value)}
                   placeholder="1"
                 />
               </label>
               <label className="block text-sm flex-1">
-                <span className="text-muted-foreground">{t('gateway.plan', 'Plan')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.plan', 'Plan')}</span>
                 <select
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                   value={bindPlanId}
                   onChange={(e) => setBindPlanId(e.target.value)}
                 >
@@ -284,90 +289,93 @@ export function GatewaySubscriptionPage() {
                   ))}
                 </select>
               </label>
-              <button
+              <Button
+                size="sm"
                 onClick={handleBind}
                 disabled={!bindUserId || !bindPlanId}
-                className="px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-sm disabled:opacity-50 whitespace-nowrap"
+                className="whitespace-nowrap"
               >
                 {t('gateway.bind', 'Bind')}
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
 
           {/* Lookup User Subscriptions */}
-          <div className="rounded-lg border border-border p-4 space-y-4">
-            <h3 className="text-sm font-semibold">
-              {t('gateway.lookupSubscriptions', 'Lookup User Subscriptions')}
+          <Card variant="default" className="p-4 space-y-4">
+            <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+              [ {t('gateway.lookupSubscriptions', 'Lookup User Subscriptions').toUpperCase()} ]
             </h3>
             <div className="flex items-end gap-3">
               <label className="block text-sm flex-1">
-                <span className="text-muted-foreground">{t('gateway.userId', 'User ID')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.userId', 'User ID')}</span>
                 <input
                   type="number"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
                   value={lookupUserId}
                   onChange={(e) => setLookupUserId(e.target.value)}
                   placeholder="1"
                 />
               </label>
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={handleLookup}
                 disabled={!lookupUserId}
-                className="px-4 py-1.5 rounded border border-border text-sm hover:bg-muted disabled:opacity-50 whitespace-nowrap"
+                className="whitespace-nowrap"
               >
                 {t('gateway.search', 'Search')}
-              </button>
+              </Button>
             </div>
 
             {lookupResults.length > 0 && (
-              <div className="rounded-lg border border-border overflow-hidden">
+              <Card variant="default" className="overflow-hidden">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-muted-foreground">
-                    <tr>
-                      <th className="text-left px-4 py-2">ID</th>
-                      <th className="text-left px-4 py-2">{t('gateway.planName', 'Name')}</th>
-                      <th className="text-left px-4 py-2">{t('gateway.planLevel', 'Level')}</th>
-                      <th className="text-left px-4 py-2">{t('gateway.planDuration', 'Duration (days)')}</th>
-                      <th className="text-left px-4 py-2">{t('gateway.planQuota', 'Quota')}</th>
-                      <th className="text-left px-4 py-2">{t('gateway.planStatus', 'Status')}</th>
+                  <thead className="bg-card-recessed">
+                    <tr className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                      <th className="text-left px-4 py-2">[ ID ]</th>
+                      <th className="text-left px-4 py-2">[ {t('gateway.planName', 'Name').toUpperCase()} ]</th>
+                      <th className="text-left px-4 py-2">[ {t('gateway.planLevel', 'Level').toUpperCase()} ]</th>
+                      <th className="text-left px-4 py-2">[ {t('gateway.planDuration', 'Duration (days)').toUpperCase()} ]</th>
+                      <th className="text-left px-4 py-2">[ {t('gateway.planQuota', 'Quota').toUpperCase()} ]</th>
+                      <th className="text-left px-4 py-2">[ {t('gateway.planStatus', 'Status').toUpperCase()} ]</th>
                     </tr>
                   </thead>
                   <tbody>
                     {lookupResults.map((sub) => (
-                      <tr key={sub.id} className="border-t border-border hover:bg-muted/30">
-                        <td className="px-4 py-2 text-muted-foreground">{sub.id}</td>
+                      <tr key={sub.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                        <td className="px-4 py-2 text-muted-foreground font-mono tabular-nums">{sub.id}</td>
                         <td className="px-4 py-2 font-medium">{sub.name}</td>
-                        <td className="px-4 py-2">{sub.level}</td>
-                        <td className="px-4 py-2">{sub.duration}</td>
-                        <td className="px-4 py-2 font-mono">{sub.quota}</td>
+                        <td className="px-4 py-2 font-mono tabular-nums">{sub.level}</td>
+                        <td className="px-4 py-2 font-mono tabular-nums">{sub.duration}</td>
+                        <td className="px-4 py-2 font-mono tabular-nums">{sub.quota}</td>
                         <td className="px-4 py-2">
-                          <span className={`text-xs rounded px-1.5 py-0.5 ${
+                          <span className={`font-mono text-[10px] uppercase tracking-[0.08em] rounded px-1.5 py-0.5 ${
                             sub.status === 1
-                              ? 'bg-green-900/40 text-green-400'
-                              : 'bg-muted text-muted-foreground'
+                              ? 'bg-emerald-500/15 text-emerald-400'
+                              : 'bg-card-recessed text-muted-foreground'
                           }`}>
-                            {sub.status === 1 ? 'Enabled' : 'Disabled'}
+                            {sub.status === 1 ? '▸ Enabled' : '▪ Disabled'}
                           </span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </Card>
             )}
 
             {lookupResults.length === 0 && lookupUserId && (
-              <p className="text-sm text-muted-foreground">
-                {t('gateway.noSubscriptions', 'No subscriptions found')}
+              <p className="text-sm text-muted-foreground font-mono">
+                ▪ {t('gateway.noSubscriptions', 'No subscriptions found')}
               </p>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Create/Edit Modal */}
       {showModal && editing && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 w-[28rem] space-y-4 max-h-[90vh] overflow-y-auto">
             <h3 className="font-semibold">
               {editing.id
@@ -481,7 +489,7 @@ export function GatewaySubscriptionPage() {
               </button>
               <button
                 onClick={handleSave}
-                className="px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-sm"
+                className="px-4 py-1.5 rounded bg-primary hover:bg-primary/90 text-primary-foreground text-sm"
               >
                 {t('settings.save')}
               </button>

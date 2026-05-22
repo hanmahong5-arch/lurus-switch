@@ -57,7 +57,10 @@ func fetchLatestRelease(ctx context.Context, owner, repo string) (*GitHubRelease
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub API returned HTTP %d", resp.StatusCode)
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, fmt.Errorf("GitHub 仓库 %s/%s 不存在或暂未发布 Release（HTTP 404）— 此工具当前无法下载安装", owner, repo)
+		}
+		return nil, fmt.Errorf("GitHub API returned HTTP %d for %s/%s", resp.StatusCode, owner, repo)
 	}
 
 	var release GitHubRelease
@@ -385,7 +388,16 @@ func downloadAndInstallBinary(ctx context.Context, cfg BinaryToolConfig, overrid
 	} else {
 		release, err := fetchLatestRelease(ctx, cfg.GitHubOwner, cfg.GitHubRepo)
 		if err != nil {
-			return &InstallResult{Tool: cfg.Name, Success: false, Message: err.Error()}, nil
+			// CN-network users hit this routinely: api.github.com is
+			// blocked, the BYO upstream proxy isn't enabled, and a raw
+			// "Get https://api.github.com/...: i/o timeout" leaves the
+			// user no idea what to do. Translate to an actionable hint.
+			msg := err.Error()
+			if isLikelyGitHubBlocked(msg) {
+				msg = fmt.Sprintf("无法访问 GitHub Release（%s/%s）。如在中国大陆网络下，请前往「设置 → 上游代理」启用 BYO 代理后重试。原始错误：%s",
+					cfg.GitHubOwner, cfg.GitHubRepo, err.Error())
+			}
+			return &InstallResult{Tool: cfg.Name, Success: false, Message: msg}, nil
 		}
 		dlURL, assetName = findPlatformAsset(release.Assets)
 		if dlURL == "" {
@@ -485,4 +497,30 @@ func removeManagedBinary(binaryName string) error {
 		return fmt.Errorf("failed to remove binary: %w", err)
 	}
 	return nil
+}
+
+// isLikelyGitHubBlocked returns true if a transport-level error string
+// looks like the typical CN-network failure mode against api.github.com
+// (TCP/TLS timeout, RST, DNS refusal). Used to swap the raw network error
+// for a user-actionable "enable upstream proxy" hint.
+func isLikelyGitHubBlocked(err string) bool {
+	lower := strings.ToLower(err)
+	hints := []string{
+		"i/o timeout",
+		"timeout",
+		"connection refused",
+		"connection reset",
+		"no such host",
+		"dial tcp",
+		"tls handshake",
+		"reset by peer",
+		"network is unreachable",
+		"context deadline exceeded",
+	}
+	for _, h := range hints {
+		if strings.Contains(lower, h) {
+			return true
+		}
+	}
+	return false
 }

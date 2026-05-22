@@ -245,7 +245,7 @@ export function MCPServerManager() {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 max-w-lg w-full mx-4 shadow-xl max-h-[80vh] overflow-y-auto space-y-4">
             <h3 className="font-semibold">{t('mcp.newPresetTitle')}</h3>
 

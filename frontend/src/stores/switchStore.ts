@@ -28,6 +28,8 @@ export interface RegisteredApp {
   createdAt: string
   lastSeenAt?: string
   connected: boolean
+  ownerEmployeeId?: string
+  costCenter?: string
 }
 
 export interface DailySummary {

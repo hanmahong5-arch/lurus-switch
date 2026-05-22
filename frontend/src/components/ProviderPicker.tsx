@@ -112,7 +112,7 @@ export function ProviderPicker({ onSelect, onClose }: ProviderPickerProps) {
   }, [filtered])
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={onClose}>
       <div
         className="w-full max-w-2xl max-h-[80vh] bg-card border border-border rounded-xl shadow-2xl flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}

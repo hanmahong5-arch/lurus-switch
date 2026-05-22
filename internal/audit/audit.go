@@ -150,6 +150,61 @@ func (j *Journal) Record(op, target string, before, after any, err error) Entry 
 	return entry
 }
 
+// RecordSystem appends an entry attributed to a non-Wails actor (e.g.
+// the gateway middleware writing DLP block events). Bypasses
+// capability.Current() because the caller doesn't run under a user
+// session — but still emits a normal entry that the audit UI can
+// filter by operation.
+func (j *Journal) RecordSystem(principal, op, target string, before, after any, err error) Entry {
+	now := time.Now()
+	if principal == "" {
+		principal = "system"
+	}
+
+	entry := Entry{
+		ID:         j.nextID(now),
+		Timestamp:  now,
+		Principal:  principal,
+		CapsHeld:   nil, // system events have no capability set
+		Operation:  op,
+		Target:     target,
+		Before:     before,
+		After:      after,
+		Outcome:    "ok",
+		Reversible: j.isOpReversible(op),
+	}
+	if err != nil {
+		entry.Outcome = "error"
+		entry.Error = err.Error()
+	}
+	j.append(entry)
+	return entry
+}
+
+// AttachMetadata sets/merges metadata keys on an existing entry in the
+// hot ring. Used by the gateway DLP middleware which records the entry
+// first (via RecordSystem) and then enriches it with conversation
+// correlation IDs. Missing entries are silently ignored — the entry may
+// have already aged out of the ring.
+func (j *Journal) AttachMetadata(entryID string, kv map[string]string) {
+	if len(kv) == 0 {
+		return
+	}
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	for i := range j.hot {
+		if j.hot[i].ID == entryID {
+			if j.hot[i].Metadata == nil {
+				j.hot[i].Metadata = make(map[string]string, len(kv))
+			}
+			for k, v := range kv {
+				j.hot[i].Metadata[k] = v
+			}
+			return
+		}
+	}
+}
+
 // List returns up to `limit` most-recent entries, optionally filtered
 // by principal / operation / outcome substrings (empty = no filter).
 // Entries with newest first.
@@ -216,6 +271,45 @@ func contains(s, sub string) bool {
 		}
 	}
 	return false
+}
+
+// EntriesWithMetadata returns hot-ring entries whose Metadata map
+// contains every key/value pair in `match`. Used by the conversation
+// bindings to compute the audit-×-DLP join — "show every entry whose
+// conv_session_id == X".
+func (j *Journal) EntriesWithMetadata(match map[string]string) []Entry {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	out := make([]Entry, 0)
+	for _, e := range j.hot {
+		if e.Metadata == nil {
+			continue
+		}
+		ok := true
+		for k, v := range match {
+			if got, present := e.Metadata[k]; !present || got != v {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// EntryByID locates an entry in the hot ring. Returns ok=false when the
+// entry has aged out (in which case the cold file would need replay).
+func (j *Journal) EntryByID(id string) (Entry, bool) {
+	j.mu.RLock()
+	defer j.mu.RUnlock()
+	for _, e := range j.hot {
+		if e.ID == id {
+			return e, true
+		}
+	}
+	return Entry{}, false
 }
 
 // Stats summarizes the hot ring for at-a-glance dashboard.

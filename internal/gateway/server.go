@@ -14,7 +14,9 @@ import (
 
 	"lurus-switch/internal/appreg"
 	"lurus-switch/internal/budget"
+	"lurus-switch/internal/dlp"
 	"lurus-switch/internal/metering"
+	"lurus-switch/internal/relay"
 )
 
 const (
@@ -39,10 +41,25 @@ type Server struct {
 	stopCh    chan struct{} // signals intentional stop to watchdog
 
 	// External dependencies (injected).
-	registry *appreg.Registry
-	meter    *metering.Store
-	fallback *FallbackChain // cascade through backup upstreams on failure
-	guard    *budget.Guard  // optional spend wall — nil = disabled
+	registry   *appreg.Registry
+	meter      *metering.Store
+	fallback   *FallbackChain // cascade through backup upstreams on failure
+	guard      *budget.Guard  // optional spend wall — nil = disabled
+	dlpScanner *dlp.Scanner   // optional DLP middleware — nil = disabled
+
+	// dlpAuditFn is called whenever DLP middleware blocks or redacts a
+	// request. The injected fn is responsible for writing the audit
+	// entry — keeps the gateway free of an audit dependency. The
+	// metadata map carries conversation correlation keys (tool /
+	// sessionID / messageUUID) when present in the request body.
+	dlpAuditFn func(op, target string, payload any, metadata map[string]string)
+
+	// Optional relay router. When wired, the gateway records upstream
+	// success / failure into its circuit breaker after each fallback
+	// chain attempt. Picking is still owned by FallbackChain in the
+	// current request path; the breaker provides observability +
+	// future routing inputs without rewriting proxy.go.
+	router *relay.Router
 
 	// Crash recovery callback (optional, set via SetCrashCallback).
 	onCrash CrashCallback
@@ -64,6 +81,22 @@ func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Sto
 	s.cfg = s.loadConfig()
 	s.fallback.SetEntries(s.cfg.Fallbacks)
 	return s
+}
+
+// GetFallbackChain exposes the cascade chain so callers can attach an
+// observer for circuit-breaker bookkeeping. The returned pointer is the
+// same instance the server uses; mutations are visible immediately.
+func (s *Server) GetFallbackChain() *FallbackChain {
+	return s.fallback
+}
+
+// SetRelayRouter wires the optional relay router into the gateway. The
+// router's circuit breaker is updated on every upstream attempt so the
+// tray badge / RelayPage circuit-state column reflect live conditions.
+func (s *Server) SetRelayRouter(r *relay.Router) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.router = r
 }
 
 // SetBudgetGuard wires the optional spend-wall into the gateway. Pass

@@ -35,6 +35,16 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	}
 	r.Body.Close()
 
+	// DLP middleware — scan the raw body before any further processing.
+	// Block policy returns 451 immediately; redact policy swaps the body
+	// so downstream forwarding (and metering) sees the masked version.
+	body, dlpBlocked, dlpReason := s.applyDLPRequest(body, r.URL.Path)
+	if dlpBlocked {
+		writeOpenAIError(w, http.StatusUnavailableForLegalReasons, "dlp_blocked", dlpReason)
+		s.recordError(meta, "", dlpReason)
+		return
+	}
+
 	// Extract model from request body for metering.
 	model := extractModelFromBody(body)
 	if meta != nil {
@@ -213,6 +223,9 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 		LatencyMs:  time.Since(meta.StartTime).Milliseconds(),
 		StatusCode: statusCode,
 		Timestamp:  time.Now(),
+		// Enterprise dimensions — empty in Personal/Reseller installs.
+		EmployeeID: meta.OwnerEmployeeID,
+		CostCenter: meta.CostCenter,
 	}
 	s.meter.Record(rec)
 

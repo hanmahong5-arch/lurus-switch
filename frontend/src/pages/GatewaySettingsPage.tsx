@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import {
   Settings2, RefreshCw, AlertCircle, Trash, Search,
 } from 'lucide-react'
+import { Button } from '../components/ui'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { createGatewayClient } from '../lib/gateway-api'
 import { OptionEditor } from '../components/gateway/OptionEditor'
@@ -183,10 +184,10 @@ export function GatewaySettingsPage() {
       {/* Header */}
       <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
-          <Settings2 className="h-5 w-5 text-violet-400 shrink-0" />
+          <Settings2 className="h-5 w-5 text-primary shrink-0" />
           <div className="min-w-0">
             <h2 className="text-lg font-semibold truncate">{t('gateway.settings.title', '设置')}</h2>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate font-mono">
               {t(TAB_DESC[tab].key, TAB_DESC[tab].fallback)}
             </p>
           </div>
@@ -202,19 +203,20 @@ export function GatewaySettingsPage() {
               className="pl-7 pr-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary w-56"
             />
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={load}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+            loading={loading}
+            icon={!loading ? <RefreshCw className="h-4 w-4" /> : undefined}
+          />
         </div>
       </div>
 
       {/* Error banner */}
       {error && (
-        <div className="mx-6 mt-3 text-sm text-red-400 bg-red-900/20 rounded px-3 py-2">{error}</div>
+        <div className="mx-6 mt-3 text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2 font-mono">▸ {error}</div>
       )}
 
       {/* Search results override the tab UI when there's a query */}
@@ -237,9 +239,9 @@ export function GatewaySettingsPage() {
                   <button
                     key={key}
                     onClick={() => setTab(key)}
-                    className={`flex items-center gap-1.5 px-3 py-2 text-sm whitespace-nowrap rounded-t-md border-b-2 transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-2 whitespace-nowrap -mb-px border-b-2 transition-all duration-150 ${
                       isActive
-                        ? 'border-primary text-foreground bg-background'
+                        ? 'border-primary text-primary'
                         : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30'
                     }`}
                   >
@@ -300,7 +302,7 @@ export function GatewaySettingsPage() {
 
       {/* Confirm Modal */}
       {confirmAction && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-lg p-6 w-96 space-y-4">
             <h3 className="font-semibold">
               {confirmAction === 'reset'

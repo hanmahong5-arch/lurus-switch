@@ -110,7 +110,7 @@ export function RepoAuditModal({ open, onClose }: RepoAuditModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) { reset(); onClose() } }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50 animate-in fade-in-0" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 animate-in fade-in-0" />
         <Dialog.Content
           className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-2xl max-h-[85vh] flex flex-col bg-card border border-border rounded-xl shadow-2xl z-50 animate-in fade-in-0 zoom-in-95"
           aria-describedby={undefined}

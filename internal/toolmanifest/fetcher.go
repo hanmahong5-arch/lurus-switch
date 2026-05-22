@@ -30,8 +30,62 @@ type cacheEntry struct {
 //  3. Stale local cache (any age) as offline fallback
 //  4. Compile-time Builtin()
 //
+// Two post-processing passes follow:
+//
+//   - Builtin's `status: "coming-soon"` acts as a release-gate FLOOR: even if
+//     a remote/cache manifest declares URLs for a tool, if the builtin says
+//     "coming-soon" we keep it that way. This defends against placeholder
+//     download URLs (e.g. unresolvable minio-api.lurus.cn entries) showing
+//     up as installable buttons in the UI.
+//
+//   - Operator overrides (tool_manifest_overrides.json) layer on top last,
+//     so a reseller who has uploaded real URLs can explicitly flip status
+//     back to stable.
+//
 // cacheDir is typically the app data base directory.
 func Fetch(ctx context.Context, apiBase, cacheDir string) (*Manifest, error) {
+	base, err := fetchBase(ctx, apiBase, cacheDir)
+	if err != nil {
+		return nil, err
+	}
+	base = applyComingSoonFloor(base, Builtin())
+	overrides, _ := LoadOverrides(cacheDir)
+	return Merge(base, overrides), nil
+}
+
+// applyComingSoonFloor lifts builtin entries flagged "coming-soon" onto the
+// resolved manifest so a release-gate flag baked into the binary survives
+// stale or wrong upstream data. Operator overrides (applied later via Merge)
+// can still flip an entry back to stable.
+func applyComingSoonFloor(resolved, builtin *Manifest) *Manifest {
+	if resolved == nil {
+		return resolved
+	}
+	if builtin == nil || len(builtin.Tools) == 0 {
+		return resolved
+	}
+	if resolved.Tools == nil {
+		resolved.Tools = map[string]ToolEntry{}
+	}
+	for name, b := range builtin.Tools {
+		if b.Status != "coming-soon" {
+			continue
+		}
+		if cur, ok := resolved.Tools[name]; ok {
+			cur.Status = "coming-soon"
+			// Drop placeholder platforms so any code that bypasses
+			// IsComingSoon (e.g. direct GetPlatformURL lookups) doesn't
+			// dial unreachable hosts.
+			cur.Platforms = nil
+			resolved.Tools[name] = cur
+		} else {
+			resolved.Tools[name] = b
+		}
+	}
+	return resolved
+}
+
+func fetchBase(ctx context.Context, apiBase, cacheDir string) (*Manifest, error) {
 	cachePath := filepath.Join(cacheDir, cacheFilename)
 
 	// 1. Fresh cache
@@ -43,11 +97,11 @@ func Fetch(ctx context.Context, apiBase, cacheDir string) (*Manifest, error) {
 	}
 
 	// 2. Live HTTP fetch (fall back to public API if apiBase is empty)
-	fetchBase := apiBase
-	if fetchBase == "" {
-		fetchBase = defaultManifestAPI
+	fb := apiBase
+	if fb == "" {
+		fb = defaultManifestAPI
 	}
-	if mf, err := fetchHTTP(ctx, fetchBase); err == nil {
+	if mf, err := fetchHTTP(ctx, fb); err == nil {
 		// Persist to cache (best-effort)
 		_ = writeCache(cachePath, mf)
 		return mf, nil

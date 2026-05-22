@@ -7,6 +7,7 @@ import {
 import { useAgentStore, type AgentProfile, type CreateAgentParams } from '../stores/agentStore'
 import { useToastStore } from '../stores/toastStore'
 import { AgentDetailDrawer } from '../components/AgentDetailDrawer'
+import { Button, Card, Modal } from '../components/ui'
 
 const TOOL_OPTIONS = [
   { value: 'claude', label: 'Claude Code', icon: '🟣' },
@@ -19,10 +20,10 @@ const TOOL_OPTIONS = [
 ]
 
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
-  created: { color: 'text-gray-400', bg: 'bg-gray-400', label: 'Created' },
-  running: { color: 'text-green-500', bg: 'bg-green-500', label: 'Running' },
-  stopped: { color: 'text-yellow-500', bg: 'bg-yellow-500', label: 'Stopped' },
-  error:   { color: 'text-red-500', bg: 'bg-red-500', label: 'Error' },
+  created: { color: 'text-muted-foreground', bg: 'bg-muted-foreground', label: 'Created' },
+  running: { color: 'text-emerald-400', bg: 'bg-emerald-400', label: 'Running' },
+  stopped: { color: 'text-amber-400', bg: 'bg-amber-400', label: 'Stopped' },
+  error:   { color: 'text-red-400', bg: 'bg-red-400', label: 'Error' },
 }
 
 const POLL_INTERVAL_MS = 5_000
@@ -45,10 +46,13 @@ function AgentCard({ agent, onAction, onSelect }: {
 }) {
   const { t } = useTranslation()
   const toolInfo = TOOL_OPTIONS.find(t => t.value === agent.toolType)
+  const isRunning = agent.status === 'running'
 
   return (
-    <div
-      className="rounded-lg border border-border bg-card p-4 hover:border-primary/50 transition-colors cursor-pointer group"
+    <Card
+      variant="default"
+      glow={isRunning}
+      className="p-4 hover:border-rule-strong hover:bg-card/60 cursor-pointer group"
       onClick={() => onSelect(agent)}
       title={t('agents.card.openDetail')}
     >
@@ -57,7 +61,7 @@ function AgentCard({ agent, onAction, onSelect }: {
           <span className="text-xl shrink-0">{agent.icon}</span>
           <div className="min-w-0">
             <h3 className="text-sm font-medium leading-tight truncate">{agent.name}</h3>
-            <p className="text-xs text-muted-foreground truncate">
+            <p className="text-xs text-muted-foreground truncate font-mono">
               {toolInfo?.icon} {toolInfo?.label || agent.toolType} · {agent.modelId}
             </p>
           </div>
@@ -71,7 +75,7 @@ function AgentCard({ agent, onAction, onSelect }: {
       {agent.tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-3">
           {agent.tags.map(tag => (
-            <span key={tag} className="px-1.5 py-0.5 bg-muted rounded text-[10px] text-muted-foreground">
+            <span key={tag} className="px-1.5 py-0.5 bg-card-recessed rounded text-[10px] text-muted-foreground font-mono">
               {tag}
             </span>
           ))}
@@ -83,60 +87,46 @@ function AgentCard({ agent, onAction, onSelect }: {
         onClick={(e) => e.stopPropagation()}
       >
         {(agent.status === 'created' || agent.status === 'stopped' || agent.status === 'error') && (
-          <button
-            onClick={() => onAction('launch', agent)}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-muted transition-colors text-green-600"
-            title="Start"
-          >
+          <Button variant="ghost" size="sm" onClick={() => onAction('launch', agent)} title="Start" className="text-emerald-400">
             <Play className="h-3 w-3" />
-          </button>
+          </Button>
         )}
         {agent.status === 'running' && (
-          <button
-            onClick={() => onAction('stop', agent)}
-            className="flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-muted transition-colors text-yellow-600"
-            title="Stop"
-          >
+          <Button variant="ghost" size="sm" onClick={() => onAction('stop', agent)} title="Stop" className="text-amber-400">
             <Square className="h-3 w-3" />
-          </button>
+          </Button>
         )}
-        <button
-          onClick={() => onAction('clone', agent)}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-muted transition-colors text-muted-foreground"
-          title="Clone"
-        >
+        <Button variant="ghost" size="sm" onClick={() => onAction('clone', agent)} title="Clone">
           <Copy className="h-3 w-3" />
-        </button>
+        </Button>
         <div className="flex-1" />
-        <button
-          onClick={() => onAction('delete', agent)}
-          className="flex items-center gap-1 px-2 py-1 text-xs rounded hover:bg-destructive/10 transition-colors text-destructive"
-          title="Delete"
-        >
+        <Button variant="ghost" size="sm" onClick={() => onAction('delete', agent)} title="Delete" className="text-red-400 hover:bg-red-500/10">
           <Trash2 className="h-3 w-3" />
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   )
 }
 
 function CapabilityBanner({ onDismiss }: { onDismiss: () => void }) {
   const { t } = useTranslation()
   return (
-    <div className="mx-6 mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 relative">
+    <div className="mx-6 mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4 relative shadow-glow-orange">
       <button
         onClick={onDismiss}
-        className="absolute top-2 right-2 p-1 rounded hover:bg-primary/10 text-muted-foreground"
+        className="absolute top-2 right-2 p-1 rounded hover:bg-primary/10 text-muted-foreground transition-colors"
         title={t('agents.banner.hide')}
       >
         <XIcon className="h-3.5 w-3.5" />
       </button>
       <div className="flex items-start gap-3">
-        <div className="shrink-0 h-9 w-9 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+        <div className="shrink-0 h-9 w-9 rounded-full bg-primary/10 border border-primary/40 flex items-center justify-center">
           <Sparkles className="h-4 w-4 text-primary" />
         </div>
         <div className="flex-1 min-w-0 pr-6">
-          <h2 className="text-sm font-semibold mb-1">{t('agents.banner.title')}</h2>
+          <h2 className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary mb-1">
+            [ {t('agents.banner.title').toUpperCase()} ]
+          </h2>
           <p className="text-xs text-muted-foreground leading-relaxed">{t('agents.banner.body')}</p>
         </div>
       </div>
@@ -153,28 +143,24 @@ function HowItWorks({ onCreate }: { onCreate: () => void }) {
   ]
   return (
     <div className="flex flex-col items-center justify-center py-10 px-6">
-      <Bot className="h-12 w-12 mb-3 text-muted-foreground/40" />
+      <Bot className="h-12 w-12 mb-3 text-muted-foreground/40" strokeWidth={1.5} />
       <p className="text-sm font-medium mb-1">{t('agents.empty')}</p>
       <p className="text-xs text-muted-foreground mb-6">{t('agents.howItWorks.title')}</p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 max-w-3xl w-full mb-6">
         {steps.map((s) => (
-          <div key={s.n} className="rounded-md border border-border bg-card p-4">
-            <div className="h-6 w-6 rounded-full bg-primary/10 border border-primary/30 text-primary text-xs font-semibold flex items-center justify-center mb-2">
+          <Card key={s.n} variant="elevated" className="p-4">
+            <div className="h-6 w-6 rounded-full bg-primary/10 border border-primary/40 text-primary font-mono text-xs font-semibold flex items-center justify-center mb-2 tabular-nums">
               {s.n}
             </div>
             <p className="text-xs text-muted-foreground leading-relaxed">{s.body}</p>
-          </div>
+          </Card>
         ))}
       </div>
 
-      <button
-        onClick={onCreate}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors"
-      >
-        <Plus className="h-4 w-4" />
+      <Button size="lg" onClick={onCreate} icon={<Plus className="h-4 w-4" />}>
         {t('agents.createFirst', 'Create your first agent')}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -203,88 +189,88 @@ function CreateAgentDialog({ onClose, onCreate }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-6 w-[420px] shadow-lg" onClick={e => e.stopPropagation()}>
-        <h2 className="text-lg font-semibold mb-4">{t('agents.createTitle', 'Create Agent')}</h2>
+    <Modal
+      open
+      onClose={onClose}
+      title={t('agents.createTitle', 'Create Agent')}
+      icon={Bot}
+      size="md"
+      footer={
+        <>
+          <Button variant="secondary" size="sm" onClick={onClose}>
+            {t('ui.cancel', 'Cancel')}
+          </Button>
+          <Button
+            size="sm"
+            disabled={!name.trim()}
+            onClick={(e) => { e.preventDefault(); handleSubmit(e as any) }}
+            icon={<Plus className="h-3.5 w-3.5" />}
+          >
+            {t('agents.create', 'Create')}
+          </Button>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-sm text-muted-foreground">{t('agents.name', 'Name')}</label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder={t('agents.namePlaceholder', 'e.g. Frontend Reviewer')}
+            className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            autoFocus
+          />
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-sm text-muted-foreground">{t('agents.name', 'Name')}</label>
+            <label className="text-sm text-muted-foreground">{t('agents.icon', 'Icon')}</label>
             <input
               type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder={t('agents.namePlaceholder', 'e.g. Frontend Reviewer')}
+              value={icon}
+              onChange={e => setIcon(e.target.value)}
               className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-              autoFocus
+              maxLength={4}
             />
           </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-muted-foreground">{t('agents.icon', 'Icon')}</label>
-              <input
-                type="text"
-                value={icon}
-                onChange={e => setIcon(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
-                maxLength={4}
-              />
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground">{t('agents.tool', 'Tool')}</label>
-              <select
-                value={toolType}
-                onChange={e => setToolType(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
-              >
-                {TOOL_OPTIONS.map(t => (
-                  <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <div>
-            <label className="text-sm text-muted-foreground">{t('agents.model', 'Model')}</label>
-            <input
-              type="text"
-              value={modelId}
-              onChange={e => setModelId(e.target.value)}
-              className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-muted-foreground">{t('agents.tags', 'Tags (comma-separated)')}</label>
-            <input
-              type="text"
-              value={tags}
-              onChange={e => setTags(e.target.value)}
-              placeholder="dev, review, frontend"
-              className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm rounded-md border border-border hover:bg-muted transition-colors"
+            <label className="text-sm text-muted-foreground">{t('agents.tool', 'Tool')}</label>
+            <select
+              value={toolType}
+              onChange={e => setToolType(e.target.value)}
+              className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              {t('ui.cancel', 'Cancel')}
-            </button>
-            <button
-              type="submit"
-              disabled={!name.trim()}
-              className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {t('agents.create', 'Create')}
-            </button>
+              {TOOL_OPTIONS.map(t => (
+                <option key={t.value} value={t.value}>{t.icon} {t.label}</option>
+              ))}
+            </select>
           </div>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <div>
+          <label className="text-sm text-muted-foreground">{t('agents.model', 'Model')}</label>
+          <input
+            type="text"
+            value={modelId}
+            onChange={e => setModelId(e.target.value)}
+            className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+
+        <div>
+          <label className="text-sm text-muted-foreground">{t('agents.tags', 'Tags (comma-separated)')}</label>
+          <input
+            type="text"
+            value={tags}
+            onChange={e => setTags(e.target.value)}
+            placeholder="dev, review, frontend"
+            className="mt-1 w-full px-3 py-2 rounded-md border border-border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+        </div>
+      </form>
+    </Modal>
   )
 }
 
@@ -394,13 +380,9 @@ export function AgentsPage() {
             {t('agents.subtitle', 'Manage your AI assistant fleet')}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
+        <Button onClick={() => setShowCreate(true)} icon={<Plus className="h-4 w-4" />}>
           {t('agents.new', 'New Agent')}
-        </button>
+        </Button>
       </div>
 
       {/* Capability banner — dismissible, persists across reloads via localStorage. */}
@@ -408,10 +390,10 @@ export function AgentsPage() {
 
       {/* Stats bar */}
       <div className="px-6 py-3 border-b border-border flex items-center gap-4 text-xs">
-        <span className="text-muted-foreground">{t('agents.total', 'Total')}: <strong>{stats.total}</strong></span>
-        <span className="text-green-500">● {stats.running} {t('agents.running', 'running')}</span>
-        <span className="text-yellow-500">● {stats.stopped + stats.created} {t('agents.idle', 'idle')}</span>
-        {stats.error > 0 && <span className="text-red-500">● {stats.error} {t('agents.errors', 'errors')}</span>}
+        <span className="text-muted-foreground font-mono">{t('agents.total', 'Total')}: <strong className="tabular-nums">{stats.total}</strong></span>
+        <span className="text-emerald-400 font-mono">● <span className="tabular-nums">{stats.running}</span> {t('agents.running', 'running')}</span>
+        <span className="text-amber-400 font-mono">● <span className="tabular-nums">{stats.stopped + stats.created}</span> {t('agents.idle', 'idle')}</span>
+        {stats.error > 0 && <span className="text-red-400 font-mono">● <span className="tabular-nums">{stats.error}</span> {t('agents.errors', 'errors')}</span>}
 
         <div className="flex-1" />
 
@@ -419,7 +401,7 @@ export function AgentsPage() {
         <select
           value={filter}
           onChange={e => setFilter(e.target.value)}
-          className="px-2 py-1 rounded border border-border bg-background text-xs"
+          className="px-2 py-1 rounded border border-border bg-background text-xs focus:outline-none focus:ring-1 focus:ring-primary"
         >
           <option value="all">{t('agents.filterAll', 'All')}</option>
           <option value="running">{t('agents.filterRunning', 'Running')}</option>
@@ -428,13 +410,14 @@ export function AgentsPage() {
           <option value="error">{t('agents.filterError', 'Error')}</option>
         </select>
 
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => { loadAgents(); loadStats() }}
-          className="p-1 rounded hover:bg-muted transition-colors"
           title={t('ui.refresh', 'Refresh')}
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+          loading={loading}
+          icon={!loading ? <RefreshCw className="h-3.5 w-3.5" /> : undefined}
+        />
       </div>
 
       {/* Agent grid */}
@@ -460,10 +443,8 @@ export function AgentsPage() {
         )}
       </div>
 
-      {/* Create dialog */}
-      {showCreate && (
-        <CreateAgentDialog onClose={() => setShowCreate(false)} onCreate={handleCreate} />
-      )}
+      {/* Create dialog — Modal handles its own mount/unmount via AnimatePresence */}
+      {showCreate && <CreateAgentDialog onClose={() => setShowCreate(false)} onCreate={handleCreate} />}
 
       {/* Detail drawer */}
       <AgentDetailDrawer

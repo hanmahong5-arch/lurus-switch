@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Severity ranks how seriously the operator should treat a match.
@@ -88,11 +89,28 @@ type Result struct {
 	Redacted string `json:"redacted"`
 }
 
+// HitRecord is a recorded hit + the context where it was caught. The
+// scanner keeps a small ring of recent hits so the admin UI can show
+// "what got blocked / redacted in the last hour" without a separate
+// audit pipeline. For long-term forensic audit, the journal package is
+// the right tool — this ring is for at-a-glance observability.
+type HitRecord struct {
+	Timestamp time.Time `json:"timestamp"`
+	Source    string    `json:"source"` // "gateway.request" / "test" / etc.
+	Path      string    `json:"path"`   // e.g. "/v1/chat/completions"
+	Hit       Hit       `json:"hit"`
+}
+
+// hitRingSize bounds memory for the recent-hits ring. 200 is enough to
+// cover the last few minutes of a busy gateway without hogging RAM.
+const hitRingSize = 200
+
 // Scanner holds the active set of patterns. Use NewScanner() with the
 // curated defaults, then Add() / Remove() to customize per deployment.
 type Scanner struct {
 	mu       sync.RWMutex
 	patterns []*Pattern
+	hits     []HitRecord // most-recent first; capped at hitRingSize
 }
 
 // NewScanner returns a Scanner pre-populated with default patterns.
@@ -278,4 +296,69 @@ func policyRank(p Policy) int {
 	default:
 		return 0
 	}
+}
+
+// RecordHits stamps a list of hits with the given source/path metadata
+// and pushes them into the ring buffer for later observability calls.
+// Safe to invoke with zero hits — no-op in that case.
+func (s *Scanner) RecordHits(source, path string, hits []Hit) {
+	if len(hits) == 0 {
+		return
+	}
+	now := time.Now()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, h := range hits {
+		s.hits = append([]HitRecord{{
+			Timestamp: now,
+			Source:    source,
+			Path:      path,
+			Hit:       h,
+		}}, s.hits...)
+	}
+	if len(s.hits) > hitRingSize {
+		s.hits = s.hits[:hitRingSize]
+	}
+}
+
+// RecentHits returns up to limit most-recent hit records (newest first).
+// limit ≤ 0 returns all available.
+func (s *Scanner) RecentHits(limit int) []HitRecord {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if limit <= 0 || limit > len(s.hits) {
+		limit = len(s.hits)
+	}
+	out := make([]HitRecord, limit)
+	copy(out, s.hits[:limit])
+	return out
+}
+
+// HitStats summarizes the recent ring for the admin dashboard tile.
+type HitStats struct {
+	Total       int            `json:"total"`
+	BySeverity  map[string]int `json:"bySeverity"`
+	ByPolicy    map[string]int `json:"byPolicy"`
+	ByPattern   map[string]int `json:"byPattern"`
+	BySource    map[string]int `json:"bySource"`
+}
+
+// Stats returns counters across the entire recent-hit ring.
+func (s *Scanner) Stats() HitStats {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := HitStats{
+		BySeverity: make(map[string]int),
+		ByPolicy:   make(map[string]int),
+		ByPattern:  make(map[string]int),
+		BySource:   make(map[string]int),
+	}
+	out.Total = len(s.hits)
+	for _, r := range s.hits {
+		out.BySeverity[string(r.Hit.Severity)]++
+		out.ByPolicy[string(r.Hit.Policy)]++
+		out.ByPattern[r.Hit.PatternName]++
+		out.BySource[r.Source]++
+	}
+	return out
 }

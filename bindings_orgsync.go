@@ -149,3 +149,19 @@ func (a *App) FindEmployeeByEmail(email string) (*orgsync.Employee, error) {
 	}
 	return e, nil
 }
+
+// ImportEmployeesCSV bulk-loads employees from a pasted CSV string.
+// Behaves as SCIM-lite: existing employees by email are updated,
+// new ones are created. Per-row errors are collected, not raised —
+// admins fix the rows and re-paste. Gated on CapUserCreate since
+// import can grant access to many people at once.
+func (a *App) ImportEmployeesCSV(content string, defaultDeptID string) (orgsync.CSVImportResult, error) {
+	if err := capability.RequireCurrent(capability.CapUserCreate); err != nil {
+		return orgsync.CSVImportResult{}, err
+	}
+	store, err := a.orgsyncStore()
+	if err != nil {
+		return orgsync.CSVImportResult{}, err
+	}
+	return store.ImportEmployeesCSV(content, defaultDeptID)
+}

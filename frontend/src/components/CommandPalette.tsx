@@ -5,6 +5,7 @@ import {
   Search, Download, Play, Square, Link2, Wrench, Activity,
   Home, Settings, Briefcase, CreditCard, Radio, Terminal, Wallet,
   Loader2, ArrowLeft, ArrowRight, Clock, ShieldAlert,
+  Layers, Key, Gift, FileText, Coins, Building2, Network, Box, User, Undo2,
   Camera, UserCog, Users, KeyRound, Building,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -21,6 +22,8 @@ import { goBack, goForward } from '../lib/navigation'
 import { toolLabel, subTabLabel } from '../lib/navLabels'
 import { useHomeStore } from '../stores/homeStore'
 import { useToastStore } from '../stores/toastStore'
+import { useAuditStore } from '../stores/auditStore'
+import { pickLatestUndoableEntry } from '../lib/auditUndoSelector'
 import { useActivityStore } from '../stores/activityStore'
 import { useSnapshotsHubStore } from '../stores/snapshotsHubStore'
 import {
@@ -341,11 +344,116 @@ export function CommandPalette() {
       action: () => { goForward() },
     },
     { id: 'go-home', labelKey: 'commandPalette.commands.goHome', keywords: ['home', 'dashboard'], category: 'navigate', icon: Home, action: () => setActiveTool('home') },
+    { id: 'go-conversations', labelKey: 'commandPalette.commands.goConversations', keywords: ['conversations', 'sessions', 'history', 'jsonl', 'replay'], category: 'navigate', icon: Activity, action: () => setActiveTool('conversations') },
     { id: 'go-tools', labelKey: 'commandPalette.commands.goTools', keywords: ['tools', 'config'], category: 'navigate', icon: Wrench, action: () => setActiveTool('tools') },
     { id: 'go-gateway', labelKey: 'commandPalette.commands.goGateway', keywords: ['gateway', 'server'], category: 'navigate', icon: Radio, action: () => setActiveTool('gateway') },
     { id: 'go-workspace', labelKey: 'commandPalette.commands.goWorkspace', keywords: ['workspace', 'prompts', 'context'], category: 'navigate', icon: Briefcase, action: () => setActiveTool('workspace') },
     { id: 'go-account', labelKey: 'commandPalette.commands.goAccount', keywords: ['account', 'billing', 'balance'], category: 'navigate', icon: CreditCard, action: () => setActiveTool('account') },
     { id: 'go-settings', labelKey: 'commandPalette.commands.goSettings', keywords: ['settings', 'preferences', 'theme'], category: 'navigate', icon: Settings, action: () => setActiveTool('settings') },
+    // Connected Apps + governance — high-traffic landing pages that
+    // were previously only reachable via the sidebar.
+    {
+      id: 'go-connected-apps', labelKey: 'commandPalette.commands.goConnectedApps',
+      keywords: ['apps', 'connected', 'register', 'owner', 'bind', 'chargeback', '应用', '绑定', '归属'],
+      category: 'navigate', icon: User,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'apps') },
+    },
+    {
+      id: 'go-chargeback', labelKey: 'commandPalette.commands.goChargeback',
+      keywords: ['chargeback', 'cost', 'billing', 'department', 'employee', '成本', '归集', '分摊'],
+      category: 'navigate', icon: Coins,
+      action: () => setActiveTool('chargeback'),
+    },
+    {
+      id: 'go-orgchart', labelKey: 'commandPalette.commands.goOrgChart',
+      keywords: ['org', 'chart', 'employee', 'department', 'csv', '组织架构', '员工', '部门'],
+      category: 'navigate', icon: Building2,
+      action: () => setActiveTool('orgchart'),
+    },
+    {
+      id: 'go-dlp', labelKey: 'commandPalette.commands.goDlp',
+      keywords: ['dlp', 'leak', 'redact', 'sensitive', '敏感', '脱敏', '泄露'],
+      category: 'navigate', icon: ShieldAlert,
+      action: () => setActiveTool('dlp'),
+    },
+    {
+      id: 'go-agent-templates', labelKey: 'commandPalette.commands.goAgentTemplates',
+      keywords: ['agent', 'template', 'gallery', 'preset', '模板', '画廊'],
+      category: 'navigate', icon: Briefcase,
+      action: () => setActiveTool('agent-templates'),
+    },
+    {
+      id: 'go-promotion', labelKey: 'commandPalette.commands.goPromotion',
+      keywords: ['promotion', 'promoter', 'referral', 'invite', '推广', '分销'],
+      category: 'navigate', icon: Activity,
+      action: () => setActiveTool('promotion'),
+    },
+    {
+      id: 'go-packager', labelKey: 'commandPalette.commands.goPackager',
+      keywords: ['packager', 'package', 'whitelabel', 'enduser', 'distributor', '打包', '白标'],
+      category: 'navigate', icon: Box,
+      action: () => setActiveTool('packager'),
+    },
+    // newapi admin sub-tabs — only meaningful in Reseller (admin scope),
+    // but the palette is mode-agnostic; in Personal/EndUser these will
+    // route through GatewayRequiredGuard which renders a no-access tile.
+    {
+      id: 'go-relay', labelKey: 'commandPalette.commands.goRelay',
+      keywords: ['relay', 'proxy', 'forward', 'mcp', '中转'],
+      category: 'navigate', icon: Network,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'relay') },
+    },
+    {
+      id: 'go-channels', labelKey: 'commandPalette.commands.goChannels',
+      keywords: ['channels', 'upstream', 'provider', 'newapi', '渠道', '上游'],
+      category: 'navigate', icon: Layers,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'channels') },
+    },
+    {
+      id: 'go-tokens', labelKey: 'commandPalette.commands.goTokens',
+      keywords: ['tokens', 'api key', 'sk-', 'newapi', '令牌'],
+      category: 'navigate', icon: Key,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'tokens') },
+    },
+    {
+      id: 'go-redemptions', labelKey: 'commandPalette.commands.goRedemptions',
+      keywords: ['redemption', 'redeem', 'code', 'voucher', 'newapi', '兑换码'],
+      category: 'navigate', icon: Gift,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'redemptions') },
+    },
+    {
+      id: 'go-logs', labelKey: 'commandPalette.commands.goLogs',
+      keywords: ['logs', 'log', 'request', 'history', 'newapi', '日志'],
+      category: 'navigate', icon: FileText,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'logs') },
+    },
+    {
+      id: 'go-audit', labelKey: 'commandPalette.commands.goAudit',
+      keywords: ['audit', 'journal', 'history', 'undo', '审计'],
+      category: 'navigate', icon: Activity,
+      action: () => { setActiveTool('gateway'); setSubTab('gateway', 'system') },
+    },
+    // Action: undo most recent reversible audit entry. Picks the latest
+    // ok-outcome reversible non-undone entry from the audit store. If
+    // the store hasn't loaded, refresh once before searching.
+    {
+      id: 'undo-last-audit', labelKey: 'commandPalette.commands.undoLastAudit',
+      keywords: ['undo', 'revert', 'last', 'rollback', 'audit', '撤销', '回滚', '上一步'],
+      category: 'action', icon: Undo2,
+      action: async () => {
+        const audit = useAuditStore.getState()
+        if (audit.entries.length === 0) {
+          await audit.load()
+        }
+        const latest = pickLatestUndoableEntry(useAuditStore.getState().entries)
+        if (!latest) {
+          toast('warning', t('commandPalette.undoNothing', '没有可撤销的最近审计条目'))
+          return
+        }
+        await useAuditStore.getState().undo(latest.id)
+        toast('success', t('commandPalette.undoDone', '已撤销 {{op}}', { op: latest.operation }))
+      },
+    },
     // Launch
     ...(['claude', 'codex', 'gemini'] as const).map((name) => ({
       id: `launch-${name}`,
@@ -358,7 +466,7 @@ export function CommandPalette() {
         toast('success', `${toolMeta[name].label} launched`)
       },
     })),
-  ], [t, toast, setActiveTool, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour, openActivityDrawer, openSnapshotsHub])
+  ], [t, toast, setActiveTool, setSubTab, refreshTools, recentCommands, openRepoAudit, openBashGuard, openBudget, openFeatureTour, openActivityDrawer, openSnapshotsHub])
 
   const filtered = useMemo(() => {
     if (!query.trim()) return commands
@@ -428,9 +536,9 @@ export function CommandPalette() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/50 z-50 animate-in fade-in-0" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 animate-in fade-in-0" />
         <Dialog.Content
-          className="fixed left-1/2 top-[20%] -translate-x-1/2 w-full max-w-lg bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in-0 slide-in-from-top-4"
+          className="fixed left-1/2 top-[20%] -translate-x-1/2 w-full max-w-lg bg-card-elevated border border-rule-strong rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in-0 slide-in-from-top-4"
           onOpenAutoFocus={(e) => { e.preventDefault(); inputRef.current?.focus() }}
           aria-describedby={undefined}
         >
@@ -441,9 +549,9 @@ export function CommandPalette() {
           {/* Search input */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
             {running ? (
-              <Loader2 className="h-4 w-4 text-muted-foreground animate-spin shrink-0" />
+              <Loader2 className="h-4 w-4 text-primary animate-spin shrink-0" />
             ) : (
-              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Search className="h-4 w-4 text-primary shrink-0" />
             )}
             <input
               ref={inputRef}
@@ -451,11 +559,11 @@ export function CommandPalette() {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('commandPalette.placeholder')}
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground font-mono"
               autoComplete="off"
               spellCheck={false}
             />
-            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground bg-muted rounded border border-border">
+            <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono uppercase tracking-[0.08em] text-muted-foreground bg-card-recessed rounded border border-border">
               ESC
             </kbd>
           </div>
@@ -463,30 +571,33 @@ export function CommandPalette() {
           {/* Results */}
           <div ref={listRef} className="max-h-[320px] overflow-y-auto py-2">
             {flatList.length === 0 ? (
-              <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-                {t('commandPalette.noResults')}
+              <p className="px-4 py-6 text-sm text-muted-foreground text-center font-mono">
+                ▪ {t('commandPalette.noResults')}
               </p>
             ) : (
               groups.map(({ category, items }) => (
                 <div key={category}>
-                  <p className="px-4 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                    {t(`commandPalette.categories.${category}`)}
+                  <p className="px-4 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    [ {t(`commandPalette.categories.${category}`).toUpperCase()} ]
                   </p>
                   {items.map(({ cmd, flatIdx }) => {
                     const Icon = cmd.icon
+                    const isActive = flatIdx === activeIndex
                     return (
                       <button
                         key={cmd.id}
                         data-index={flatIdx}
                         onClick={() => execute(cmd)}
                         className={cn(
-                          'w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors',
-                          flatIdx === activeIndex ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted/50'
+                          'w-full flex items-center gap-3 px-4 py-2 text-left transition-all duration-150 border-l-2',
+                          isActive
+                            ? 'bg-primary/15 text-primary border-primary font-mono text-xs tracking-[0.06em]'
+                            : 'text-foreground/80 hover:bg-muted/60 hover:text-foreground border-transparent text-sm',
                         )}
                         onMouseEnter={() => setActiveIndex(flatIdx)}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
-                        <span className="flex-1 truncate">{cmd.rawLabel ?? t(cmd.labelKey)}</span>
+                        <span className="flex-1 truncate">{isActive ? `▸ ${cmd.rawLabel ?? t(cmd.labelKey)}` : (cmd.rawLabel ?? t(cmd.labelKey))}</span>
                       </button>
                     )
                   })}
@@ -496,13 +607,13 @@ export function CommandPalette() {
           </div>
 
           {/* Footer hint */}
-          <div className="flex items-center gap-4 px-4 py-2 border-t border-border text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-4 px-4 py-2 border-t border-border text-[10px] text-muted-foreground font-mono">
             <span className="flex items-center gap-1">
-              <kbd className="px-1 py-0.5 bg-muted rounded border border-border">↑↓</kbd>
+              <kbd className="px-1 py-0.5 bg-card-recessed rounded border border-border tabular-nums">↑↓</kbd>
               {t('commandPalette.navigate')}
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="px-1 py-0.5 bg-muted rounded border border-border">↵</kbd>
+              <kbd className="px-1 py-0.5 bg-card-recessed rounded border border-border tabular-nums">↵</kbd>
               {t('commandPalette.execute')}
             </span>
           </div>

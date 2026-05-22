@@ -26,11 +26,18 @@ type UserInfo struct {
 }
 
 // AuthState represents the current authentication state for the frontend.
+//
+// Platform carries Lurus-platform-specific identity + billing data
+// (LurusID, wallet balance, VIP tier). It's nil when the platform
+// /api/v1/account/me call hasn't succeeded yet (network failure, /me
+// disabled in self-hosted Zitadel deployments). The OIDC User field
+// is always populated when IsLoggedIn — Platform is best-effort.
 type AuthState struct {
-	IsLoggedIn      bool      `json:"is_logged_in"`
-	User            *UserInfo `json:"user,omitempty"`
-	ExpiresAt       string    `json:"expires_at,omitempty"`
-	HasGatewayToken bool      `json:"has_gateway_token"`
+	IsLoggedIn      bool             `json:"is_logged_in"`
+	User            *UserInfo        `json:"user,omitempty"`
+	Platform        *PlatformAccount `json:"platform,omitempty"`
+	ExpiresAt       string           `json:"expires_at,omitempty"`
+	HasGatewayToken bool             `json:"has_gateway_token"`
 }
 
 // Session manages token lifecycle and persistence.
@@ -38,6 +45,7 @@ type Session struct {
 	mu            sync.RWMutex
 	tokens        *storedTokens
 	user          *UserInfo
+	platform      *PlatformAccount
 	filePath      string
 	encryptionKey []byte
 }
@@ -51,6 +59,17 @@ type storedTokens struct {
 	// Lurus gateway provisioned credentials.
 	GatewayToken  string `json:"gateway_token,omitempty"`
 	GatewayUserID int    `json:"gateway_user_id,omitempty"`
+
+	// CachedUser is the /userinfo-enriched profile captured at login or
+	// last refresh. Stored so a reload-from-disk doesn't have to make a
+	// fresh /userinfo round-trip; id_token decode is the fallback when
+	// this is nil (legacy auth.enc files written before Wave Switch-UX).
+	CachedUser *UserInfo `json:"cached_user,omitempty"`
+
+	// CachedPlatform is the /api/v1/account/me + /api/v1/wallet snapshot
+	// captured at login. Refreshed on demand (FetchPlatformAccount can
+	// be called any time the UI wants up-to-date balance). Nil-safe.
+	CachedPlatform *PlatformAccount `json:"cached_platform,omitempty"`
 }
 
 // NewSession creates a session manager with encrypted file storage.
@@ -83,12 +102,16 @@ func (s *Session) StoreTokens(resp *TokenResponse) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	// Preserve existing gateway credentials across token refreshes.
+	// Preserve gateway credentials + cached profile across token refreshes.
+	// Refresh flows don't re-call /userinfo so we'd lose the avatar/name
+	// the user sees in the panel if we dropped the cache here.
 	var gwToken string
 	var gwUserID int
+	var cachedUser *UserInfo
 	if s.tokens != nil {
 		gwToken = s.tokens.GatewayToken
 		gwUserID = s.tokens.GatewayUserID
+		cachedUser = s.tokens.CachedUser
 	}
 
 	s.tokens = &storedTokens{
@@ -98,13 +121,28 @@ func (s *Session) StoreTokens(resp *TokenResponse) error {
 		ExpiresAt:     time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second),
 		GatewayToken:  gwToken,
 		GatewayUserID: gwUserID,
+		CachedUser:    cachedUser,
 	}
 
-	if resp.IDToken != "" {
+	// Prefer /userinfo (always-populated profile) over id_token claim
+	// decode (Zitadel default omits name/email/picture from id_token).
+	// id_token decode remains as a fallback when /userinfo failed.
+	switch {
+	case resp.UserInfo != nil:
+		s.user = resp.UserInfo
+		s.tokens.CachedUser = resp.UserInfo
+	case resp.IDToken != "":
 		if u, err := decodeIDToken(resp.IDToken); err == nil {
 			s.user = u
+			s.tokens.CachedUser = u
 		}
 	}
+
+	// Preserve any prior platform snapshot — caller refreshes via
+	// FetchPlatformAccount after StoreTokens succeeds (the platform
+	// call needs a populated access_token from THIS very response, so
+	// it has to be invoked from outside under the new token's scope).
+	s.tokens.CachedPlatform = s.platform
 
 	return s.save()
 }
@@ -121,9 +159,25 @@ func (s *Session) GetAuthState() AuthState {
 	return AuthState{
 		IsLoggedIn:      true,
 		User:            s.user,
+		Platform:        s.platform,
 		ExpiresAt:       s.tokens.ExpiresAt.Format(time.RFC3339),
 		HasGatewayToken: s.tokens.GatewayToken != "",
 	}
+}
+
+// SetPlatformAccount records the platform-core /api/v1/account/me
+// snapshot for surface display. Persists alongside tokens so the UI
+// stays populated across restarts. Nil-safe — calling with nil clears
+// the cached state (used after Logout or when /me returns 401).
+func (s *Session) SetPlatformAccount(p *PlatformAccount) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.platform = p
+	if s.tokens != nil {
+		s.tokens.CachedPlatform = p
+		return s.save()
+	}
+	return nil
 }
 
 // GetAccessToken returns the current access token.
@@ -201,6 +255,7 @@ func (s *Session) Clear() error {
 	defer s.mu.Unlock()
 	s.tokens = nil
 	s.user = nil
+	s.platform = nil
 	_ = os.Remove(s.filePath)
 	return nil
 }
@@ -237,10 +292,16 @@ func (s *Session) load() error {
 	}
 
 	s.tokens = &tokens
-	if tokens.IDToken != "" {
+	switch {
+	case tokens.CachedUser != nil:
+		s.user = tokens.CachedUser
+	case tokens.IDToken != "":
 		if u, err := decodeIDToken(tokens.IDToken); err == nil {
 			s.user = u
 		}
+	}
+	if tokens.CachedPlatform != nil {
+		s.platform = tokens.CachedPlatform
 	}
 
 	return nil

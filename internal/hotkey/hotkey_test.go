@@ -216,6 +216,72 @@ func TestDefaultBindings(t *testing.T) {
 	if _, ok := b["showWindow"]; !ok {
 		t.Error("DefaultBindings missing 'showWindow'")
 	}
+	if _, ok := b["show-live"]; !ok {
+		t.Error("DefaultBindings missing 'show-live'")
+	}
+}
+
+// TestDefaultBindings_ShowLive_ParsesCleanly guards against a typo in the
+// default chord — we want the parser to accept it on the current platform
+// without an ErrInvalidKey surprise the first time a user runs the app.
+func TestDefaultBindings_ShowLive_ParsesCleanly(t *testing.T) {
+	shortcut, ok := DefaultBindings()["show-live"]
+	if !ok {
+		t.Fatal("show-live missing from defaults")
+	}
+	if _, err := parseShortcut(shortcut); err != nil {
+		t.Fatalf("default show-live shortcut %q failed to parse: %v", shortcut, err)
+	}
+}
+
+// TestLoadBindings_BackfillsShowLive verifies the idempotent migration: an
+// existing user whose hotkey.json predates show-live should pick it up on
+// the next launch without losing their other customizations.
+func TestLoadBindings_BackfillsShowLive(t *testing.T) {
+	dir := t.TempDir()
+	legacy := Bindings{
+		"quickSwitch": "Ctrl+Alt+Q",
+		"showWindow":  "Ctrl+Shift+W",
+	}
+	if err := saveBindings(dir, legacy); err != nil {
+		t.Fatal(err)
+	}
+	b, err := loadBindings(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if b["quickSwitch"] != "Ctrl+Alt+Q" {
+		t.Errorf("back-fill clobbered user customization: got %q", b["quickSwitch"])
+	}
+	got, ok := b["show-live"]
+	if !ok {
+		t.Fatal("loadBindings should back-fill 'show-live' from defaults")
+	}
+	if got != DefaultBindings()["show-live"] {
+		t.Errorf("back-fill value mismatch: got %q want %q", got, DefaultBindings()["show-live"])
+	}
+}
+
+// TestLoadBindings_PreservesCustomShowLive guards against the back-fill
+// regressing: if the user already rebound show-live, we must NOT overwrite
+// their value with the default.
+func TestLoadBindings_PreservesCustomShowLive(t *testing.T) {
+	dir := t.TempDir()
+	custom := Bindings{
+		"quickSwitch": "Ctrl+Shift+S",
+		"showWindow":  "Ctrl+Shift+W",
+		"show-live":   "Ctrl+Alt+L",
+	}
+	if err := saveBindings(dir, custom); err != nil {
+		t.Fatal(err)
+	}
+	b, err := loadBindings(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if b["show-live"] != "Ctrl+Alt+L" {
+		t.Errorf("custom show-live overwritten: got %q want %q", b["show-live"], "Ctrl+Alt+L")
+	}
 }
 
 func TestLoadBindings_MissingFile_ReturnsDefaults(t *testing.T) {

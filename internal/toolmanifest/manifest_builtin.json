@@ -4,22 +4,41 @@
     "claude": {
       "type": "npm",
       "npm_package": "@anthropic-ai/claude-code",
-      "latest_version": "1.0.26"
+      "latest_version": "1.0.26",
+      "status": "stable"
     },
     "codex": {
       "type": "npm",
       "npm_package": "@openai/codex",
-      "latest_version": "0.1.2505161344"
+      "latest_version": "0.1.2505161344",
+      "status": "stable"
     },
     "gemini": {
       "type": "npm",
       "npm_package": "@google/gemini-cli",
-      "latest_version": "0.1.9"
+      "latest_version": "0.1.9",
+      "status": "stable"
     },
     "openclaw": {
       "type": "npm",
       "npm_package": "openclaw",
-      "latest_version": "1.0.0"
+      "latest_version": "1.0.0",
+      "status": "stable"
+    },
+    "nullclaw": {
+      "type": "binary",
+      "latest_version": "",
+      "status": "coming-soon"
+    },
+    "picoclaw": {
+      "type": "binary",
+      "latest_version": "",
+      "status": "coming-soon"
+    },
+    "zeroclaw": {
+      "type": "binary",
+      "latest_version": "",
+      "status": "coming-soon"
     }
   }
 }

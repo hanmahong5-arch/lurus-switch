@@ -53,6 +53,18 @@ type CostCenterSummary struct {
 	UniqueEmps int    `json:"uniqueEmployees"` // distinct employee IDs in the bucket
 }
 
+// EmployeeSummary aggregates per-employee usage for the second view
+// of the chargeback dashboard. The CostCenter field is included so
+// the UI can color-band employees by department without a second
+// lookup.
+type EmployeeSummary struct {
+	EmployeeID string `json:"employeeId"`
+	CostCenter string `json:"costCenter"`
+	TotalCalls int64  `json:"totalCalls"`
+	TokensIn   int64  `json:"tokensIn"`
+	TokensOut  int64  `json:"tokensOut"`
+}
+
 // ModelSummary aggregates usage by model for a time range.
 type ModelSummary struct {
 	Model      string `json:"model"`

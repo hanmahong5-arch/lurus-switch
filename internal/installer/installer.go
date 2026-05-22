@@ -117,6 +117,17 @@ func (m *Manager) InstallTool(ctx context.Context, name string) (*InstallResult,
 	mf := m.manifest
 	m.mu.Unlock()
 	if mf != nil {
+		// Short-circuit "coming-soon" tools so users see a friendly message
+		// instead of a raw GitHub 404 from a placeholder owner/repo. When the
+		// Lurus ops team uploads the real binary + flips status to "stable",
+		// this branch is skipped automatically.
+		if mf.IsComingSoon(name) {
+			return &InstallResult{
+				Tool:    name,
+				Success: false,
+				Message: fmt.Sprintf("%s 暂未发布稳定版 — Lurus 上架后在 Switch 中刷新即可一键安装", name),
+			}, nil
+		}
 		if latest := mf.GetLatestVersion(name); latest != "" {
 			if status, _ := inst.Detect(ctx); status != nil && status.Installed && status.Version == latest {
 				return &InstallResult{

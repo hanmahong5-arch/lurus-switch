@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useClassifiedError } from '../lib/useClassifiedError'
 import { InlineError } from '../components/InlineError'
+import { Button, Card, KpiCard } from '../components/ui'
 import { PromoterGetInfo } from '../../wailsjs/go/main/App'
 import { usePromoterStore, type PromoterInfo } from '../stores/promoterStore'
 
@@ -71,86 +72,61 @@ export function PromoterHubPage() {
         </div>
 
         {/* Promo Code Card */}
-        <div className="border border-border rounded-lg p-5 bg-card space-y-3">
-          <h3 className="text-sm font-medium">{t('promoter.affCode')}</h3>
+        <Card variant="elevated" className="p-5 space-y-3">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            [ {t('promoter.affCode').toUpperCase()} ]
+          </h3>
           <div className="flex items-center gap-3">
-            <code className="flex-1 px-4 py-2.5 rounded-md bg-muted text-lg font-mono tracking-widest">
+            <code className="flex-1 px-4 py-2.5 rounded-md bg-card-recessed text-lg font-mono tracking-widest tabular-nums">
               {info?.aff_code || '—'}
             </code>
-            <button
+            <Button
+              variant="secondary"
               onClick={handleCopyCode}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-colors',
-                'border border-border hover:bg-muted'
-              )}
-            >
-              {copied ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-            </button>
+              icon={copied ? <CheckCircle2 className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+            />
           </div>
-          <button
+          <Button
+            className="w-full justify-center"
             onClick={handleCopyLink}
-            className={cn(
-              'w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-              'bg-primary text-primary-foreground hover:bg-primary/90'
-            )}
+            icon={<Copy className="h-4 w-4" />}
           >
-            <Copy className="h-4 w-4" />
             {t('promoter.copyLink')}
-          </button>
+          </Button>
           {info?.share_link && (
-            <p className="text-xs text-muted-foreground truncate">{info.share_link}</p>
+            <p className="text-xs text-muted-foreground truncate font-mono tabular-nums">{info.share_link}</p>
           )}
-        </div>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-4">
-          <StatCard
+          <KpiCard
             icon={Users}
             label={t('promoter.totalReferrals')}
-            value={String(info?.total_referrals ?? 0)}
-            color="text-blue-500"
+            value={info?.total_referrals ?? 0}
           />
-          <StatCard
+          <KpiCard
             icon={DollarSign}
             label={t('promoter.totalEarned')}
-            value={`${(info?.total_earned ?? 0).toFixed(2)}`}
-            color="text-green-500"
+            value={`$${(info?.total_earned ?? 0).toFixed(2)}`}
           />
-          <StatCard
+          <KpiCard
             icon={Clock}
             label={t('promoter.pendingEarned')}
-            value={`${(info?.pending_earned ?? 0).toFixed(2)}`}
-            color="text-yellow-500"
+            value={`$${(info?.pending_earned ?? 0).toFixed(2)}`}
           />
         </div>
 
         {/* Gateway URL */}
-        <div className="border border-border rounded-lg p-5 bg-card space-y-3">
+        <Card variant="default" className="p-5 space-y-3">
           <h3 className="text-sm font-medium flex items-center gap-2">
-            <Globe className="h-4 w-4 text-muted-foreground" />
+            <Globe className="h-4 w-4 text-primary" />
             {t('promoter.gatewayUrl')}
           </h3>
           <p className="text-xs text-muted-foreground">{t('promoter.gatewayUrlDesc')}</p>
           <p className="text-xs text-muted-foreground">{t('promoter.gatewayUrlHint')}</p>
-        </div>
+        </Card>
       </div>
-    </div>
-  )
-}
-
-function StatCard({ icon: Icon, label, value, color }: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string
-  color: string
-}) {
-  return (
-    <div className="border border-border rounded-lg p-4 bg-card">
-      <div className="flex items-center gap-2 mb-2">
-        <Icon className={cn('h-4 w-4', color)} />
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </div>
-      <p className="text-xl font-semibold font-mono tabular-nums">{value}</p>
     </div>
   )
 }

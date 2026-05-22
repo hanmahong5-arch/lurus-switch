@@ -1,7 +1,7 @@
 import { useEffect, useCallback, useState } from 'react'
 import { Download, RefreshCw, Loader2, ArrowUpCircle, Trash2, Wand2, Zap, Repeat } from 'lucide-react'
 import { useTranslation, Trans } from 'react-i18next'
-import { cn } from '../lib/utils'
+import { Button, Card, EmptyState, Modal } from '../components/ui'
 import { errorToast } from '../lib/errorToast'
 import { withRetry } from '../lib/withRetry'
 import { useDashboardStore, type ToolStatus, type ProxySettings } from '../stores/dashboardStore'
@@ -344,102 +344,83 @@ export function DashboardPage() {
               {t('dashboard.subtitle')}
             </p>
           </div>
-          <button
+          <Button
+            variant="secondary"
             onClick={loadAll}
             disabled={detecting}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
-              'border border-border hover:bg-muted',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
+            loading={detecting}
+            icon={!detecting ? <RefreshCw className="h-4 w-4" /> : undefined}
           >
-            {detecting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4" />
-            )}
             {t('dashboard.refresh')}
-          </button>
+          </Button>
         </div>
 
         {/* Uninstall Confirmation Modal */}
-        {confirmUninstall && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-card border border-border rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl">
-              <div className="flex items-center gap-3 mb-4">
-                <Trash2 className="h-5 w-5 text-red-500" />
-                <h3 className="font-semibold">{t('dashboard.uninstallTitle', { tool: confirmUninstall })}</h3>
-              </div>
-              <p className="text-sm text-muted-foreground mb-6">
-                <Trans
-                  i18nKey="dashboard.uninstallDesc"
-                  values={{ tool: confirmUninstall }}
-                  components={{ bold: <strong /> }}
-                />
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setConfirmUninstall(null)}
-                  className="flex-1 px-4 py-2 rounded-md text-sm border border-border hover:bg-muted transition-colors"
-                >
-                  {t('dashboard.uninstallCancel')}
-                </button>
-                <button
-                  onClick={handleUninstallConfirm}
-                  className="flex-1 px-4 py-2 rounded-md text-sm bg-red-500 text-white hover:bg-red-600 transition-colors"
-                >
-                  {t('dashboard.uninstallConfirm')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        <Modal
+          open={!!confirmUninstall}
+          onClose={() => setConfirmUninstall(null)}
+          title={confirmUninstall ? t('dashboard.uninstallTitle', { tool: confirmUninstall }) : ''}
+          icon={Trash2}
+          size="sm"
+          footer={
+            <>
+              <Button variant="secondary" size="sm" onClick={() => setConfirmUninstall(null)}>
+                {t('dashboard.uninstallCancel')}
+              </Button>
+              <Button variant="danger" size="sm" onClick={handleUninstallConfirm}>
+                {t('dashboard.uninstallConfirm')}
+              </Button>
+            </>
+          }
+        >
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            <Trans
+              i18nKey="dashboard.uninstallDesc"
+              values={{ tool: confirmUninstall ?? '' }}
+              components={{ bold: <strong /> }}
+            />
+          </p>
+        </Modal>
 
         {/* Quota Widget */}
         <DashboardQuotaWidget />
 
         {/* Current Model */}
         {currentModel && (
-          <div className="flex items-center justify-between p-4 rounded-lg border border-border bg-card">
+          <Card variant="elevated" className="flex items-center justify-between p-4">
             <div className="flex items-center gap-3">
               <Zap className="h-5 w-5 text-primary" />
               <div>
                 <p className="text-sm font-medium">{t('dashboard.currentModel')}</p>
                 <p className="text-xs text-muted-foreground">
                   {catalogModels.find(m => m.id === currentModel)?.displayName || currentModel}
-                  <span className="ml-2 font-mono text-[10px]">{currentModel}</span>
+                  <span className="ml-2 font-mono text-[10px] tabular-nums">{currentModel}</span>
                 </p>
               </div>
             </div>
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setShowModelPicker(!showModelPicker)}
               disabled={switchingModel}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                'border border-border hover:bg-muted',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
+              loading={switchingModel}
+              icon={!switchingModel ? <Repeat className="h-3.5 w-3.5" /> : undefined}
             >
-              {switchingModel ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Repeat className="h-3.5 w-3.5" />
-              )}
               {t('dashboard.switchModel')}
-            </button>
-          </div>
+            </Button>
+          </Card>
         )}
 
         {/* Model Picker Modal */}
         {showModelPicker && (
-          <div className="border border-border rounded-lg p-4 bg-card">
+          <Card variant="elevated" className="p-4">
             <ModelPicker
               models={catalogModels}
               selected={currentModel}
               onSelect={handleSwitchModel}
               loading={switchingModel}
             />
-          </div>
+          </Card>
         )}
 
         {/* Runtime Dependencies */}
@@ -447,25 +428,18 @@ export function DashboardPage() {
 
         {/* Tool Cards or Empty State */}
         {!detecting && !anyInstalled && Object.keys(tools).length > 0 ? (
-          <div className="border border-dashed border-border rounded-lg p-10 flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
-              <Wand2 className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <div>
-              <p className="text-sm font-medium">{t('dashboard.noToolsTitle')}</p>
-              <p className="text-xs text-muted-foreground mt-1">{t('dashboard.noToolsDesc')}</p>
-            </div>
-            <button
-              onClick={handleRunWizard}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                'bg-primary text-primary-foreground hover:bg-primary/90'
-              )}
-            >
-              <Wand2 className="h-4 w-4" />
-              {t('dashboard.runWizard')}
-            </button>
-          </div>
+          <Card variant="default" className="border-dashed">
+            <EmptyState
+              icon={Wand2}
+              title={t('dashboard.noToolsTitle')}
+              hint={t('dashboard.noToolsDesc')}
+              action={
+                <Button size="lg" onClick={handleRunWizard} icon={<Wand2 className="h-4 w-4" />}>
+                  {t('dashboard.runWizard')}
+                </Button>
+              }
+            />
+          </Card>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
             {TOOL_ORDER.map((name) => {
@@ -516,40 +490,28 @@ export function DashboardPage() {
 
         {/* Bulk actions */}
         <div className="flex gap-2 flex-wrap">
-          <button
+          <Button
+            size="lg"
             onClick={handleInstallAll}
             disabled={anyInstalling || detecting}
-            className={cn(
-              'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-              'bg-primary text-primary-foreground hover:bg-primary/90',
-              'disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
+            loading={anyInstalling}
+            icon={!anyInstalling ? <Download className="h-4 w-4" /> : undefined}
           >
-            {anyInstalling ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
             {t('dashboard.installAll')}
-          </button>
+          </Button>
 
           {hasUpdates && (
-            <button
+            <Button
+              size="lg"
+              variant="secondary"
               onClick={handleUpdateAll}
               disabled={anyUpdating || detecting}
-              className={cn(
-                'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                'bg-amber-500 text-white hover:bg-amber-600',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
+              loading={anyUpdating}
+              icon={!anyUpdating ? <ArrowUpCircle className="h-4 w-4" /> : undefined}
+              className="bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25"
             >
-              {anyUpdating ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowUpCircle className="h-4 w-4" />
-              )}
               {t('dashboard.updateAll')}
-            </button>
+            </Button>
           )}
         </div>
 
@@ -568,22 +530,15 @@ export function DashboardPage() {
               onConfigureAll={handleConfigureAllProxy}
             />
             {proxySettings.apiEndpoint && (proxySettings.userToken || proxySettings.apiKey) && (
-              <button
+              <Button
+                size="lg"
                 onClick={handleConfigureRelay}
                 disabled={proxyConfiguring}
-                className={cn(
-                  'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                  'bg-primary text-primary-foreground hover:bg-primary/90',
-                  'disabled:opacity-50 disabled:cursor-not-allowed'
-                )}
+                loading={proxyConfiguring}
+                icon={!proxyConfiguring ? <Zap className="h-4 w-4" /> : undefined}
               >
-                {proxyConfiguring ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4" />
-                )}
                 {t('dashboard.configureLurusRelay')}
-              </button>
+              </Button>
             )}
           </div>
         </details>

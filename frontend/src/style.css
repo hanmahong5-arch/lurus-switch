@@ -39,6 +39,12 @@
     --lt-info:  #2D4A8A;
     --font-sans: 'Inter Tight', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono', monospace;
+
+    /* Design-system v2 surface tokens — light mode */
+    --lt-glow-orange: rgba(255, 93, 31, 0.18);
+    --lt-card-elevated: #FFFFFF;
+    --lt-card-recessed: #F0EDE0;
+    --lt-rule-strong:   #BDB8A6;
   }
 
   .dark {
@@ -61,6 +67,12 @@
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
     --ring: 17 100% 56%;
+
+    /* Design-system v2 surface tokens — dark mode overrides */
+    --lt-glow-orange: rgba(255, 93, 31, 0.35);
+    --lt-card-elevated: hsl(222 38% 11%);
+    --lt-card-recessed: hsl(222 50% 6%);
+    --lt-rule-strong:   hsl(222 35% 24%);
   }
 }
 

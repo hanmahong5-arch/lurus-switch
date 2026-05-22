@@ -134,6 +134,66 @@ func (a *App) ApplyAllToolRelays() map[string]string {
 	return result
 }
 
+// GetRelayCircuitState returns the live per-endpoint breaker state.
+// Returned as a slice (rather than a map) because the Wails type
+// generator only follows struct fields / slice elements when emitting
+// TypeScript types — a `map[string]Custom` does not surface the value
+// type. Frontend re-keys by EndpointID on receipt.
+func (a *App) GetRelayCircuitState() []relay.CircuitState {
+	if a.relayRouter == nil {
+		return []relay.CircuitState{}
+	}
+	snap := a.relayRouter.Breaker().Snapshot()
+	out := make([]relay.CircuitState, 0, len(snap))
+	for _, v := range snap {
+		out = append(out, v)
+	}
+	return out
+}
+
+// ResetRelayCircuit clears the breaker for one endpoint. Used by the
+// "Reset Circuit" button in the RelayPage when an admin has fixed the
+// underlying issue and doesn't want to wait for the cooldown timer.
+func (a *App) ResetRelayCircuit(id string) error {
+	if a.relayRouter == nil {
+		return fmt.Errorf("relay router not initialised")
+	}
+	a.relayRouter.Breaker().Reset(id)
+	return nil
+}
+
+// GetRelayRules returns the persisted YAML rules so the UI editor can
+// load them. Returns "" when no rules file exists yet.
+func (a *App) GetRelayRules() string {
+	if a.relayRouter == nil {
+		return ""
+	}
+	return a.relayRouter.RulesYAML()
+}
+
+// SaveRelayRules persists a new rules YAML. Strict-decodes so typos
+// (unknown keys) surface as errors instead of silent no-ops.
+func (a *App) SaveRelayRules(yaml string) error {
+	if a.relayRouter == nil {
+		return fmt.Errorf("relay router not initialised")
+	}
+	return a.relayRouter.LoadRulesYAML(yaml)
+}
+
+// PickRelayForTool runs the router's selection logic and returns the
+// endpoint that would currently win. Exposed for the tray's "quick
+// switch" menu and the StatusBar chip.
+func (a *App) PickRelayForTool(tool string) (*relay.PickResult, error) {
+	if a.relayRouter == nil {
+		return nil, fmt.Errorf("relay router not initialised")
+	}
+	res, err := a.relayRouter.Pick(tool, relay.PickHint{})
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // migrateProxyToRelay is called on first startup to seed the relay store from
 // legacy proxy settings. It creates a "migrated-legacy" endpoint if apiEndpoint is set.
 func (a *App) migrateProxyToRelay() {

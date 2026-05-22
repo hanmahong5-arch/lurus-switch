@@ -12,7 +12,9 @@ import (
 	"lurus-switch/internal/billing"
 	"lurus-switch/internal/budget"
 	"lurus-switch/internal/config"
+	"lurus-switch/internal/conversation"
 	"lurus-switch/internal/db"
+	"lurus-switch/internal/dlp"
 	"lurus-switch/internal/docmgr"
 	"lurus-switch/internal/envmgr"
 	"lurus-switch/internal/gateway"
@@ -20,6 +22,7 @@ import (
 	"lurus-switch/internal/mcp"
 	"lurus-switch/internal/metering"
 	"lurus-switch/internal/modelcatalog"
+	"lurus-switch/internal/netproxy"
 	"lurus-switch/internal/orgsync"
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promoter"
@@ -80,6 +83,11 @@ type services struct {
 	gatewaySrv  *gateway.Server
 	budgetGuard *budget.Guard // active spend wall, wired into gateway
 
+	// Relay router with per-endpoint circuit breaker. Driven by user
+	// rules in relay-rules.yaml; updated on every upstream attempt by
+	// the gateway's FallbackChain observer.
+	relayRouter *relay.Router
+
 	// Agent fleet management (v3 龙虾管理员).
 	database       *db.DB
 	agentStore     *agent.Store
@@ -97,6 +105,17 @@ type services struct {
 	// package gates writes; the audit package records them with enough
 	// payload for the Undo UI to revert.
 	auditJournal *audit.Journal
+
+	// DLP scanner — process-wide, shared between the Wails admin
+	// bindings (manual scan / pattern table) and the gateway middleware
+	// (which intercepts every inbound proxy request).
+	dlpScanner *dlp.Scanner
+
+	// Local conversation index. Catalogue of every JSONL session under
+	// the supported CLIs' on-disk session directories. Joined against
+	// auditJournal so DLP hits can be navigated back to the offending
+	// message in the offending session.
+	conversationIndex *conversation.Index
 
 	// Enterprise-mode org chart store. Lazily created on first access
 	// so Personal/Reseller installs don't pay the file IO cost.
@@ -117,6 +136,16 @@ func newServices(appDataDir, version string) (*services, []string) {
 	proxyMgr, err := proxy.NewProxyManager()
 	if err != nil {
 		warnings = append(warnings, fmt.Sprintf("proxy manager: %v", err))
+	}
+	// Install user-configured upstream HTTP/SOCKS5 proxy (BYO-VPN hook)
+	// before anything else issues outbound requests. Failure is non-fatal —
+	// fall back to direct connections and surface the warning.
+	if proxyMgr != nil {
+		if up := proxyMgr.GetSettings().UpstreamProxy; up != nil {
+			if err := netproxy.Apply(*up); err != nil {
+				warnings = append(warnings, fmt.Sprintf("upstream proxy: %v", err))
+			}
+		}
 	}
 
 	snapStr, err := snapshot.NewStore()
@@ -185,6 +214,11 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("audit journal: %v", aerr))
 	}
 
+	convIdx, cerr := conversation.NewIndex(appDataDir)
+	if cerr != nil {
+		warnings = append(warnings, fmt.Sprintf("conversation index: %v", cerr))
+	}
+
 	customProvStr, cpErr := provider.NewCustomStore(appDataDir)
 	if cpErr != nil {
 		warnings = append(warnings, fmt.Sprintf("custom provider store: %v", cpErr))
@@ -219,9 +253,22 @@ func newServices(appDataDir, version string) (*services, []string) {
 			}
 			return nil
 		}(),
-		redemptionStore:     redemptionStr,
-		redeemer:            redemption.NewRedeemer(version),
-		auditJournal:        auditJ,
+		redemptionStore:   redemptionStr,
+		redeemer:          redemption.NewRedeemer(version),
+		auditJournal:      auditJ,
+		dlpScanner:        dlp.NewScanner(),
+		conversationIndex: convIdx,
+		relayRouter: func() *relay.Router {
+			if relayStr == nil {
+				return nil
+			}
+			r, err := relay.NewRouter(appDataDir, relayStr, relay.NewCircuitBreaker())
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("relay router: %v", err))
+				return r
+			}
+			return r
+		}(),
 		customProviderStore: customProvStr,
 		catalogTester:       modelcatalog.NewTester(),
 	}
@@ -241,9 +288,72 @@ func newServices(appDataDir, version string) (*services, []string) {
 		} else {
 			warnings = append(warnings, fmt.Sprintf("budget guard init failed: %v", gErr))
 		}
+		// Wire the relay router so the gateway's fallback observer
+		// records circuit transitions per endpoint. Endpoint *names*
+		// from the FallbackChain map to RelayEndpoint IDs via the
+		// shared display label — we resolve via the relay store.
+		if svc.relayRouter != nil {
+			svc.gatewaySrv.SetRelayRouter(svc.relayRouter)
+			breaker := svc.relayRouter.Breaker()
+			relayStore := svc.relayStore
+			svc.gatewaySrv.GetFallbackChain().SetObserver(func(name string, ok bool, errMsg string) {
+				id := resolveEndpointIDByName(relayStore, name)
+				if id == "" {
+					return
+				}
+				if ok {
+					breaker.RecordSuccess(id)
+				} else {
+					breaker.RecordFailure(id, errMsg)
+				}
+			})
+		}
+
+		// Wire the DLP scanner into the gateway so request bodies are
+		// scrubbed before they reach the upstream. The same Scanner is
+		// also exposed via the bindings_dlp.go admin surface, so policy
+		// changes made in the UI immediately apply to live traffic.
+		svc.gatewaySrv.SetDLPScanner(svc.dlpScanner)
+		// Wire the audit journal so every block / redact event lands
+		// in the durable journal alongside Wails-binding mutations.
+		// Captured by reference so a later auditJ rebuild flows through.
+		journal := svc.auditJournal
+		if journal != nil {
+			svc.gatewaySrv.SetDLPAuditFn(func(op, target string, payload any, metadata map[string]string) {
+				entry := journal.RecordSystem("gateway", op, target, nil, payload, nil)
+				// Stamp the conversation-correlation metadata onto the
+				// freshly-written entry. RecordSystem returns a copy, so
+				// we re-attach via the journal's metadata helper which
+				// mutates the hot ring in place.
+				if len(metadata) > 0 {
+					journal.AttachMetadata(entry.ID, metadata)
+				}
+			})
+		}
 	}
 	svc.promoterSvc = promoter.NewService(svc.ensureBillingClient)
 	return svc, warnings
+}
+
+// resolveEndpointIDByName looks up a RelayEndpoint by its display name —
+// the FallbackChain observer reports by name because FallbackEntry.Name
+// is the only identifier it carries. "primary" comes back as the
+// empty string (no recorded transition) since the primary entry isn't a
+// RelayEndpoint at gateway level.
+func resolveEndpointIDByName(s *relay.Store, name string) string {
+	if s == nil || name == "" || name == "primary" {
+		return ""
+	}
+	eps, err := s.ListEndpoints()
+	if err != nil {
+		return ""
+	}
+	for _, ep := range eps {
+		if ep.Name == name {
+			return ep.ID
+		}
+	}
+	return ""
 }
 
 // ensureBillingClient lazily initializes the billing client.

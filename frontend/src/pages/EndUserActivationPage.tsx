@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Loader2, KeyRound, Check, AlertTriangle, Shield } from 'lucide-react'
-import { ActivateRedemption, GetDeviceFingerprint, SetAppMode } from '../../wailsjs/go/main/App'
+import { Loader2, KeyRound, Check, AlertTriangle, Shield, RefreshCw, Mail, Eraser } from 'lucide-react'
+import { Button, Card } from '../components/ui'
+import { ActivateRedemption, GetDeviceFingerprint, GetAppSettings, SetAppMode } from '../../wailsjs/go/main/App'
 
 interface Props {
   hubURL?: string
@@ -33,9 +34,15 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<{ kind: string; message: string } | null>(null)
   const [fingerprint, setFingerprint] = useState('')
+  // Distributor support email — read from white-label settings so the
+  // "联系经销商" CTA goes to the right inbox, not stock Lurus support.
+  const [supportEmail, setSupportEmail] = useState('')
 
   useEffect(() => {
     GetDeviceFingerprint().then(setFingerprint).catch(() => setFingerprint(''))
+    GetAppSettings()
+      .then((s) => setSupportEmail((s as any)?.brandSupportEmail ?? ''))
+      .catch(() => setSupportEmail(''))
   }, [])
 
   const handleSubmit = async () => {
@@ -69,10 +76,13 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
     <div className="h-screen flex flex-col items-center justify-center bg-background text-foreground p-6">
       <div className="w-full max-w-md">
         <header className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 rounded-xl bg-emerald-500/15 flex items-center justify-center">
-            <KeyRound className="h-5 w-5 text-emerald-400" />
+          <div className="h-10 w-10 rounded-xl bg-primary/15 border border-primary/40 flex items-center justify-center shadow-glow-orange">
+            <KeyRound className="h-5 w-5 text-primary" />
           </div>
           <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-primary mb-0.5">
+              [ ENDUSER · ACTIVATION ]
+            </p>
             <h1 className="text-xl font-semibold">{t('enduser.activate.title', '激活你的服务')}</h1>
             <p className="text-xs text-muted-foreground">
               {t('enduser.activate.subtitle', '输入经销商提供的激活码')}
@@ -81,9 +91,9 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
         </header>
 
         {hubURL && (
-          <div className="rounded-md border border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground mb-4 font-mono">
+          <Card variant="recessed" className="px-3 py-2 text-xs text-muted-foreground mb-4 font-mono tabular-nums">
             <span className="text-foreground/70">Hub:</span> {hubURL}
-          </div>
+          </Card>
         )}
 
         <label className="block text-sm mb-1">
@@ -104,25 +114,36 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
         />
 
         {error && (
-          <div className="rounded-md border border-red-500/30 bg-red-950/20 text-red-200 text-xs px-3 py-2 mb-3 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-            <div>
-              <div className="font-medium">{errorHint || error.message}</div>
-              {errorHint && errorHint !== error.message && (
-                <div className="text-red-300/70 mt-0.5">{error.message}</div>
-              )}
+          <Card variant="default" className="border-red-500/30 bg-red-500/10 text-red-300 text-xs px-3 py-2 mb-3">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-mono text-red-400">▸ {errorHint || error.message}</div>
+                {errorHint && errorHint !== error.message && (
+                  <div className="text-red-300/70 mt-0.5 font-mono">{error.message}</div>
+                )}
+              </div>
             </div>
-          </div>
+            <ErrorActions
+              kind={error.kind}
+              supportEmail={supportEmail}
+              code={code}
+              hubURL={hubURL}
+              onRetry={handleSubmit}
+              onClear={() => { setCode(''); setError(null) }}
+            />
+          </Card>
         )}
 
-        <button
+        <Button
           onClick={handleSubmit}
           disabled={!codeOK || submitting}
-          className="w-full rounded bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-sm py-2 inline-flex items-center justify-center gap-2"
+          loading={submitting}
+          icon={!submitting ? <Check className="h-4 w-4" /> : undefined}
+          className="w-full justify-center bg-emerald-600 hover:bg-emerald-500 ring-emerald-500/40"
         >
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           {t('enduser.activate.submit', '激活')}
-        </button>
+        </Button>
 
         <div
           className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-[11px] text-muted-foreground/80"
@@ -162,6 +183,74 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
           )}
         </p>
       </div>
+    </div>
+  )
+}
+
+// ErrorActions renders one or two CTAs tailored to the failure kind so
+// the user has somewhere to go from a red box. Kinds without a sensible
+// recovery (e.g. server) only get a generic retry.
+export function ErrorActions({
+  kind, supportEmail, code, hubURL, onRetry, onClear,
+}: {
+  kind: string
+  supportEmail: string
+  code: string
+  hubURL?: string
+  onRetry: () => void
+  onClear: () => void
+}) {
+  const { t } = useTranslation()
+  const mailHref = supportEmail
+    ? `mailto:${supportEmail}?subject=${encodeURIComponent(t('enduser.error.action.mailSubject', '激活码无法使用'))}&body=${encodeURIComponent(
+        t('enduser.error.action.mailBody', '激活码：{{code}}\nHub：{{hub}}\n失败原因（kind）：{{kind}}\n', {
+          code, hub: hubURL ?? '', kind,
+        }),
+      )}`
+    : ''
+
+  // Map each kind to its preferred recovery actions.
+  const showRetry = kind === 'network' || kind === 'server' || kind === 'endpoint_absent'
+  const showContact = kind === 'code_used' || kind === 'code_expired' || kind === 'code_disabled' || kind === 'code_not_found'
+  const showClear = kind === 'invalid_input' || kind === 'code_not_found'
+
+  if (!showRetry && !showContact && !showClear) return null
+
+  return (
+    <div className="mt-2 ml-6 flex items-center gap-2 flex-wrap">
+      {showRetry && (
+        <button
+          onClick={onRetry}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-400/40 text-red-200 hover:bg-red-500/10 text-[11px]"
+        >
+          <RefreshCw className="h-3 w-3" />
+          {t('enduser.error.action.retry', '重试')}
+        </button>
+      )}
+      {showClear && (
+        <button
+          onClick={onClear}
+          className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-400/40 text-red-200 hover:bg-red-500/10 text-[11px]"
+        >
+          <Eraser className="h-3 w-3" />
+          {t('enduser.error.action.clear', '清空重输')}
+        </button>
+      )}
+      {showContact && (
+        mailHref ? (
+          <a
+            href={mailHref}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded border border-red-400/40 text-red-200 hover:bg-red-500/10 text-[11px]"
+          >
+            <Mail className="h-3 w-3" />
+            {t('enduser.error.action.contact', '联系经销商')}
+          </a>
+        ) : (
+          <span className="text-[11px] text-red-300/70 italic">
+            {t('enduser.error.action.noSupport', '请联系您拿到这份安装包的经销商')}
+          </span>
+        )
+      )}
     </div>
   )
 }

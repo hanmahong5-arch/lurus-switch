@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { cn } from '../lib/utils'
 import { useClassifiedError } from '../lib/useClassifiedError'
 import { InlineError } from '../components/InlineError'
+import { Button, Card } from '../components/ui'
 import { ListCLIProcesses, KillCLIProcess, LaunchTool, GetToolOutput, StopToolSession } from '../../wailsjs/go/main/App'
 
 interface ProcessInfo {
@@ -133,26 +134,25 @@ export function ProcessPage() {
             <p className="text-sm text-muted-foreground">{t('process.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors',
-                autoRefresh
-                  ? 'border-primary text-primary bg-primary/10'
-                  : 'border-border text-muted-foreground hover:bg-muted'
-              )}
+              icon={autoRefresh ? <Pause className="h-3.5 w-3.5" /> : <Activity className="h-3.5 w-3.5" />}
+              className={autoRefresh ? 'border-primary text-primary bg-primary/10 hover:bg-primary/15' : ''}
             >
-              {autoRefresh ? <Pause className="h-3.5 w-3.5" /> : <Activity className="h-3.5 w-3.5" />}
               {autoRefresh ? t('process.pauseRefresh') : t('process.autoRefresh')}
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={fetchProcesses}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors disabled:opacity-50"
+              loading={loading}
+              icon={!loading ? <RefreshCw className="h-3.5 w-3.5" /> : undefined}
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               {t('dashboard.refresh')}
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -166,59 +166,64 @@ export function ProcessPage() {
         )}
 
         {/* Process List */}
-        <div className="border border-border rounded-lg overflow-hidden">
-          <div className="bg-muted/50 px-4 py-2 border-b border-border">
-            <div className="grid grid-cols-5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              <span>{t('process.col.tool')}</span>
-              <span>{t('process.col.pid')}</span>
-              <span>{t('process.col.status')}</span>
-              <span>{t('process.col.memory')}</span>
-              <span className="text-right">{t('process.col.actions')}</span>
+        <Card variant="default" className="overflow-hidden">
+          <div className="bg-card-recessed px-4 py-2 border-b border-border">
+            <div className="grid grid-cols-5 font-mono text-[10px] font-medium text-muted-foreground uppercase tracking-[0.18em]">
+              <span>[ {t('process.col.tool').toUpperCase()} ]</span>
+              <span>[ {t('process.col.pid').toUpperCase()} ]</span>
+              <span>[ {t('process.col.status').toUpperCase()} ]</span>
+              <span>[ {t('process.col.memory').toUpperCase()} ]</span>
+              <span className="text-right">[ {t('process.col.actions').toUpperCase()} ]</span>
             </div>
           </div>
           {processes.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
+            <div className="py-8 text-center text-sm text-muted-foreground font-mono">
               {loading ? t('process.detecting') : t('process.empty')}
             </div>
           ) : (
             processes.map((proc) => (
-              <div key={proc.pid} className="px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30">
+              <div key={proc.pid} className="px-4 py-3 border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                 <div className="grid grid-cols-5 items-center text-sm">
                   <span className="font-medium capitalize">{proc.tool}</span>
-                  <span className="text-muted-foreground font-mono">{proc.pid}</span>
+                  <span className="text-muted-foreground font-mono tabular-nums">{proc.pid}</span>
                   <span className={cn(
-                    'text-xs px-1.5 py-0.5 rounded-full inline-block w-fit',
+                    'text-xs px-1.5 py-0.5 rounded font-mono inline-block w-fit',
                     proc.status === 'running'
-                      ? 'bg-green-500/10 text-green-500'
-                      : 'bg-muted text-muted-foreground'
+                      ? 'bg-emerald-500/15 text-emerald-400'
+                      : 'bg-card-recessed text-muted-foreground'
                   )}>
-                    {proc.status}
+                    ▸ {proc.status}
                   </span>
-                  <span className="text-muted-foreground text-xs">{formatMemory(proc.memory)}</span>
+                  <span className="text-muted-foreground text-xs font-mono tabular-nums">{formatMemory(proc.memory)}</span>
                   <div className="flex justify-end">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleKill(proc.pid)}
                       disabled={killing[proc.pid]}
-                      className="flex items-center gap-1 px-2 py-1 text-xs border border-red-500/30 text-red-500 rounded hover:bg-red-500/10 transition-colors disabled:opacity-50"
+                      loading={killing[proc.pid]}
+                      icon={!killing[proc.pid] ? <Trash2 className="h-3 w-3" /> : undefined}
+                      className="border border-red-500/30 text-red-400 hover:bg-red-500/10"
                     >
-                      {killing[proc.pid] ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
                       {t('process.kill')}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
             ))
           )}
-        </div>
+        </Card>
 
         {/* Launch Panel */}
-        <div className="border border-border rounded-lg p-4 space-y-4">
-          <h3 className="text-sm font-semibold">{t('process.launchTool')}</h3>
+        <Card variant="default" className="p-4 space-y-4">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            [ {t('process.launchTool').toUpperCase()} ]
+          </h3>
           <div className="flex gap-2">
             <select
               value={launchTool}
               onChange={(e) => setLaunchTool(e.target.value)}
-              className="px-3 py-1.5 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              className="px-3 py-1.5 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
             >
               {toolOptions.map((tool) => (
                 <option key={tool} value={tool}>{tool}</option>
@@ -229,26 +234,27 @@ export function ProcessPage() {
               value={launchArgs}
               onChange={(e) => setLaunchArgs(e.target.value)}
               placeholder={t('process.argsPlaceholder')}
-              className="flex-1 px-3 py-1.5 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary"
+              className="flex-1 px-3 py-1.5 text-sm bg-muted border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-primary font-mono"
             />
             {sessionID ? (
-              <button
+              <Button
+                variant="danger"
                 onClick={handleStopSession}
                 disabled={stoppingSession}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                loading={stoppingSession}
+                icon={!stoppingSession ? <Square className="h-4 w-4" /> : undefined}
               >
-                {stoppingSession ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                 {t('process.stop')}
-              </button>
+              </Button>
             ) : (
-              <button
+              <Button
                 onClick={handleLaunch}
                 disabled={launching}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                loading={launching}
+                icon={!launching ? <Play className="h-4 w-4" /> : undefined}
               >
-                {launching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                 {t('process.launch')}
-              </button>
+              </Button>
             )}
           </div>
 
@@ -256,19 +262,20 @@ export function ProcessPage() {
           {(sessionID || output.length > 0) && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  {t('process.output')} {sessionID ? `(session: ${sessionID.slice(-8)})` : ''}
+                <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                  [ {t('process.output').toUpperCase()} ]
+                  {sessionID && <span className="ml-2 tabular-nums normal-case">session: {sessionID.slice(-8)}</span>}
                 </span>
-                <button
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => setOutput([])}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
+                  icon={<Trash2 className="h-3 w-3" />}
+                />
               </div>
               <div
                 ref={outputRef}
-                className="bg-black/90 text-green-400 font-mono text-xs p-3 rounded-md h-48 overflow-y-auto"
+                className="bg-card-recessed text-emerald-400 font-mono text-xs p-3 rounded-md h-48 overflow-y-auto border border-border"
               >
                 {output.length === 0 ? (
                   <span className="text-muted-foreground">{t('process.waitingOutput')}</span>
@@ -280,7 +287,7 @@ export function ProcessPage() {
               </div>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   )

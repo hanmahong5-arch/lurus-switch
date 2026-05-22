@@ -4,6 +4,7 @@ import { Loader2, RefreshCw, ExternalLink, Download, Play } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useClassifiedError } from '../lib/useClassifiedError'
 import { InlineError } from '../components/InlineError'
+import { Button, Card } from '../components/ui'
 import { useGYStore } from '../stores/gyStore'
 import { GetGYProducts, CheckGYStatus, LaunchGYProduct, DownloadCreator } from '../../wailsjs/go/main/App'
 import { EventsOn } from '../../wailsjs/runtime/runtime'
@@ -16,27 +17,27 @@ const PRODUCT_ICONS: Record<string, string> = {
 }
 
 const KIND_BADGES: Record<string, { label: string; color: string }> = {
-  web: { label: 'gyProducts.categories.web', color: 'bg-blue-500/10 text-blue-500' },
-  desktop: { label: 'gyProducts.categories.desktop', color: 'bg-violet-500/10 text-violet-500' },
-  service: { label: 'gyProducts.categories.service', color: 'bg-teal-500/10 text-teal-500' },
+  web: { label: 'gyProducts.categories.web', color: 'bg-blue-500/15 text-blue-400' },
+  desktop: { label: 'gyProducts.categories.desktop', color: 'bg-violet-500/15 text-violet-400' },
+  service: { label: 'gyProducts.categories.service', color: 'bg-teal-500/15 text-teal-400' },
 }
 
 function StatusDot({ status }: { status: gy.GYStatus | undefined }) {
   const { t } = useTranslation()
-  if (!status) return <span className="text-xs text-muted-foreground/60">{t('gyProducts.checking')}</span>
+  if (!status) return <span className="text-xs text-muted-foreground/60 font-mono">▾ {t('gyProducts.checking')}</span>
   if (status.available) {
     return (
-      <span className="flex items-center gap-1 text-xs text-green-500">
-        <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-        {t('gyProducts.online')}
-        {status.latencyMs > 0 && <span className="text-muted-foreground">({status.latencyMs}ms)</span>}
+      <span className="flex items-center gap-1 text-xs text-emerald-400 font-mono">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse inline-block" />
+        ▸ {t('gyProducts.online')}
+        {status.latencyMs > 0 && <span className="text-muted-foreground tabular-nums">({status.latencyMs}ms)</span>}
       </span>
     )
   }
   return (
-    <span className="flex items-center gap-1 text-xs text-red-500">
-      <span className="h-1.5 w-1.5 rounded-full bg-red-500 inline-block" />
-      {t('gyProducts.unreachable')}
+    <span className="flex items-center gap-1 text-xs text-red-400 font-mono">
+      <span className="h-1.5 w-1.5 rounded-full bg-red-400 inline-block" />
+      ▪ {t('gyProducts.unreachable')}
     </span>
   )
 }
@@ -45,9 +46,9 @@ function InstalledBadge({ status }: { status: gy.GYStatus | undefined }) {
   const { t } = useTranslation()
   if (!status) return null
   if (status.version) {
-    return <span className="text-xs text-green-500">{t('gyProducts.installedVersion', { version: status.version })}</span>
+    return <span className="text-xs text-emerald-400 font-mono tabular-nums">▸ {t('gyProducts.installedVersion', { version: status.version })}</span>
   }
-  return <span className="text-xs text-muted-foreground">{t('gyProducts.notInstalled')}</span>
+  return <span className="text-xs text-muted-foreground font-mono">▪ {t('gyProducts.notInstalled')}</span>
 }
 
 export function GYProductsPage() {
@@ -135,17 +136,16 @@ export function GYProductsPage() {
             <h2 className="text-lg font-semibold">{t('gyProducts.title')}</h2>
             <p className="text-sm text-muted-foreground mt-0.5">{t('gyProducts.subtitle')}</p>
           </div>
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={checkStatus}
             disabled={checking}
-            className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-              'border border-border hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed'
-            )}
+            loading={checking}
+            icon={!checking ? <RefreshCw className="h-3.5 w-3.5" /> : undefined}
           >
-            {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
             {t('gyProducts.refreshStatus')}
-          </button>
+          </Button>
         </div>
 
         {/* Error */}
@@ -173,15 +173,15 @@ export function GYProductsPage() {
               const isLaunching = launching === product.id
 
               return (
-                <div key={product.id} className="border border-border rounded-xl p-5 bg-card space-y-3">
+                <Card key={product.id} variant="elevated" className="p-5 space-y-3">
                   {/* Card header */}
                   <div className="flex items-start gap-4">
                     <div className="text-3xl">{icon}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="text-sm font-semibold">{product.name}</h3>
-                        <span className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', badge.color)}>
-                          {t(badge.label)}
+                        <span className={cn('font-mono text-[10px] uppercase tracking-[0.12em] px-1.5 py-0.5 rounded', badge.color)}>
+                          [ {t(badge.label).toUpperCase()} ]
                         </span>
                         {product.kind === 'desktop' ? (
                           <InstalledBadge status={status} />
@@ -196,49 +196,41 @@ export function GYProductsPage() {
                   {/* Actions */}
                   <div className="flex gap-2 flex-wrap">
                     {product.kind === 'web' && (
-                      <button
+                      <Button
+                        size="sm"
                         onClick={() => handleLaunch(product.id)}
                         disabled={isLaunching}
-                        className={cn(
-                          'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-colors',
-                          'bg-primary text-primary-foreground hover:bg-primary/90',
-                          'disabled:opacity-50 disabled:cursor-not-allowed'
-                        )}
+                        loading={isLaunching}
+                        icon={!isLaunching ? <ExternalLink className="h-3.5 w-3.5" /> : undefined}
                       >
-                        {isLaunching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
                         {t('gyProducts.open', { name: product.name })}
-                      </button>
+                      </Button>
                     )}
 
                     {product.kind === 'desktop' && (
                       <>
-                        <button
+                        <Button
+                          size="sm"
                           onClick={() => handleLaunch(product.id)}
                           disabled={isLaunching}
-                          className={cn(
-                            'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-colors',
-                            'bg-primary text-primary-foreground hover:bg-primary/90',
-                            'disabled:opacity-50 disabled:cursor-not-allowed'
-                          )}
+                          loading={isLaunching}
+                          icon={!isLaunching ? <Play className="h-3.5 w-3.5" /> : undefined}
                         >
-                          {isLaunching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
                           {t('gyProducts.launch', { name: product.name })}
-                        </button>
+                        </Button>
                         <div className="flex flex-col gap-1">
-                          <button
+                          <Button
+                            variant="secondary"
+                            size="sm"
                             onClick={handleDownloadCreator}
                             disabled={downloading}
-                            className={cn(
-                              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
-                              'border border-border hover:bg-muted',
-                              'disabled:opacity-50 disabled:cursor-not-allowed'
-                            )}
+                            loading={downloading}
+                            icon={!downloading ? <Download className="h-3.5 w-3.5" /> : undefined}
                           >
-                            {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
                             {downloading ? t('gyProducts.downloading', { progress: creatorProgress >= 0 ? creatorProgress + '%' : '' }) : t('gyProducts.redownload')}
-                          </button>
+                          </Button>
                           {downloading && creatorProgress >= 0 && (
-                            <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
+                            <div className="w-full h-1 bg-card-recessed rounded-full overflow-hidden">
                               <div
                                 className="h-full bg-primary transition-all duration-300"
                                 style={{ width: `${creatorProgress}%` }}
@@ -250,35 +242,30 @@ export function GYProductsPage() {
                     )}
 
                     {product.kind === 'service' && (
-                      <>
-                        <button
-                          onClick={() => handleLaunch(product.id)}
-                          disabled={isLaunching}
-                          className={cn(
-                            'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium transition-colors',
-                            'bg-primary text-primary-foreground hover:bg-primary/90',
-                            'disabled:opacity-50 disabled:cursor-not-allowed'
-                          )}
-                        >
-                          {isLaunching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
-                          {t('gyProducts.openConsole')}
-                        </button>
-                      </>
+                      <Button
+                        size="sm"
+                        onClick={() => handleLaunch(product.id)}
+                        disabled={isLaunching}
+                        loading={isLaunching}
+                        icon={!isLaunching ? <ExternalLink className="h-3.5 w-3.5" /> : undefined}
+                      >
+                        {t('gyProducts.openConsole')}
+                      </Button>
                     )}
                   </div>
 
                   {/* Error from status */}
                   {status?.error && (
-                    <p className="text-xs text-red-400/70">{status.error}</p>
+                    <p className="text-xs text-red-400/70 font-mono">▸ {status.error}</p>
                   )}
-                </div>
+                </Card>
               )
             })}
 
             {products.length === 0 && !loading && (
-              <div className="border border-dashed border-border rounded-lg p-8 text-center">
+              <Card variant="default" className="border-dashed p-8 text-center">
                 <p className="text-sm text-muted-foreground">{t('gyProducts.noProducts')}</p>
-              </div>
+              </Card>
             )}
           </div>
         )}

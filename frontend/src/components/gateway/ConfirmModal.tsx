@@ -11,7 +11,7 @@ export function ConfirmModal({ open, title, desc, danger, onConfirm, onCancel }:
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
       <div className="bg-card border border-border rounded-lg p-6 w-96 space-y-4">
         <h3 className="font-semibold text-lg">{title}</h3>
         <p className="text-sm text-muted-foreground">{desc}</p>

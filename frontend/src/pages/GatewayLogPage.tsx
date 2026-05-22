@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileText, RefreshCw, AlertCircle, Trash2, BarChart3 } from 'lucide-react'
+import { Button, Card, KpiCard } from '../components/ui'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { useConfigStore } from '../stores/configStore'
 import { makeLogSource, type LogSource, type GatewayLog, type GatewayLogStat } from '../lib/logSource'
@@ -178,74 +179,73 @@ export function GatewayLogPage() {
     <div className="flex flex-col h-full overflow-y-auto p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <FileText className="h-6 w-6 text-teal-400" />
+          <FileText className="h-6 w-6 text-primary" />
           {t('gateway.logs')}
         </h2>
         <div className="flex gap-2">
           {caps?.stats && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleToggleStats}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
               title={t('gateway.logStats')}
-            >
-              <BarChart3 className="h-4 w-4" />
-            </button>
+              icon={<BarChart3 className="h-4 w-4" />}
+            />
           )}
           {caps?.clearHistory && (
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setShowClearConfirm(true)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-red-800 hover:bg-red-900/30 text-red-400 text-sm"
+              className="border border-red-500/30 text-red-400 hover:bg-red-500/10"
+              icon={<Trash2 className="h-4 w-4" />}
             >
-              <Trash2 className="h-4 w-4" />
               {t('gateway.clearHistory')}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => load()}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+            loading={loading}
+            icon={!loading ? <RefreshCw className="h-4 w-4" /> : undefined}
+          />
         </div>
       </div>
 
       {/* Tab bar */}
       <div className="flex border-b border-border">
-        {tabs.map((tb) => (
+        {tabs.map((tb) => {
+          const isActive = tab === tb.key
+          return (
           <button
             key={tb.key}
             onClick={() => { setTab(tb.key); setPage(0) }}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === tb.key
-                ? 'border-indigo-500 text-foreground'
+            className={`px-4 py-2 -mb-px border-b-2 transition-all duration-150 ${
+              isActive
+                ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >
-            {tb.label}
+            <span className={isActive ? 'font-mono text-[11px] tracking-[0.12em]' : 'text-sm font-medium'}>
+              {isActive ? `[ ${tb.label.toUpperCase()} ]` : tb.label}
+            </span>
           </button>
-        ))}
+          )
+        })}
       </div>
 
       {/* Stats panel — 14-day aggregate (quota / rpm / tpm) */}
       {showStats && stats && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <h3 className="text-sm font-medium mb-3">{t('gateway.logStats')} (14 days)</h3>
-          <div className="grid grid-cols-3 gap-3 text-sm">
-            <div className="rounded border border-border bg-background/50 p-3">
-              <div className="text-xs text-muted-foreground">Quota</div>
-              <div className="text-lg font-semibold tabular-nums">{stats.quota}</div>
-            </div>
-            <div className="rounded border border-border bg-background/50 p-3">
-              <div className="text-xs text-muted-foreground">RPM</div>
-              <div className="text-lg font-semibold tabular-nums">{stats.rpm}</div>
-            </div>
-            <div className="rounded border border-border bg-background/50 p-3">
-              <div className="text-xs text-muted-foreground">TPM</div>
-              <div className="text-lg font-semibold tabular-nums">{stats.tpm}</div>
-            </div>
+        <Card variant="elevated" className="p-4">
+          <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-3">[ {t('gateway.logStats').toUpperCase()} (14 DAYS) ]</h3>
+          <div className="grid grid-cols-3 gap-3">
+            <KpiCard label="Quota" value={stats.quota} />
+            <KpiCard label="RPM" value={stats.rpm} />
+            <KpiCard label="TPM" value={stats.tpm} />
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Filters */}
@@ -278,44 +278,44 @@ export function GatewayLogPage() {
       </div>
 
       {error && (
-        <div className="text-sm text-red-400 bg-red-900/20 rounded px-3 py-2">{error}</div>
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2 font-mono">▸ {error}</div>
       )}
 
-      <div className="rounded-lg border border-border overflow-hidden">
+      <Card variant="default" className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-muted-foreground">
-            <tr>
-              <th className="text-left px-4 py-2">{t('gateway.logTime')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.logUser')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.logModel')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.logTokens')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.logChannel')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.logTokenName')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.logType')}</th>
+          <thead className="bg-card-recessed">
+            <tr className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <th className="text-left px-4 py-2">[ {t('gateway.logTime').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.logUser').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.logModel').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.logTokens').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.logChannel').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.logTokenName').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.logType').toUpperCase()} ]</th>
             </tr>
           </thead>
           <tbody>
             {logs.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                  {loading ? t('status.loading') : t('gateway.noLogs')}
+                <td colSpan={7} className="text-center py-8 text-muted-foreground font-mono">
+                  ▪ {loading ? t('status.loading') : t('gateway.noLogs')}
                 </td>
               </tr>
             )}
             {logs.map((log) => (
-              <tr key={log.id} className="border-t border-border hover:bg-muted/30">
-                <td className="px-4 py-2 text-xs text-muted-foreground">{formatTime(log.created_at)}</td>
+              <tr key={log.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                <td className="px-4 py-2 text-xs text-muted-foreground font-mono tabular-nums">{formatTime(log.created_at)}</td>
                 <td className="px-4 py-2">{log.username}</td>
                 <td className="px-4 py-2 font-mono text-xs">{log.model_name || '-'}</td>
-                <td className="px-4 py-2">
+                <td className="px-4 py-2 font-mono tabular-nums">
                   {log.prompt_tokens + log.completion_tokens > 0
                     ? `${log.prompt_tokens}+${log.completion_tokens}`
                     : '-'}
                 </td>
-                <td className="px-4 py-2 text-muted-foreground text-xs">{log.channel_name || log.channel}</td>
-                <td className="px-4 py-2 text-xs">{log.token_name || '-'}</td>
+                <td className="px-4 py-2 text-muted-foreground text-xs font-mono">{log.channel_name || log.channel}</td>
+                <td className="px-4 py-2 text-xs font-mono">{log.token_name || '-'}</td>
                 <td className="px-4 py-2 text-xs">
-                  <span className="rounded px-1.5 py-0.5 bg-muted/60">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] rounded px-1.5 py-0.5 bg-card-recessed text-muted-foreground">
                     {LOG_TYPE_LABELS[log.type] ?? `Type ${log.type}`}
                   </span>
                 </td>
@@ -323,7 +323,7 @@ export function GatewayLogPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       <Pagination page={page} total={total} perPage={PER_PAGE} onPageChange={handlePageChange} />
 

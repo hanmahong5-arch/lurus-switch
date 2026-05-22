@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react'
-import { RefreshCw, Loader2, Copy, Check } from 'lucide-react'
-import { cn } from '../lib/utils'
+import { RefreshCw, Copy, Check } from 'lucide-react'
 import { errorToast } from '../lib/errorToast'
+import { Button, Card } from '../components/ui'
 import { withRetry } from '../lib/withRetry'
 import { useBillingStore } from '../stores/billingStore'
 import { useToastStore } from '../stores/toastStore'
@@ -170,23 +170,22 @@ export function BillingPage() {
             </p>
           </div>
           {isConnected && (
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={loadBillingData}
               disabled={loading}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors',
-                'disabled:opacity-50 disabled:cursor-not-allowed'
-              )}
+              loading={loading}
+              icon={!loading ? <RefreshCw className="h-3.5 w-3.5" /> : undefined}
             >
-              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Refresh
-            </button>
+            </Button>
           )}
         </div>
 
         {/* Token configuration */}
         {!isConnected ? (
-          <div className="border border-border rounded-lg p-6 bg-card text-center">
+          <Card variant="elevated" className="p-6 text-center">
             <h3 className="text-sm font-medium mb-2">Connect to Billing</h3>
             <p className="text-xs text-muted-foreground mb-4">
               Paste your user token from the web portal to access billing features
@@ -197,23 +196,18 @@ export function BillingPage() {
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
                 placeholder="Paste your token here"
-                className="flex-1 px-3 py-2 rounded-md text-sm border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                className="flex-1 px-3 py-2 rounded-md text-sm border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary font-mono"
                 onKeyDown={(e) => e.key === 'Enter' && handleConnect()}
               />
-              <button
+              <Button
                 onClick={handleConnect}
                 disabled={!tokenInput.trim() || connecting}
-                className={cn(
-                  'flex items-center gap-1.5 px-4 py-2 rounded-md text-sm font-medium transition-colors',
-                  'bg-primary text-primary-foreground hover:bg-primary/90',
-                  'disabled:opacity-50 disabled:cursor-not-allowed'
-                )}
+                loading={connecting}
               >
-                {connecting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Connect
-              </button>
+              </Button>
             </div>
-          </div>
+          </Card>
         ) : (
           <>
             {/* Connected user info */}
@@ -292,21 +286,24 @@ export function BillingPage() {
 
                 {/* Affiliate code */}
                 {userInfo.aff_code && (
-                  <div className="border border-border rounded-lg p-4 bg-card">
-                    <h3 className="text-sm font-medium mb-2">Affiliate Code</h3>
+                  <Card variant="default" className="p-4">
+                    <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground mb-2">
+                      [ AFFILIATE CODE ]
+                    </h3>
                     <div className="flex items-center gap-2">
-                      <code className="flex-1 px-3 py-1.5 rounded bg-muted text-xs font-mono">
+                      <code className="flex-1 px-3 py-1.5 rounded bg-card-recessed text-xs font-mono tabular-nums">
                         {userInfo.aff_code}
                       </code>
-                      <button
+                      <Button
+                        variant="secondary"
+                        size="sm"
                         onClick={handleCopyAff}
-                        className="flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium border border-border hover:bg-muted transition-colors"
+                        icon={copiedAff ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
                       >
-                        {copiedAff ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
                         {copiedAff ? 'Copied' : 'Copy'}
-                      </button>
+                      </Button>
                     </div>
-                  </div>
+                  </Card>
                 )}
               </>
             ) : null}

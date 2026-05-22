@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Users, Plus, Trash2, RefreshCw, AlertCircle, Edit2 } from 'lucide-react'
+import { Button, Card, Modal } from '../components/ui'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { createGatewayClient, type GatewayUser } from '../lib/gateway-api'
 import { SearchBar } from '../components/gateway/SearchBar'
@@ -116,97 +117,100 @@ export function GatewayUserPage() {
     <div className="flex flex-col h-full overflow-y-auto p-6 space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold flex items-center gap-2">
-          <Users className="h-6 w-6 text-purple-400" />
+          <Users className="h-6 w-6 text-primary" />
           {t('gateway.users')}
         </h2>
         <div className="flex gap-2">
-          <button
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={() => load()}
             disabled={loading}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-border hover:bg-muted text-sm"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
+            loading={loading}
+            icon={!loading ? <RefreshCw className="h-4 w-4" /> : undefined}
+          />
+          <Button
+            size="sm"
             onClick={() => { setEditing({ status: 1, role: 1, quota: 0 }); setShowModal(true) }}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-sm"
+            icon={<Plus className="h-4 w-4" />}
           >
-            <Plus className="h-4 w-4" />
             {t('gateway.createUser')}
-          </button>
+          </Button>
         </div>
       </div>
 
       <SearchBar value={keyword} onChange={setKeyword} onSearch={handleSearch} placeholder={t('gateway.search')} />
 
       {error && (
-        <div className="text-sm text-red-400 bg-red-900/20 rounded px-3 py-2">{error}</div>
+        <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2 font-mono">▸ {error}</div>
       )}
 
-      <div className="rounded-lg border border-border overflow-hidden">
+      <Card variant="default" className="overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-muted/50 text-muted-foreground">
-            <tr>
-              <th className="text-left px-4 py-2">ID</th>
-              <th className="text-left px-4 py-2">{t('gateway.userUsername')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.userDisplayName')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.userEmail')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.userRole')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.userQuota')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.userGroup')}</th>
-              <th className="text-left px-4 py-2">{t('gateway.userStatus')}</th>
-              <th className="text-right px-4 py-2">{t('gateway.actions')}</th>
+          <thead className="bg-card-recessed">
+            <tr className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+              <th className="text-left px-4 py-2">[ ID ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userUsername').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userDisplayName').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userEmail').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userRole').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userQuota').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userGroup').toUpperCase()} ]</th>
+              <th className="text-left px-4 py-2">[ {t('gateway.userStatus').toUpperCase()} ]</th>
+              <th className="text-right px-4 py-2">[ {t('gateway.actions').toUpperCase()} ]</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center py-8 text-muted-foreground">
-                  {loading ? t('status.loading') : t('gateway.noUsers')}
+                <td colSpan={9} className="text-center py-8 text-muted-foreground font-mono">
+                  ▪ {loading ? t('status.loading') : t('gateway.noUsers')}
                 </td>
               </tr>
             )}
             {users.map((u) => (
-              <tr key={u.id} className="border-t border-border hover:bg-muted/30">
-                <td className="px-4 py-2 text-muted-foreground">{u.id}</td>
+              <tr key={u.id} className="border-t border-border hover:bg-muted/30 transition-colors">
+                <td className="px-4 py-2 text-muted-foreground font-mono tabular-nums">{u.id}</td>
                 <td className="px-4 py-2 font-medium">{u.username}</td>
                 <td className="px-4 py-2">{u.display_name || '-'}</td>
-                <td className="px-4 py-2 text-xs text-muted-foreground">{u.email || '-'}</td>
+                <td className="px-4 py-2 text-xs text-muted-foreground font-mono">{u.email || '-'}</td>
                 <td className="px-4 py-2">
-                  <span className="text-xs rounded px-1.5 py-0.5 bg-muted/60">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] rounded px-1.5 py-0.5 bg-card-recessed text-muted-foreground">
                     {ROLE_LABELS[u.role] ?? `Role ${u.role}`}
                   </span>
                 </td>
-                <td className="px-4 py-2">{u.used_quota} / {u.quota}</td>
-                <td className="px-4 py-2 text-xs">{u.group || '-'}</td>
+                <td className="px-4 py-2 font-mono tabular-nums">{u.used_quota} / {u.quota}</td>
+                <td className="px-4 py-2 text-xs font-mono">{u.group || '-'}</td>
                 <td className="px-4 py-2">
-                  <button onClick={() => handleToggleStatus(u)}>
+                  <button onClick={() => handleToggleStatus(u)} className="transition-opacity hover:opacity-80">
                     <StatusBadge status={u.status === 1 ? 'enabled' : 'disabled'} />
                   </button>
                 </td>
                 <td className="px-4 py-2 text-right">
                   <div className="flex justify-end gap-1">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => { setEditing(u); setShowModal(true) }}
                       title={t('gateway.edit')}
-                      className="p-1 hover:text-indigo-400"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                    </button>
-                    <button
+                      icon={<Edit2 className="h-3.5 w-3.5" />}
+                      className="hover:text-primary"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setConfirmDelete(u.id)}
                       title={t('gateway.delete')}
-                      className="p-1 hover:text-red-400"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                      icon={<Trash2 className="h-3.5 w-3.5" />}
+                      className="hover:text-red-400 hover:bg-red-500/10"
+                    />
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-      </div>
+      </Card>
 
       <Pagination page={page} total={total} perPage={PER_PAGE} onPageChange={handlePageChange} />
 
@@ -221,94 +225,93 @@ export function GatewayUserPage() {
       />
 
       {/* Create/Edit Modal */}
-      {showModal && editing && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-card border border-border rounded-lg p-6 w-[28rem] max-h-[80vh] overflow-y-auto space-y-4">
-            <h3 className="font-semibold">{editing.id ? t('gateway.editUser') : t('gateway.createUser')}</h3>
-            <div className="space-y-3">
+      <Modal
+        open={showModal && !!editing}
+        onClose={() => { setShowModal(false); setEditing(null) }}
+        title={editing?.id ? t('gateway.editUser') : t('gateway.createUser')}
+        icon={editing?.id ? Edit2 : Plus}
+        size="md"
+        footer={
+          <>
+            <Button variant="secondary" size="sm" onClick={() => { setShowModal(false); setEditing(null) }}>
+              {t('gateway.cancel')}
+            </Button>
+            <Button size="sm" onClick={handleSave}>
+              {t('gateway.save')}
+            </Button>
+          </>
+        }
+      >
+        {editing && (
+          <div className="space-y-3">
+            <label className="block text-sm">
+              <span className="text-muted-foreground font-mono text-xs">{t('gateway.userUsername')}</span>
+              <input
+                className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editing.username ?? ''}
+                onChange={(e) => setEditing({ ...editing, username: e.target.value })}
+              />
+            </label>
+            {!editing.id && (
               <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.userUsername')}</span>
+                <span className="text-muted-foreground font-mono text-xs">{t('gateway.userPassword')}</span>
                 <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                  value={editing.username ?? ''}
-                  onChange={(e) => setEditing({ ...editing, username: e.target.value })}
+                  type="password"
+                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                  value={editing.password ?? ''}
+                  onChange={(e) => setEditing({ ...editing, password: e.target.value })}
                 />
               </label>
-              {!editing.id && (
-                <label className="block text-sm">
-                  <span className="text-muted-foreground">{t('gateway.userPassword')}</span>
-                  <input
-                    type="password"
-                    className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                    value={editing.password ?? ''}
-                    onChange={(e) => setEditing({ ...editing, password: e.target.value })}
-                  />
-                </label>
-              )}
-              <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.userDisplayName')}</span>
-                <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                  value={editing.display_name ?? ''}
-                  onChange={(e) => setEditing({ ...editing, display_name: e.target.value })}
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.userEmail')}</span>
-                <input
-                  type="email"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                  value={editing.email ?? ''}
-                  onChange={(e) => setEditing({ ...editing, email: e.target.value })}
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.userRole')}</span>
-                <select
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                  value={editing.role ?? 1}
-                  onChange={(e) => setEditing({ ...editing, role: parseInt(e.target.value) })}
-                >
-                  {ROLE_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.userQuota')}</span>
-                <input
-                  type="number"
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                  value={editing.quota ?? 0}
-                  onChange={(e) => setEditing({ ...editing, quota: parseInt(e.target.value) || 0 })}
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-muted-foreground">{t('gateway.userGroup')}</span>
-                <input
-                  className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm"
-                  value={editing.group ?? ''}
-                  onChange={(e) => setEditing({ ...editing, group: e.target.value })}
-                />
-              </label>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button
-                onClick={() => { setShowModal(false); setEditing(null) }}
-                className="px-4 py-1.5 rounded border border-border text-sm hover:bg-muted"
+            )}
+            <label className="block text-sm">
+              <span className="text-muted-foreground font-mono text-xs">{t('gateway.userDisplayName')}</span>
+              <input
+                className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editing.display_name ?? ''}
+                onChange={(e) => setEditing({ ...editing, display_name: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-muted-foreground font-mono text-xs">{t('gateway.userEmail')}</span>
+              <input
+                type="email"
+                className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editing.email ?? ''}
+                onChange={(e) => setEditing({ ...editing, email: e.target.value })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-muted-foreground font-mono text-xs">{t('gateway.userRole')}</span>
+              <select
+                className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editing.role ?? 1}
+                onChange={(e) => setEditing({ ...editing, role: parseInt(e.target.value) })}
               >
-                {t('gateway.cancel')}
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-sm"
-              >
-                {t('gateway.save')}
-              </button>
-            </div>
+                {ROLE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm">
+              <span className="text-muted-foreground font-mono text-xs">{t('gateway.userQuota')}</span>
+              <input
+                type="number"
+                className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono tabular-nums focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editing.quota ?? 0}
+                onChange={(e) => setEditing({ ...editing, quota: parseInt(e.target.value) || 0 })}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="text-muted-foreground font-mono text-xs">{t('gateway.userGroup')}</span>
+              <input
+                className="mt-1 w-full rounded border border-border bg-background px-3 py-1.5 text-sm font-mono focus:outline-none focus:ring-1 focus:ring-primary"
+                value={editing.group ?? ''}
+                onChange={(e) => setEditing({ ...editing, group: e.target.value })}
+              />
+            </label>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   )
 }
