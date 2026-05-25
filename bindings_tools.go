@@ -5,8 +5,10 @@ import (
 
 	"lurus-switch/internal/analytics"
 	"lurus-switch/internal/installer"
+	"lurus-switch/internal/packager"
 	"lurus-switch/internal/toolhealth"
 	"lurus-switch/internal/toolmanifest"
+	"lurus-switch/internal/toolruntime"
 	"lurus-switch/internal/updater"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -253,4 +255,41 @@ func (a *App) InstallDependency(runtimeID string) (*installer.DepInstallResult, 
 // InstallBun installs the Bun runtime and returns its path
 func (a *App) InstallBun() (string, error) {
 	return a.instMgr.GetRuntime().InstallBun(a.ctx)
+}
+
+// CheckBunInstalled checks if Bun is installed
+func (a *App) CheckBunInstalled() bool {
+	return packager.IsBunInstalled()
+}
+
+// CheckNodeInstalled checks if Node.js is installed
+func (a *App) CheckNodeInstalled() bool {
+	return packager.IsNodeInstalled()
+}
+
+// GetToolRuntimes returns a snapshot of every supported CLI's live
+// state — endpoint, model, process status, reachability — for the
+// "Runtime Status" panel on Home. Probes run concurrently with a 3s
+// per-host timeout, so the call settles in ~3s in the worst case.
+func (a *App) GetToolRuntimes() []toolruntime.ToolRuntime {
+	// Collect running PIDs once and pass them in so each tool probe
+	// doesn't re-shell-out to enumerate processes.
+	runningPIDs := map[string]int{}
+	if a.processMon != nil {
+		if procs, err := a.processMon.ListCLIProcesses(a.ctx); err == nil {
+			for _, p := range procs {
+				if p.PID > 0 && runningPIDs[p.Tool] == 0 {
+					runningPIDs[p.Tool] = p.PID
+				}
+			}
+		}
+	}
+	gwPort := 0
+	if a.gatewaySrv != nil {
+		gwPort = a.gatewaySrv.GetConfig().Port
+	}
+	return toolruntime.ProbeAll(a.ctx, toolruntime.ProbeOptions{
+		RunningPIDs: runningPIDs,
+		GatewayPort: gwPort,
+	})
 }

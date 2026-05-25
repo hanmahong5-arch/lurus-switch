@@ -5,24 +5,15 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
-	goruntime "runtime"
-	"time"
-
 	"sync/atomic"
 
 	"lurus-switch/internal/activity"
-	"lurus-switch/internal/bashguard"
-	"lurus-switch/internal/budget"
 	"lurus-switch/internal/diagnostics"
 	"lurus-switch/internal/hotkey"
 	"lurus-switch/internal/livesession"
 	"lurus-switch/internal/notify"
 	"lurus-switch/internal/notify/rules"
-	"lurus-switch/internal/packager"
-	"lurus-switch/internal/repoaudit"
 	"lurus-switch/internal/toolmanifest"
-	"lurus-switch/internal/toolruntime"
 	"lurus-switch/internal/tray"
 
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
@@ -31,16 +22,11 @@ import (
 // AppVersion is the current version of Lurus Switch, set at build time via -ldflags
 var AppVersion = "0.1.0"
 
-// SystemInfo contains runtime information about the host system
-type SystemInfo struct {
-	AppVersion string `json:"appVersion"`
-	GOOS       string `json:"goos"`
-	GOARCH     string `json:"goarch"`
-}
-
-// App struct — Wails-bound application.
-// Service dependencies live in the embedded *services struct (services.go),
-// keeping App focused on Wails lifecycle and manifest coordination.
+// App is the Wails-bound application surface. The struct stays minimal —
+// service dependencies live in the embedded *services value (services.go),
+// and Wails methods are split across bindings_*.go files by subsystem.
+// Only lifecycle (startup/shutdown), shared pointers, and panic-safe
+// goroutine helpers live here.
 type App struct {
 	ctx context.Context
 
@@ -205,32 +191,6 @@ func (a *App) startup(ctx context.Context) {
 	diagnostics.Default.Mark("hotkey-start")
 }
 
-// trayQuotaSnapshot is the tray's quota-usage provider. Returns UsedPercent = -1
-// when the billing client is unavailable so the tray can render an "unknown" tier.
-func (a *App) trayQuotaSnapshot() tray.QuotaSnapshot {
-	client, err := a.ensureBillingClient()
-	if err != nil || client == nil {
-		return tray.QuotaSnapshot{UsedPercent: -1}
-	}
-	ctx, cancel := context.WithTimeout(a.ctx, 5*time.Second)
-	defer cancel()
-	info, err := client.GetUserInfo(ctx)
-	if err != nil || info == nil || info.Quota == 0 {
-		return tray.QuotaSnapshot{UsedPercent: -1}
-	}
-	pct := float64(info.UsedQuota) / float64(info.Quota) * 100
-	return tray.QuotaSnapshot{UsedPercent: pct}
-}
-
-// trayGatewayStatus is the tray's gateway-status provider.
-func (a *App) trayGatewayStatus() tray.GatewayStatus {
-	if a.gatewaySrv == nil {
-		return tray.GatewayStatus{}
-	}
-	s := a.gatewaySrv.Status()
-	return tray.GatewayStatus{Running: s.Running, Port: s.Port}
-}
-
 // shutdown is called when the Wails app is closing.
 // It gracefully stops all running services and releases resources.
 func (a *App) shutdown(ctx context.Context) {
@@ -291,224 +251,4 @@ func safeGo(label string, fn func()) {
 		}
 	}()
 	fn()
-}
-
-// refreshManifest fetches the latest tool manifest from the configured API endpoint,
-// falling back to a stale cache and then the compile-time builtin on failure.
-func (a *App) refreshManifest() {
-	apiBase := ""
-	if a.proxyMgr != nil {
-		apiBase = a.proxyMgr.GetSettings().APIEndpoint
-	}
-	mf, err := toolmanifest.Fetch(a.ctx, apiBase, appDataBaseDir())
-	if err != nil {
-		mf = toolmanifest.Builtin()
-	}
-	a.manifest.Store(mf)
-	if a.instMgr != nil {
-		a.instMgr.SetManifest(mf)
-	}
-}
-
-// loadManifest returns the current manifest, falling back to the compile-time builtin.
-func (a *App) loadManifest() *toolmanifest.Manifest {
-	if mf := a.manifest.Load(); mf != nil {
-		return mf
-	}
-	return toolmanifest.Builtin()
-}
-
-// GetSystemInfo returns basic system information
-func (a *App) GetSystemInfo() *SystemInfo {
-	return &SystemInfo{
-		AppVersion: AppVersion,
-		GOOS:       goruntime.GOOS,
-		GOARCH:     goruntime.GOARCH,
-	}
-}
-
-// GetConfigDir returns the configuration directory path
-func (a *App) GetConfigDir() string {
-	if a.store == nil {
-		return ""
-	}
-	return a.store.GetConfigDir()
-}
-
-// OpenConfigDir opens the configuration directory in the file explorer
-func (a *App) OpenConfigDir() error {
-	if a.store == nil {
-		return fmt.Errorf("config store not initialized")
-	}
-	dir := a.store.GetConfigDir()
-	return openDirectory(dir)
-}
-
-// AuditRepo scans a project directory for AI-CLI config overrides that
-// could indicate prompt-injection or credential-exfiltration vectors.
-// Powers the "Repo Trust Audit" UI; the user reviews findings before
-// launching any CLI inside the repo.
-func (a *App) AuditRepo(path string) (*repoaudit.AuditReport, error) {
-	if path == "" {
-		return nil, fmt.Errorf("path is required")
-	}
-	return repoaudit.Audit(path)
-}
-
-// PickRepoAndAudit opens the native directory picker and immediately
-// runs the audit on the chosen directory. Returns nil (no error) if the
-// user cancels — the UI distinguishes "no result" from "error" by the
-// presence of the report.
-func (a *App) PickRepoAndAudit() (*repoaudit.AuditReport, error) {
-	dir, err := wailsRuntime.OpenDirectoryDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Pick a project directory to audit",
-	})
-	if err != nil {
-		return nil, err
-	}
-	if dir == "" {
-		return nil, nil
-	}
-	return repoaudit.Audit(dir)
-}
-
-// QuarantineFile renames a file flagged by AuditRepo so the AI CLI no
-// longer reads it. Returns the new path so the UI can show the user
-// where the file went and how to restore it later.
-func (a *App) QuarantineFile(path string) (string, error) {
-	if path == "" {
-		return "", fmt.Errorf("path is required")
-	}
-	return repoaudit.Quarantine(path)
-}
-
-// ─── Budget Wall ────────────────────────────────────────────────────
-
-// BudgetGetConfig returns the current spend-wall configuration.
-func (a *App) BudgetGetConfig() budget.Config {
-	if a.budgetGuard == nil {
-		return budget.DefaultConfig()
-	}
-	return a.budgetGuard.GetConfig()
-}
-
-// BudgetSetConfig persists new limits and applies them immediately.
-func (a *App) BudgetSetConfig(c budget.Config) error {
-	if a.budgetGuard == nil {
-		return fmt.Errorf("budget guard not initialised — gateway disabled?")
-	}
-	return a.budgetGuard.SetConfig(c)
-}
-
-// BudgetGetStatus returns current usage vs. limit for the UI gauge.
-func (a *App) BudgetGetStatus() budget.Status {
-	if a.budgetGuard == nil {
-		return budget.Status{}
-	}
-	return a.budgetGuard.Status()
-}
-
-// BudgetResetSession zeroes the in-process session counter so the user
-// can keep working after intentionally hitting the cap.
-func (a *App) BudgetResetSession() {
-	if a.budgetGuard == nil {
-		return
-	}
-	a.budgetGuard.ResetSession()
-}
-
-// ─── Bash-Guard ─────────────────────────────────────────────────────
-
-// BashGuardListRules returns the deny-list rules. UI uses this to show
-// what Switch is willing to block.
-func (a *App) BashGuardListRules() []*bashguard.Rule {
-	return bashguard.DefaultRules()
-}
-
-// BashGuardTestCommand evaluates a command without installing/running
-// any hook — pure preview so users can test their workflows without
-// touching the live CLI integration.
-func (a *App) BashGuardTestCommand(cmd string) (*bashguard.MatchResult, error) {
-	eng, err := bashguard.NewEngine(bashguard.DefaultRules())
-	if err != nil {
-		return nil, err
-	}
-	r := eng.Evaluate(cmd)
-	return &r, nil
-}
-
-// BashGuardClaudeStatus reports whether the PreToolUse hook is wired
-// into the user's claude settings and (if so) what the hook command is.
-func (a *App) BashGuardClaudeStatus() bashguard.HookInstallStatus {
-	return bashguard.CheckClaudeHook(claudeSettingsPath())
-}
-
-// BashGuardInstallClaude wires the PreToolUse hook to call this very
-// executable with --bashguard, so subsequent Claude Code shell tool
-// invocations route through Switch's deny-list.
-func (a *App) BashGuardInstallClaude() error {
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	hookCmd := fmt.Sprintf("%q --bashguard", exe)
-	return bashguard.InstallClaudeHook(claudeSettingsPath(), hookCmd)
-}
-
-// BashGuardUninstallClaude removes only our hook entry, preserving any
-// user-managed PreToolUse hooks.
-func (a *App) BashGuardUninstallClaude() error {
-	return bashguard.UninstallClaudeHook(claudeSettingsPath())
-}
-
-// BashGuardRecentBlocks returns the tail of the audit log so the UI
-// can show what got blocked recently.
-func (a *App) BashGuardRecentBlocks(max int) ([]bashguard.BlockEntry, error) {
-	logPath := filepath.Join(appDataBaseDir(), "bashguard-blocks.jsonl")
-	return bashguard.ReadRecentBlocks(logPath, max)
-}
-
-func claudeSettingsPath() string {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return ""
-	}
-	return filepath.Join(home, ".claude", "settings.json")
-}
-
-// GetToolRuntimes returns a snapshot of every supported CLI's live
-// state — endpoint, model, process status, reachability — for the
-// "Runtime Status" panel on Home. Probes run concurrently with a 3s
-// per-host timeout, so the call settles in ~3s in the worst case.
-func (a *App) GetToolRuntimes() []toolruntime.ToolRuntime {
-	// Collect running PIDs once and pass them in so each tool probe
-	// doesn't re-shell-out to enumerate processes.
-	runningPIDs := map[string]int{}
-	if a.processMon != nil {
-		if procs, err := a.processMon.ListCLIProcesses(a.ctx); err == nil {
-			for _, p := range procs {
-				if p.PID > 0 && runningPIDs[p.Tool] == 0 {
-					runningPIDs[p.Tool] = p.PID
-				}
-			}
-		}
-	}
-	gwPort := 0
-	if a.gatewaySrv != nil {
-		gwPort = a.gatewaySrv.GetConfig().Port
-	}
-	return toolruntime.ProbeAll(a.ctx, toolruntime.ProbeOptions{
-		RunningPIDs: runningPIDs,
-		GatewayPort: gwPort,
-	})
-}
-
-// CheckBunInstalled checks if Bun is installed
-func (a *App) CheckBunInstalled() bool {
-	return packager.IsBunInstalled()
-}
-
-// CheckNodeInstalled checks if Node.js is installed
-func (a *App) CheckNodeInstalled() bool {
-	return packager.IsNodeInstalled()
 }

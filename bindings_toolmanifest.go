@@ -112,3 +112,29 @@ func (a *App) ResetToolManifestOverrides() error {
 	go safeGo("refresh-manifest-after-override", func() { a.refreshManifest() })
 	return nil
 }
+
+// refreshManifest fetches the latest tool manifest from the configured API endpoint,
+// falling back to a stale cache and then the compile-time builtin on failure.
+// Called at startup as a background goroutine and after admin override edits.
+func (a *App) refreshManifest() {
+	apiBase := ""
+	if a.proxyMgr != nil {
+		apiBase = a.proxyMgr.GetSettings().APIEndpoint
+	}
+	mf, err := toolmanifest.Fetch(a.ctx, apiBase, appDataBaseDir())
+	if err != nil {
+		mf = toolmanifest.Builtin()
+	}
+	a.manifest.Store(mf)
+	if a.instMgr != nil {
+		a.instMgr.SetManifest(mf)
+	}
+}
+
+// loadManifest returns the current manifest, falling back to the compile-time builtin.
+func (a *App) loadManifest() *toolmanifest.Manifest {
+	if mf := a.manifest.Load(); mf != nil {
+		return mf
+	}
+	return toolmanifest.Builtin()
+}
