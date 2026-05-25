@@ -629,6 +629,8 @@ export function PickImportBundlePath():Promise<string>;
 
 export function PickRelayForTool(arg1:string):Promise<relay.PickResult>;
 
+export function DryRunRouter(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<relay.PickResult>;
+
 export function PickRepoAndAudit():Promise<repoaudit.AuditReport>;
 
 export function PingEndpoint(arg1:string):Promise<number>;

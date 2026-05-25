@@ -1636,6 +1636,15 @@ export function SwitchHubPage({ section = 'all' }: { section?: SwitchHubSection 
                             )}
                           </div>
                           <div className="flex items-center gap-3 text-muted-foreground flex-shrink-0">
+                            {r.servedBy && (
+                              <span
+                                className="font-mono text-[9px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400 max-w-[120px] truncate"
+                                title={r.matchedBy ? `${r.servedBy} · rule: ${r.matchedBy}` : r.servedBy}
+                              >
+                                {r.servedBy}
+                                {r.matchedBy ? ` · ${r.matchedBy}` : ''}
+                              </span>
+                            )}
                             <span className="font-mono text-[10px] max-w-[120px] truncate">{r.model}</span>
                             <span className="text-[10px] w-14 text-right">{r.latencyMs}ms</span>
                             <span className="text-[10px] w-12 text-right">{formatTokens(r.tokensIn + r.tokensOut)}</span>

@@ -23,6 +23,13 @@ type Record struct {
 	CostCenter string `json:"costCenter,omitempty"` // e.g. "ENG-PLATFORM-001"
 	EmployeeID string `json:"employeeId,omitempty"` // SSO sub claim
 	ProjectTag string `json:"projectTag,omitempty"` // free-form, set by user/agent
+
+	// Routing dimensions populated by the gateway when the relay router
+	// is active. ServedBy carries the endpoint display name (e.g.
+	// "DeepSeek backup"), MatchedBy the rule name that selected the
+	// primary. Both empty when the cfg-driven path served the request.
+	ServedBy  string `json:"servedBy,omitempty"`
+	MatchedBy string `json:"matchedBy,omitempty"`
 }
 
 // DailySummary aggregates usage for one day.

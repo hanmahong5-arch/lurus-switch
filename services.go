@@ -297,13 +297,18 @@ func newServices(appDataDir, version string) (*services, []string) {
 			breaker := svc.relayRouter.Breaker()
 			relayStore := svc.relayStore
 			svc.gatewaySrv.GetFallbackChain().SetObserver(func(name string, ok bool, errMsg string, latencyMs int64) {
-				_ = latencyMs // W3.2 will feed this back into relay store
 				id := resolveEndpointIDByName(relayStore, name)
 				if id == "" {
 					return
 				}
 				if ok {
 					breaker.RecordSuccess(id)
+					// Feed measured latency back into the relay store so
+					// Pick()'s ascending-latency sort reflects live
+					// traffic, not just the last manual health check.
+					if latencyMs > 0 {
+						_ = relayStore.UpdateEndpointLatency(id, latencyMs)
+					}
 				} else {
 					breaker.RecordFailure(id, errMsg)
 				}

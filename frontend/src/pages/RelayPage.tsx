@@ -22,6 +22,7 @@ import {
 import { relay } from '../../wailsjs/go/models'
 import { CircuitStateChip } from '../components/relay/CircuitStateChip'
 import { RelayRulesEditor } from '../components/relay/RelayRulesEditor'
+import { RouterDryRunPanel } from '../components/relay/RouterDryRunPanel'
 
 const TOOL_ORDER = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw']
 
@@ -451,6 +452,12 @@ export function RelayPage() {
             its own collapsible section so the page stays approachable. */}
         <section className="space-y-2 border border-border rounded-lg p-3 bg-card/50">
           <RelayRulesEditor />
+        </section>
+
+        {/* Dry-run panel: simulate a request without sending traffic so
+            users can validate the rule set before wiring a CLI. */}
+        <section className="space-y-2 border border-border rounded-lg p-3 bg-card/50">
+          <RouterDryRunPanel />
         </section>
 
         {/* Zone C: Tool → relay mapping */}

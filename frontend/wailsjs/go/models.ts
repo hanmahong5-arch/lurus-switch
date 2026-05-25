@@ -4409,11 +4409,13 @@ export namespace main {
 	    statusCode: number;
 	    cached: boolean;
 	    error?: string;
-	
+	    servedBy?: string;
+	    matchedBy?: string;
+
 	    static createFrom(source: any = {}) {
 	        return new RequestLogEntry(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -4426,6 +4428,8 @@ export namespace main {
 	        this.statusCode = source["statusCode"];
 	        this.cached = source["cached"];
 	        this.error = source["error"];
+	        this.servedBy = source["servedBy"];
+	        this.matchedBy = source["matchedBy"];
 	    }
 	}
 	
@@ -5636,16 +5640,18 @@ export namespace relay {
 	    Endpoint: RelayEndpoint;
 	    MatchedBy: string;
 	    Healthy: RelayEndpoint[];
-	
+	    Ordered: RelayEndpoint[];
+
 	    static createFrom(source: any = {}) {
 	        return new PickResult(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Endpoint = this.convertValues(source["Endpoint"], RelayEndpoint);
 	        this.MatchedBy = source["MatchedBy"];
 	        this.Healthy = this.convertValues(source["Healthy"], RelayEndpoint);
+	        this.Ordered = this.convertValues(source["Ordered"], RelayEndpoint);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

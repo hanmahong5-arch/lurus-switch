@@ -145,6 +145,8 @@ export interface RequestLogEntry {
   statusCode: number
   cached: boolean
   error?: string
+  servedBy?: string
+  matchedBy?: string
 }
 
 export interface UsageInsight {

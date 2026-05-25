@@ -217,6 +217,8 @@ type RequestLogEntry struct {
 	StatusCode int    `json:"statusCode"`
 	Cached     bool   `json:"cached"`
 	Error      string `json:"error,omitempty"`
+	ServedBy   string `json:"servedBy,omitempty"`
+	MatchedBy  string `json:"matchedBy,omitempty"`
 }
 
 // GetRequestLog returns detailed recent API calls, optionally filtered by app/model.
@@ -252,6 +254,8 @@ func (a *App) GetRequestLog(limit int, filterApp string, filterModel string) []R
 			StatusCode: r.StatusCode,
 			Cached:     r.CachedHit,
 			Error:      r.ErrorMessage,
+			ServedBy:   r.ServedBy,
+			MatchedBy:  r.MatchedBy,
 		})
 	}
 	return out

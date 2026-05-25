@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 const (
@@ -81,6 +82,41 @@ func (s *Store) SaveEndpoint(ep RelayEndpoint) error {
 		eps = append(eps, ep)
 	}
 
+	return s.saveUserEndpoints(eps)
+}
+
+// UpdateEndpointLatency stores a freshly-observed round-trip latency
+// against a user-defined endpoint. Builtin endpoints are skipped
+// silently (they are merged at read time and never persisted).
+//
+// Called from the gateway fallback observer after every successful
+// upstream attempt so Router.Pick's ascending-latency sort reflects
+// live traffic, not just the last manual health check.
+func (s *Store) UpdateEndpointLatency(id string, latencyMs int64) error {
+	if id == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	eps, err := s.loadUserEndpoints()
+	if err != nil {
+		return err
+	}
+	now := time.Now().Format(time.RFC3339)
+	updated := false
+	for i, e := range eps {
+		if e.ID == id {
+			eps[i].LatencyMs = latencyMs
+			eps[i].Healthy = true
+			eps[i].LastChecked = now
+			updated = true
+			break
+		}
+	}
+	if !updated {
+		return nil // builtin or unknown — skip silently
+	}
 	return s.saveUserEndpoints(eps)
 }
 

@@ -1150,6 +1150,10 @@ export function PickRelayForTool(arg1) {
   return window['go']['main']['App']['PickRelayForTool'](arg1);
 }
 
+export function DryRunRouter(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['DryRunRouter'](arg1, arg2, arg3, arg4);
+}
+
 export function PickRepoAndAudit() {
   return window['go']['main']['App']['PickRepoAndAudit']();
 }

@@ -194,6 +194,28 @@ func (a *App) PickRelayForTool(tool string) (*relay.PickResult, error) {
 	return &res, nil
 }
 
+// DryRunRouter simulates what Router.Pick would do for a hypothetical
+// request — same code path, no upstream traffic. Used by the
+// RelayPage "what would happen if I sent X" panel so users can
+// validate rule wiring before pointing a CLI at it.
+//
+// estTokens / hasTools mirror gateway/proxy.go's PickHint construction
+// so the dry-run result is bit-equivalent to the production decision.
+func (a *App) DryRunRouter(tool, model string, estTokens int64, hasTools bool) (*relay.PickResult, error) {
+	if a.relayRouter == nil {
+		return nil, fmt.Errorf("relay router not initialised")
+	}
+	res, err := a.relayRouter.Pick(tool, relay.PickHint{
+		Model:                model,
+		EstimatedInputTokens: estTokens,
+		HasTools:             hasTools,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 // migrateProxyToRelay is called on first startup to seed the relay store from
 // legacy proxy settings. It creates a "migrated-legacy" endpoint if apiEndpoint is set.
 func (a *App) migrateProxyToRelay() {

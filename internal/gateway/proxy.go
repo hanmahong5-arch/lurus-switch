@@ -260,6 +260,9 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 		// Enterprise dimensions — empty in Personal/Reseller installs.
 		EmployeeID: meta.OwnerEmployeeID,
 		CostCenter: meta.CostCenter,
+		// Routing — populated when the relay router served this request.
+		ServedBy:  meta.ServedBy,
+		MatchedBy: meta.MatchedBy,
 	}
 	s.meter.Record(rec)
 
@@ -284,6 +287,8 @@ func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {
 		StatusCode:   502,
 		ErrorMessage: errMsg,
 		Timestamp:    time.Now(),
+		ServedBy:     meta.ServedBy,
+		MatchedBy:    meta.MatchedBy,
 	}
 	s.meter.Record(rec)
 }
