@@ -120,6 +120,68 @@ func (s *Store) UpdateEndpointLatency(id string, latencyMs int64) error {
 	return s.saveUserEndpoints(eps)
 }
 
+// LegacyFallback is the shape of pre-W4.2 gateway.FallbackEntry passed to
+// MigrateLegacyFallbacks. Decoupled from the gateway package so the relay
+// store stays independent of caller types.
+type LegacyFallback struct {
+	Name  string
+	URL   string
+	Token string
+}
+
+// MigrateLegacyFallbacks one-shot upserts pre-W4.2 cfg.Fallbacks entries
+// into user-defined relay endpoints. Idempotent: when any user endpoint
+// already exists, no migration runs and (0, nil) is returned so reboots
+// don't duplicate. Caller should clear cfg.Fallbacks after a successful
+// (>0) result so the legacy field stops shadowing future router edits.
+func (s *Store) MigrateLegacyFallbacks(legacy []LegacyFallback) (int, error) {
+	if len(legacy) == 0 {
+		return 0, nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	existing, err := s.loadUserEndpoints()
+	if err != nil {
+		return 0, err
+	}
+	if len(existing) > 0 {
+		// Already migrated (or user added endpoints since) — leave alone.
+		return 0, nil
+	}
+
+	added := 0
+	for _, lf := range legacy {
+		if lf.URL == "" {
+			continue
+		}
+		buf := make([]byte, 8)
+		if _, err := rand.Read(buf); err != nil {
+			return added, fmt.Errorf("generate endpoint ID: %w", err)
+		}
+		name := lf.Name
+		if name == "" {
+			name = "migrated"
+		}
+		existing = append(existing, RelayEndpoint{
+			ID:          fmt.Sprintf("relay-%x", buf),
+			Name:        name,
+			Kind:        KindCustom,
+			URL:         lf.URL,
+			APIKey:      lf.Token,
+			Description: "migrated from legacy gateway fallbacks",
+		})
+		added++
+	}
+	if added == 0 {
+		return 0, nil
+	}
+	if err := s.saveUserEndpoints(existing); err != nil {
+		return added, err
+	}
+	return added, nil
+}
+
 // DeleteEndpoint removes a user-defined endpoint by ID.
 func (s *Store) DeleteEndpoint(id string) error {
 	s.mu.Lock()

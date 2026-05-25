@@ -63,3 +63,80 @@ func TestStore_UpdateEndpointLatency_UnknownIDIsNoop(t *testing.T) {
 		t.Errorf("update with empty id should not error: %v", err)
 	}
 }
+
+// TestStore_MigrateLegacyFallbacks_Idempotent verifies that running the
+// W4.2 migration twice has the same effect as running it once: existing
+// user endpoints block the second run so we never double-import.
+func TestStore_MigrateLegacyFallbacks_Idempotent(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := []LegacyFallback{
+		{Name: "Groq-Free", URL: "https://api.groq.com", Token: "gk-1"},
+		{Name: "DeepSeek", URL: "https://api.deepseek.com", Token: "dk-1"},
+	}
+
+	n, err := store.MigrateLegacyFallbacks(legacy)
+	if err != nil {
+		t.Fatalf("first migrate: %v", err)
+	}
+	if n != 2 {
+		t.Fatalf("first migrate added = %d, want 2", n)
+	}
+
+	// Second run must skip — any user endpoint blocks repeat migration.
+	n2, err := store.MigrateLegacyFallbacks(legacy)
+	if err != nil {
+		t.Fatalf("second migrate: %v", err)
+	}
+	if n2 != 0 {
+		t.Fatalf("second migrate added = %d, want 0 (idempotent)", n2)
+	}
+
+	eps, err := store.ListEndpoints()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 1 builtin (lurus-api) + 2 migrated = 3 total.
+	if got := len(eps); got != 3 {
+		t.Fatalf("endpoint count = %d, want 3 (1 builtin + 2 migrated)", got)
+	}
+
+	gotURLs := map[string]bool{}
+	for _, ep := range eps {
+		gotURLs[ep.URL] = true
+	}
+	for _, want := range []string{"https://api.groq.com", "https://api.deepseek.com"} {
+		if !gotURLs[want] {
+			t.Errorf("migrated endpoint URL %q missing from store", want)
+		}
+	}
+}
+
+// TestStore_MigrateLegacyFallbacks_EmptyAndNoop verifies the two no-op
+// branches: passing nil/empty input, and passing a non-empty list while
+// the store already has user endpoints from manual edits.
+func TestStore_MigrateLegacyFallbacks_EmptyAndNoop(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := store.MigrateLegacyFallbacks(nil)
+	if err != nil || n != 0 {
+		t.Fatalf("nil input: got (%d, %v), want (0, nil)", n, err)
+	}
+
+	if err := store.SaveEndpoint(RelayEndpoint{ID: "ep1", Name: "manual", URL: "https://x.test"}); err != nil {
+		t.Fatal(err)
+	}
+	n2, err := store.MigrateLegacyFallbacks([]LegacyFallback{
+		{Name: "Skip", URL: "https://skip.test"},
+	})
+	if err != nil || n2 != 0 {
+		t.Fatalf("with existing user endpoint: got (%d, %v), want (0, nil)", n2, err)
+	}
+}

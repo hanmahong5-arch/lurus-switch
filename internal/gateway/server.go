@@ -70,6 +70,12 @@ type Server struct {
 }
 
 // NewServer creates a gateway server. Call Start() to begin listening.
+//
+// Pre-W4.2 (Wave 3): the constructor seeded the FallbackChain from
+// cfg.Fallbacks. That path is gone — the relay router owns the active
+// chain (see buildChainFromRouter). cfg.Fallbacks is migrated into the
+// relay store one-shot at services-init time, then the field stays
+// empty for back-compat readers.
 func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Store) *Server {
 	cfgPath := filepath.Join(appDataDir, configFileName)
 	s := &Server{
@@ -79,7 +85,6 @@ func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Sto
 		fallback: NewFallbackChain(nil),
 	}
 	s.cfg = s.loadConfig()
-	s.fallback.SetEntries(s.cfg.Fallbacks)
 	return s
 }
 

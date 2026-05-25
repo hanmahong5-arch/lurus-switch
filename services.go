@@ -275,6 +275,32 @@ func newServices(appDataDir, version string) (*services, []string) {
 	// Gateway depends on appRegistry and meterStore, so create after the struct.
 	if appReg != nil && meterStr != nil {
 		svc.gatewaySrv = gateway.NewServer(appDataDir, appReg, meterStr)
+
+		// One-shot migration: pre-W4.2 cfg.Fallbacks → relay store user
+		// endpoints. Idempotent — Migrate returns (0, nil) when any user
+		// endpoint already exists, so reboots and re-runs are safe. After
+		// a successful migration we persist an empty Fallbacks slice so
+		// the next save drops the legacy field thanks to omitempty.
+		if relayStr != nil {
+			gwCfg := svc.gatewaySrv.GetConfig()
+			if len(gwCfg.Fallbacks) > 0 {
+				legacy := make([]relay.LegacyFallback, 0, len(gwCfg.Fallbacks))
+				for _, f := range gwCfg.Fallbacks {
+					legacy = append(legacy, relay.LegacyFallback{
+						Name: f.Name, URL: f.URL, Token: f.Token,
+					})
+				}
+				if migrated, mErr := relayStr.MigrateLegacyFallbacks(legacy); mErr != nil {
+					warnings = append(warnings, fmt.Sprintf("migrate gateway fallbacks: %v", mErr))
+				} else if migrated > 0 {
+					gwCfg.Fallbacks = nil
+					if sErr := svc.gatewaySrv.SaveConfig(gwCfg); sErr != nil {
+						warnings = append(warnings, fmt.Sprintf("clear migrated fallbacks: %v", sErr))
+					}
+				}
+			}
+		}
+
 		// Active Budget Wall — persisted config alongside other gateway
 		// state. The guard delegates "today's tokens" to meterStore so
 		// daily limits track all traffic, not just this process's session.

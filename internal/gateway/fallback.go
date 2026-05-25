@@ -56,13 +56,6 @@ func NewFallbackChain(entries []FallbackEntry) *FallbackChain {
 	}
 }
 
-// SetEntries replaces the fallback chain entries atomically.
-func (fc *FallbackChain) SetEntries(entries []FallbackEntry) {
-	fc.mu.Lock()
-	defer fc.mu.Unlock()
-	fc.entries = entries
-}
-
 // Entries returns a copy of the current chain.
 func (fc *FallbackChain) Entries() []FallbackEntry {
 	fc.mu.RLock()

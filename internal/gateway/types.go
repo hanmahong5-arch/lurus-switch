@@ -4,11 +4,17 @@ import "time"
 
 // Config holds persistent gateway configuration.
 type Config struct {
-	Port        int             `json:"port"`        // default 19090
-	UpstreamURL string          `json:"upstreamUrl"` // Lurus Cloud endpoint, e.g. https://api.lurus.cn
-	UserToken   string          `json:"userToken"`   // user's Lurus Cloud bearer token
-	AutoStart   bool            `json:"autoStart"`   // start gateway on Switch launch
-	Fallbacks   []FallbackEntry `json:"fallbacks"`   // ordered fallback upstreams (tried if primary fails/rate-limits)
+	Port        int    `json:"port"`        // default 19090
+	UpstreamURL string `json:"upstreamUrl"` // Lurus Cloud endpoint, e.g. https://api.lurus.cn
+	UserToken   string `json:"userToken"`   // user's Lurus Cloud bearer token
+	AutoStart   bool   `json:"autoStart"`   // start gateway on Switch launch
+
+	// Deprecated: ordered fallback upstreams. Wave 3 (PR-W3.1) replaced
+	// this with the relay router's per-rule chain; Wave 4 (PR-W4.2)
+	// migrates the field one-shot into the relay store and then never
+	// reads it again. The field stays for back-compat decoding of older
+	// gateway.json files. `omitempty` lets new saves drop it cleanly.
+	Fallbacks []FallbackEntry `json:"fallbacks,omitempty"`
 }
 
 // DefaultConfig returns production defaults.
