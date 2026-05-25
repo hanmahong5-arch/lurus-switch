@@ -10,6 +10,7 @@ import { useToastStore } from '../stores/toastStore'
 import { ToolCard } from '../components/ToolCard'
 import { ProxyConfigPanel } from '../components/ProxyConfigPanel'
 import { DashboardQuotaWidget } from '../components/DashboardQuotaWidget'
+import { CostDashboardWidget } from '../components/CostDashboardWidget'
 import { DepTreePanel } from '../components/DepTreePanel'
 import { ModelPicker, type Model } from '../components/ModelPicker'
 import {
@@ -384,6 +385,9 @@ export function DashboardPage() {
 
         {/* Quota Widget */}
         <DashboardQuotaWidget />
+
+        {/* Today's cost — local estimate against the public USD price table. */}
+        <CostDashboardWidget />
 
         {/* Current Model */}
         {currentModel && (

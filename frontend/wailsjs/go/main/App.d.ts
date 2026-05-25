@@ -457,6 +457,8 @@ export function GetUpstreamProxy():Promise<netproxy.Settings>;
 
 export function GetUsageInsights(arg1:string):Promise<main.UsageInsight>;
 
+export function GetCostDashboard(arg1:string):Promise<main.CostDashboard>;
+
 export function GetUsageReport(arg1:number):Promise<analytics.UsageReport>;
 
 export function HasResellerConfig():Promise<boolean>;

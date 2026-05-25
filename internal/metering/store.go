@@ -11,6 +11,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"lurus-switch/internal/pricing"
 )
 
 const (
@@ -122,6 +124,7 @@ func (s *Store) AppSummaries(from, to time.Time) []AppSummary {
 		if r.CachedHit {
 			as.CacheHits++
 		}
+		as.CostUSD += pricing.Cost(r.Model, r.TokensIn, r.TokensOut, 0, 0)
 	}
 	out := make([]AppSummary, 0, len(byApp))
 	for _, as := range byApp {
@@ -214,6 +217,7 @@ func (s *Store) ModelSummaries(from, to time.Time) []ModelSummary {
 		ms.TotalCalls++
 		ms.TokensIn += r.TokensIn
 		ms.TokensOut += r.TokensOut
+		ms.CostUSD += pricing.Cost(r.Model, r.TokensIn, r.TokensOut, 0, 0)
 	}
 	out := make([]ModelSummary, 0, len(byModel))
 	for _, ms := range byModel {
@@ -271,6 +275,7 @@ func (s *Store) Insights(from, to time.Time) InsightsRaw {
 		}
 		ins.ModelTokensIn[r.Model] += r.TokensIn
 		ins.ModelTokensOut[r.Model] += r.TokensOut
+		ins.TotalCostUSD += pricing.Cost(r.Model, r.TokensIn, r.TokensOut, 0, 0)
 	}
 	if ins.TotalCalls > 0 {
 		ins.AvgLatencyMs = ins.TotalLatencyMs / ins.TotalCalls
@@ -326,6 +331,7 @@ func (s *Store) daySummary(day string) DailySummary {
 		if r.CachedHit {
 			sum.CacheHits++
 		}
+		sum.CostUSD += pricing.Cost(r.Model, r.TokensIn, r.TokensOut, 0, 0)
 	}
 	return sum
 }

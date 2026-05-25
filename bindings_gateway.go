@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	"lurus-switch/internal/billing"
 	"lurus-switch/internal/gateway"
 	"lurus-switch/internal/metering"
 )
@@ -347,6 +348,72 @@ func (a *App) GetUsageInsights(period string) UsageInsight {
 			if out.ModelCosts[j].CostUSD > out.ModelCosts[i].CostUSD {
 				out.ModelCosts[i], out.ModelCosts[j] = out.ModelCosts[j], out.ModelCosts[i]
 			}
+		}
+	}
+
+	return out
+}
+
+// CostDashboard is the consolidated view returned to the Dashboard
+// page: today's spend + per-model breakdown + remote quota + local
+// budget-wall remaining. Surfacing all four numbers in one shot lets
+// the UI render the cost card without firing four parallel
+// round-trips on every refresh.
+type CostDashboard struct {
+	TodayUSD           float64                   `json:"todayUSD"`
+	TodayTokensIn      int64                     `json:"todayTokensIn"`
+	TodayTokensOut     int64                     `json:"todayTokensOut"`
+	TodayCalls         int64                     `json:"todayCalls"`
+	ByModel            []metering.ModelSummary   `json:"byModel"`
+	BudgetEnabled      bool                      `json:"budgetEnabled"`
+	BudgetDailyTokens  int64                     `json:"budgetDailyTokens"`
+	BudgetDailyUsed    int64                     `json:"budgetDailyUsed"`
+	BudgetDailyPct     int                       `json:"budgetDailyPct"`
+	BudgetHitDaily     bool                      `json:"budgetHitDaily"`
+	Quota              *billing.QuotaSummary     `json:"quota,omitempty"`
+	QuotaErr           string                    `json:"quotaErr,omitempty"`
+}
+
+// GetCostDashboard assembles the dashboard payload. All inputs are
+// already-computed local state (metering summaries + budget status);
+// the only network hop is the optional billing client for the remote
+// quota summary, which is best-effort — its error is surfaced
+// separately so the UI can still render local numbers.
+func (a *App) GetCostDashboard(period string) CostDashboard {
+	out := CostDashboard{ByModel: []metering.ModelSummary{}}
+	if a.meterStore == nil {
+		return out
+	}
+
+	today := a.meterStore.TodaySummary()
+	out.TodayUSD = today.CostUSD
+	out.TodayTokensIn = today.TokensIn
+	out.TodayTokensOut = today.TokensOut
+	out.TodayCalls = today.TotalCalls
+
+	from, to := periodToRange(period)
+	models := a.meterStore.ModelSummaries(from, to)
+	if models == nil {
+		models = []metering.ModelSummary{}
+	}
+	out.ByModel = models
+
+	if a.budgetGuard != nil {
+		st := a.budgetGuard.Status()
+		out.BudgetEnabled = st.Enabled
+		out.BudgetDailyTokens = st.DailyTokens
+		out.BudgetDailyUsed = st.DailyUsed
+		out.BudgetDailyPct = st.DailyPct
+		out.BudgetHitDaily = st.HitDaily
+	}
+
+	if client, err := a.ensureBillingClient(); err == nil && client != nil {
+		ctx, cancel := context.WithTimeout(a.ctx, 5*time.Second)
+		defer cancel()
+		if q, err := client.GetQuotaSummary(ctx); err == nil {
+			out.Quota = q
+		} else {
+			out.QuotaErr = err.Error()
 		}
 	}
 

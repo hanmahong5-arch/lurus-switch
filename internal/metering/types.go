@@ -32,22 +32,27 @@ type Record struct {
 	MatchedBy string `json:"matchedBy,omitempty"`
 }
 
-// DailySummary aggregates usage for one day.
+// DailySummary aggregates usage for one day. CostUSD is computed at
+// query time from the internal/pricing table — not persisted, so
+// price-table updates apply retroactively when historical data is
+// recomputed.
 type DailySummary struct {
-	Date       string `json:"date"` // YYYY-MM-DD
-	TotalCalls int64  `json:"totalCalls"`
-	TokensIn   int64  `json:"tokensIn"`
-	TokensOut  int64  `json:"tokensOut"`
-	CacheHits  int64  `json:"cacheHits"`
+	Date       string  `json:"date"` // YYYY-MM-DD
+	TotalCalls int64   `json:"totalCalls"`
+	TokensIn   int64   `json:"tokensIn"`
+	TokensOut  int64   `json:"tokensOut"`
+	CacheHits  int64   `json:"cacheHits"`
+	CostUSD    float64 `json:"costUSD"`
 }
 
 // AppSummary aggregates usage by app for a time range.
 type AppSummary struct {
-	AppID      string `json:"appId"`
-	TotalCalls int64  `json:"totalCalls"`
-	TokensIn   int64  `json:"tokensIn"`
-	TokensOut  int64  `json:"tokensOut"`
-	CacheHits  int64  `json:"cacheHits"`
+	AppID      string  `json:"appId"`
+	TotalCalls int64   `json:"totalCalls"`
+	TokensIn   int64   `json:"tokensIn"`
+	TokensOut  int64   `json:"tokensOut"`
+	CacheHits  int64   `json:"cacheHits"`
+	CostUSD    float64 `json:"costUSD"`
 }
 
 // CostCenterSummary aggregates usage by cost-center for chargeback
@@ -74,10 +79,11 @@ type EmployeeSummary struct {
 
 // ModelSummary aggregates usage by model for a time range.
 type ModelSummary struct {
-	Model      string `json:"model"`
-	TotalCalls int64  `json:"totalCalls"`
-	TokensIn   int64  `json:"tokensIn"`
-	TokensOut  int64  `json:"tokensOut"`
+	Model      string  `json:"model"`
+	TotalCalls int64   `json:"totalCalls"`
+	TokensIn   int64   `json:"tokensIn"`
+	TokensOut  int64   `json:"tokensOut"`
+	CostUSD    float64 `json:"costUSD"`
 }
 
 // InsightsRaw holds raw aggregated data for cost/rate-limit/latency insights.
@@ -92,6 +98,7 @@ type InsightsRaw struct {
 	AvgLatencyMs    int64            `json:"avgLatencyMs"`
 	ModelTokensIn   map[string]int64 `json:"modelTokensIn"`
 	ModelTokensOut  map[string]int64 `json:"modelTokensOut"`
+	TotalCostUSD    float64          `json:"totalCostUSD"`
 }
 
 // ActivityEntry is a recent API call for the real-time activity feed.

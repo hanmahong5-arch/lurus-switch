@@ -56,6 +56,11 @@ vi.mock('../../wailsjs/go/main/App', () => ({
   BillingGetUserInfo: vi.fn().mockResolvedValue(null),
   CheckDependencies: vi.fn().mockResolvedValue({ runtimes: [], allMet: true }),
   InstallDependency: vi.fn().mockResolvedValue({ success: true, message: '' }),
+  // CostDashboardWidget — Wave3 W3.3 addition.
+  GetCostDashboard: vi.fn().mockResolvedValue({
+    todayUSD: 0, todayTokensIn: 0, todayTokensOut: 0, todayCalls: 0,
+    byModel: [], budgetEnabled: false,
+  }),
 }))
 
 vi.mock('../../wailsjs/go/models', () => ({

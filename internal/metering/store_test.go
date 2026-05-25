@@ -109,6 +109,34 @@ func TestStore_RecentActivity(t *testing.T) {
 	}
 }
 
+// TestStore_ModelSummariesIncludeCostUSD verifies the W3.3 cost
+// aggregation: ModelSummary.CostUSD must sum pricing.Cost across each
+// record, NOT rely on a separate per-record persisted field. That way
+// price-table updates retroactively apply to historical data.
+func TestStore_ModelSummariesIncludeCostUSD(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 1M in + 1M out of sonnet → 18 USD per the pricing table.
+	store.Record(Record{AppID: "x", Model: "claude-sonnet-4-6", TokensIn: 1_000_000, TokensOut: 1_000_000})
+
+	now := time.Now()
+	models := store.ModelSummaries(now.Add(-time.Hour), now.Add(time.Hour))
+	if len(models) != 1 {
+		t.Fatalf("got %d model summaries, want 1", len(models))
+	}
+	if got := models[0].CostUSD; got < 17.9 || got > 18.1 {
+		t.Errorf("CostUSD = %v, want ≈18.0", got)
+	}
+
+	today := store.TodaySummary()
+	if got := today.CostUSD; got < 17.9 || got > 18.1 {
+		t.Errorf("today CostUSD = %v, want ≈18.0", got)
+	}
+}
+
 // TestStore_RoutingDimensionsRoundTrip verifies that the routing
 // fields added in W3.2 (ServedBy + MatchedBy) survive flush + reload.
 // Without this the request log would silently lose "served by X · rule

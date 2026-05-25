@@ -806,6 +806,10 @@ export function GetUsageInsights(arg1) {
   return window['go']['main']['App']['GetUsageInsights'](arg1);
 }
 
+export function GetCostDashboard(arg1) {
+  return window['go']['main']['App']['GetCostDashboard'](arg1);
+}
+
 export function GetUsageReport(arg1) {
   return window['go']['main']['App']['GetUsageReport'](arg1);
 }
