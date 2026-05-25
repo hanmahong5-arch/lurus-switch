@@ -95,17 +95,40 @@ func (s *Server) handleAnthropicMessages(w http.ResponseWriter, r *http.Request)
 	}
 
 	// Forward via existing fallback chain — same retry / fallback chain
-	// the OpenAI-protocol path uses.
+	// the OpenAI-protocol path uses. Prefer the relay router's ordered
+	// chain when wired so /v1/messages traffic obeys the same routing
+	// rules as the OpenAI-protocol path.
 	normalizedURL := NormalizeChannelBaseURL(upstreamURL)
 	outHeaders := make(http.Header)
 	copyRequestHeaders2(outHeaders, r)
 	outHeaders.Set("Content-Type", "application/json")
 
-	resp, servedBy, err := s.fallback.TryUpstream(
-		"POST", "/v1/chat/completions", "",
-		openAIBody, outHeaders,
-		normalizedURL, userToken,
+	chain, matchedBy, routerOK := s.buildChainFromRouter(
+		toolFromRequest(r),
+		model,
+		estimateTokens(openAIBody),
+		bodyHasTools(openAIBody),
+		userToken,
 	)
+
+	var resp *http.Response
+	var servedBy string
+	if routerOK {
+		if meta != nil {
+			meta.MatchedBy = matchedBy
+		}
+		resp, servedBy, err = s.fallback.TryUpstreamChain(
+			"POST", "/v1/chat/completions", "",
+			openAIBody, outHeaders,
+			chain,
+		)
+	} else {
+		resp, servedBy, err = s.fallback.TryUpstream(
+			"POST", "/v1/chat/completions", "",
+			openAIBody, outHeaders,
+			normalizedURL, userToken,
+		)
+	}
 	if err != nil {
 		writeAnthropicError(w, http.StatusBadGateway, "api_error",
 			fmt.Sprintf("upstream error: %v", err))

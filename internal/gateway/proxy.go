@@ -89,13 +89,37 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	outHeaders := make(http.Header)
 	copyRequestHeaders2(outHeaders, r)
 
-	// Try primary upstream with fallback chain support.
-	// On 5xx/429/timeout, automatically cascade to next configured upstream.
-	resp, servedBy, err := s.fallback.TryUpstream(
-		r.Method, r.URL.Path, r.URL.RawQuery,
-		body, outHeaders,
-		normalizedURL, userToken,
+	// Build the upstream chain. If the relay router has healthy
+	// endpoints + a matching rule (or tool→mapping), use that as the
+	// authoritative chain. Otherwise fall back to the cfg-driven path
+	// (UpstreamURL + persisted FallbackChain entries) for zero
+	// behaviour change in unconfigured installs.
+	chain, matchedBy, routerOK := s.buildChainFromRouter(
+		toolFromRequest(r),
+		model,
+		estimateTokens(body),
+		bodyHasTools(body),
+		userToken,
 	)
+
+	var resp *http.Response
+	var servedBy string
+	if routerOK {
+		if meta != nil {
+			meta.MatchedBy = matchedBy
+		}
+		resp, servedBy, err = s.fallback.TryUpstreamChain(
+			r.Method, r.URL.Path, r.URL.RawQuery,
+			body, outHeaders,
+			chain,
+		)
+	} else {
+		resp, servedBy, err = s.fallback.TryUpstream(
+			r.Method, r.URL.Path, r.URL.RawQuery,
+			body, outHeaders,
+			normalizedURL, userToken,
+		)
+	}
 	if err != nil {
 		writeOpenAIError(w, http.StatusBadGateway, "upstream_error",
 			fmt.Sprintf("all upstreams failed: %v", err))
@@ -116,12 +140,22 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		if readErr == nil && ShouldRectifyThinkingBudget(string(errBody)) {
 			rectifiedBody, result := RectifyThinkingBudget(body)
 			if result.Applied {
-				// Retry via fallback chain with rectified body.
-				retryResp, _, retryErr := s.fallback.TryUpstream(
-					r.Method, r.URL.Path, r.URL.RawQuery,
-					rectifiedBody, outHeaders,
-					normalizedURL, userToken,
-				)
+				var retryResp *http.Response
+				var retryErr error
+				// Retry via the same chain we used the first time.
+				if routerOK {
+					retryResp, _, retryErr = s.fallback.TryUpstreamChain(
+						r.Method, r.URL.Path, r.URL.RawQuery,
+						rectifiedBody, outHeaders,
+						chain,
+					)
+				} else {
+					retryResp, _, retryErr = s.fallback.TryUpstream(
+						r.Method, r.URL.Path, r.URL.RawQuery,
+						rectifiedBody, outHeaders,
+						normalizedURL, userToken,
+					)
+				}
 				if retryErr == nil {
 					defer retryResp.Body.Close()
 					resp = retryResp
@@ -328,6 +362,58 @@ func extractUsageFromBody(body []byte) UsageFromResponse {
 		}
 	}
 	return UsageFromResponse{}
+}
+
+// estimateTokens is a cheap byte-length heuristic used to feed the
+// router's PickHint.EstimatedInputTokens predicate. Rules of thumb:
+// English ≈ 4 chars/tok, code ≈ 3.5 chars/tok — using /4 keeps the
+// estimate conservative (slightly under-counts) which is fine for
+// triggering "if >= 50k tokens, prefer long-context endpoint" rules.
+// Exact tokenisation is the upstream's job, not the router's.
+func estimateTokens(body []byte) int64 {
+	if len(body) == 0 {
+		return 0
+	}
+	return int64(len(body)) / 4
+}
+
+// bodyHasTools reports whether the request body declares a non-empty
+// "tools" array (OpenAI tools / Anthropic tool-use shape). Routers can
+// use this to steer tool-calling traffic to endpoints that support it.
+func bodyHasTools(body []byte) bool {
+	var probe struct {
+		Tools []json.RawMessage `json:"tools"`
+	}
+	if err := json.Unmarshal(body, &probe); err != nil {
+		return false
+	}
+	return len(probe.Tools) > 0
+}
+
+// toolFromRequest sniffs the User-Agent to guess which CLI sent the
+// request (claude / codex / gemini / picoclaw / …). Returns "" when
+// the User-Agent is missing or unrecognised — Router.Pick handles ""
+// safely (no tool→mapping match, rule predicates still apply).
+func toolFromRequest(r *http.Request) string {
+	ua := strings.ToLower(r.Header.Get("User-Agent"))
+	if ua == "" {
+		return ""
+	}
+	switch {
+	case strings.Contains(ua, "claude"):
+		return "claude"
+	case strings.Contains(ua, "codex"):
+		return "codex"
+	case strings.Contains(ua, "gemini"):
+		return "gemini"
+	case strings.Contains(ua, "picoclaw"):
+		return "picoclaw"
+	case strings.Contains(ua, "nullclaw"):
+		return "nullclaw"
+	case strings.Contains(ua, "openclaw"):
+		return "openclaw"
+	}
+	return ""
 }
 
 // extractUsageFromSSEChunk attempts to parse usage from an SSE data line.

@@ -113,6 +113,11 @@ type PickResult struct {
 	Endpoint  RelayEndpoint
 	MatchedBy string // rule name; "" when only the tool→mapping default applied
 	Healthy   []RelayEndpoint
+	// Ordered is the healthy set rearranged so the picked Endpoint is at
+	// index 0 and the remaining peers follow in ascending-latency order.
+	// Gateway uses this as a deterministic fallback chain when the
+	// primary fails.
+	Ordered []RelayEndpoint
 }
 
 // Pick decides which RelayEndpoint to route a request to. Strategy:
@@ -162,19 +167,39 @@ func (r *Router) Pick(tool string, hint PickHint) (PickResult, error) {
 		return PickResult{Healthy: healthy}, fmt.Errorf("router: no healthy endpoints available")
 	}
 
-	// Prefer the explicitly-chosen endpoint when it's healthy.
-	if preferred != "" {
-		for _, ep := range healthy {
-			if ep.ID == preferred {
-				return PickResult{Endpoint: ep, MatchedBy: matchedBy, Healthy: healthy}, nil
-			}
-		}
-	}
-	// Otherwise return the lowest-latency healthy one.
+	// Sort healthy peers by ascending latency once — used both for
+	// "lowest-latency wins" and as the ordered fallback tail.
 	sort.SliceStable(healthy, func(i, j int) bool {
 		return healthy[i].LatencyMs < healthy[j].LatencyMs
 	})
-	return PickResult{Endpoint: healthy[0], Healthy: healthy}, nil
+
+	// Prefer the explicitly-chosen endpoint when it's healthy.
+	if preferred != "" {
+		for i, ep := range healthy {
+			if ep.ID == preferred {
+				ordered := orderedFromPreferred(healthy, i)
+				return PickResult{Endpoint: ep, MatchedBy: matchedBy, Healthy: healthy, Ordered: ordered}, nil
+			}
+		}
+	}
+	// No preferred rule (or it isn't healthy) → take the lowest-latency.
+	ordered := make([]RelayEndpoint, len(healthy))
+	copy(ordered, healthy)
+	return PickResult{Endpoint: healthy[0], Healthy: healthy, Ordered: ordered}, nil
+}
+
+// orderedFromPreferred returns a slice with the preferred index first,
+// followed by the rest of healthy in their existing order.
+func orderedFromPreferred(healthy []RelayEndpoint, prefIdx int) []RelayEndpoint {
+	out := make([]RelayEndpoint, 0, len(healthy))
+	out = append(out, healthy[prefIdx])
+	for i, ep := range healthy {
+		if i == prefIdx {
+			continue
+		}
+		out = append(out, ep)
+	}
+	return out
 }
 
 func (r *Router) healthyEndpoints(endpoints []RelayEndpoint) []RelayEndpoint {
@@ -195,4 +220,33 @@ func (r *Router) healthyEndpoints(endpoints []RelayEndpoint) []RelayEndpoint {
 // per-request outcomes after the upstream call returns.
 func (r *Router) Breaker() *CircuitBreaker {
 	return r.breaker
+}
+
+// IsActive reports whether the user has configured anything that
+// should let the router take over routing from the legacy cfg path.
+// Returns true when ANY of the following are set:
+//   - one or more user-defined relay endpoints
+//   - one or more rules in relay-rules.yaml
+//   - one or more entries in the tool→endpoint mapping
+//
+// The builtin lurus-api endpoint alone does NOT count — that's
+// present in every install and would otherwise force the router on
+// for users who never touched RelayPage.
+func (r *Router) IsActive() bool {
+	if r == nil || r.store == nil {
+		return false
+	}
+	r.mu.RLock()
+	hasRules := len(r.rules.Rules) > 0
+	r.mu.RUnlock()
+	if hasRules {
+		return true
+	}
+	if user, err := r.store.loadUserEndpoints(); err == nil && len(user) > 0 {
+		return true
+	}
+	if mapping, err := r.store.GetToolMapping(); err == nil && len(mapping) > 0 {
+		return true
+	}
+	return false
 }

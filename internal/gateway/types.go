@@ -45,6 +45,7 @@ type RequestMeta struct {
 	StartTime time.Time
 	Model     string
 	ServedBy  string // which upstream actually served this request ("primary" or fallback name)
+	MatchedBy string // relay rule name that selected the primary upstream; empty for cfg / mapping defaults
 
 	// Enterprise dimensions sourced from the per-app registry record.
 	// Empty in Personal/Reseller installs; the chargeback report

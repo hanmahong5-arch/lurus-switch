@@ -99,6 +99,66 @@ func (s *Server) SetRelayRouter(r *relay.Router) {
 	s.router = r
 }
 
+// buildChainFromRouter asks the relay router for an ordered chain of
+// upstreams for this request. Returns ok=false when the router is
+// unwired or has no healthy endpoints, signalling proxy.go to fall
+// back to the cfg-driven path (UpstreamURL + persisted Fallbacks).
+//
+// userToken is the user's Lurus / proxy token, used as the per-entry
+// auth when an endpoint has no APIKey of its own — matches the
+// bindings_relay.go ApplyAllToolRelays behaviour where ep.APIKey == ""
+// means "fall through to the Lurus user token". Keeps a single
+// token-swap policy across config-apply and runtime.
+func (s *Server) buildChainFromRouter(
+	tool, model string,
+	estTokens int64,
+	hasTools bool,
+	userToken string,
+) (chain []FallbackEntry, matchedBy string, ok bool) {
+	s.mu.Lock()
+	router := s.router
+	s.mu.Unlock()
+	if router == nil || !router.IsActive() {
+		return nil, "", false
+	}
+	res, err := router.Pick(tool, relay.PickHint{
+		Model:                model,
+		EstimatedInputTokens: estTokens,
+		HasTools:             hasTools,
+	})
+	if err != nil || len(res.Ordered) == 0 {
+		return nil, "", false
+	}
+	out := make([]FallbackEntry, 0, len(res.Ordered))
+	for _, ep := range res.Ordered {
+		if ep.URL == "" {
+			continue
+		}
+		token := ep.APIKey
+		if token == "" {
+			token = userToken
+		}
+		out = append(out, FallbackEntry{
+			Name:  endpointDisplayName(ep),
+			URL:   NormalizeChannelBaseURL(ep.URL),
+			Token: token,
+		})
+	}
+	if len(out) == 0 {
+		return nil, "", false
+	}
+	return out, res.MatchedBy, true
+}
+
+// endpointDisplayName falls back to the endpoint ID when Name is
+// unset, so the observer / metering always have a stable identifier.
+func endpointDisplayName(ep relay.RelayEndpoint) string {
+	if ep.Name != "" {
+		return ep.Name
+	}
+	return ep.ID
+}
+
 // SetBudgetGuard wires the optional spend-wall into the gateway. Pass
 // nil to disable. Safe to call after Start; the next request picks up
 // the change.

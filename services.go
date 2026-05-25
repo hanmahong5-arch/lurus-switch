@@ -296,7 +296,8 @@ func newServices(appDataDir, version string) (*services, []string) {
 			svc.gatewaySrv.SetRelayRouter(svc.relayRouter)
 			breaker := svc.relayRouter.Breaker()
 			relayStore := svc.relayStore
-			svc.gatewaySrv.GetFallbackChain().SetObserver(func(name string, ok bool, errMsg string) {
+			svc.gatewaySrv.GetFallbackChain().SetObserver(func(name string, ok bool, errMsg string, latencyMs int64) {
+				_ = latencyMs // W3.2 will feed this back into relay store
 				id := resolveEndpointIDByName(relayStore, name)
 				if id == "" {
 					return
