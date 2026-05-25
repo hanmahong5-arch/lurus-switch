@@ -241,6 +241,8 @@ export function DownloadCodexBinary(arg1:string):Promise<string>;
 
 export function DownloadCreator():Promise<void>;
 
+export function DryRunRouter(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<relay.PickResult>;
+
 export function EnableAutostart(arg1:string):Promise<void>;
 
 export function EnsureServerBinary():Promise<void>;
@@ -340,6 +342,8 @@ export function GetConnectedAppCount():Promise<number>;
 export function GetContextFile(arg1:string,arg2:string):Promise<docmgr.ContextFile>;
 
 export function GetConversation(arg1:string,arg2:string):Promise<main.ConversationEvents>;
+
+export function GetCostDashboard(arg1:string):Promise<main.CostDashboard>;
 
 export function GetCurrentPrincipal():Promise<string>;
 
@@ -458,8 +462,6 @@ export function GetTopologySnapshot():Promise<topology.Snapshot>;
 export function GetUpstreamProxy():Promise<netproxy.Settings>;
 
 export function GetUsageInsights(arg1:string):Promise<main.UsageInsight>;
-
-export function GetCostDashboard(arg1:string):Promise<main.CostDashboard>;
 
 export function GetUsageReport(arg1:number):Promise<analytics.UsageReport>;
 
@@ -607,6 +609,8 @@ export function LoadPicoClawConfig(arg1:string):Promise<config.PicoClawConfig>;
 
 export function LoadZeroClawConfig(arg1:string):Promise<config.ZeroClawConfig>;
 
+export function LogFrontendError(arg1:string,arg2:string,arg3:string,arg4:string):Promise<void>;
+
 export function Login():Promise<auth.AuthState>;
 
 export function Logout():Promise<void>;
@@ -632,8 +636,6 @@ export function PickExportBundlePath():Promise<string>;
 export function PickImportBundlePath():Promise<string>;
 
 export function PickRelayForTool(arg1:string):Promise<relay.PickResult>;
-
-export function DryRunRouter(arg1:string,arg2:string,arg3:number,arg4:boolean):Promise<relay.PickResult>;
 
 export function PickRepoAndAudit():Promise<repoaudit.AuditReport>;
 
@@ -687,9 +689,9 @@ export function RunDiagnostics():Promise<main.DiagnosticsReport>;
 
 export function RunEnvironmentCheck():Promise<main.EnvironmentCheck>;
 
-export function RunModelHealthCheck(arg1:boolean):Promise<void>;
-
 export function RunModelAuthCheck(arg1:boolean):Promise<void>;
+
+export function RunModelHealthCheck(arg1:boolean):Promise<void>;
 
 export function SaveAppSettings(arg1:appconfig.AppSettings):Promise<void>;
 

@@ -3394,7 +3394,7 @@ export namespace gateway {
 	    upstreamUrl: string;
 	    userToken: string;
 	    autoStart: boolean;
-	    fallbacks: FallbackEntry[];
+	    fallbacks?: FallbackEntry[];
 	
 	    static createFrom(source: any = {}) {
 	        return new Config(source);
@@ -4098,6 +4098,58 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class CostDashboard {
+	    todayUSD: number;
+	    todayTokensIn: number;
+	    todayTokensOut: number;
+	    todayCalls: number;
+	    byModel: metering.ModelSummary[];
+	    budgetEnabled: boolean;
+	    budgetDailyTokens: number;
+	    budgetDailyUsed: number;
+	    budgetDailyPct: number;
+	    budgetHitDaily: boolean;
+	    quota?: billing.QuotaSummary;
+	    quotaErr?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CostDashboard(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.todayUSD = source["todayUSD"];
+	        this.todayTokensIn = source["todayTokensIn"];
+	        this.todayTokensOut = source["todayTokensOut"];
+	        this.todayCalls = source["todayCalls"];
+	        this.byModel = this.convertValues(source["byModel"], metering.ModelSummary);
+	        this.budgetEnabled = source["budgetEnabled"];
+	        this.budgetDailyTokens = source["budgetDailyTokens"];
+	        this.budgetDailyUsed = source["budgetDailyUsed"];
+	        this.budgetDailyPct = source["budgetDailyPct"];
+	        this.budgetHitDaily = source["budgetHitDaily"];
+	        this.quota = this.convertValues(source["quota"], billing.QuotaSummary);
+	        this.quotaErr = source["quotaErr"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class CustomProviderTestResult {
 	    ok: boolean;
 	    models: string[];
@@ -4411,11 +4463,11 @@ export namespace main {
 	    error?: string;
 	    servedBy?: string;
 	    matchedBy?: string;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new RequestLogEntry(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
@@ -4568,58 +4620,6 @@ export namespace main {
 	        this.error = source["error"];
 	    }
 	}
-	export class CostDashboard {
-	    todayUSD: number;
-	    todayTokensIn: number;
-	    todayTokensOut: number;
-	    todayCalls: number;
-	    byModel: metering.ModelSummary[];
-	    budgetEnabled: boolean;
-	    budgetDailyTokens: number;
-	    budgetDailyUsed: number;
-	    budgetDailyPct: number;
-	    budgetHitDaily: boolean;
-	    quota?: billing.QuotaSummary;
-	    quotaErr?: string;
-
-	    static createFrom(source: any = {}) {
-	        return new CostDashboard(source);
-	    }
-
-	    constructor(source: any = {}) {
-	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.todayUSD = source["todayUSD"];
-	        this.todayTokensIn = source["todayTokensIn"];
-	        this.todayTokensOut = source["todayTokensOut"];
-	        this.todayCalls = source["todayCalls"];
-	        this.byModel = this.convertValues(source["byModel"], metering.ModelSummary);
-	        this.budgetEnabled = source["budgetEnabled"];
-	        this.budgetDailyTokens = source["budgetDailyTokens"];
-	        this.budgetDailyUsed = source["budgetDailyUsed"];
-	        this.budgetDailyPct = source["budgetDailyPct"];
-	        this.budgetHitDaily = source["budgetHitDaily"];
-	        this.quota = this.convertValues(source["quota"], billing.QuotaSummary);
-	        this.quotaErr = source["quotaErr"];
-	    }
-
-		convertValues(a: any, classs: any, asMap: boolean = false): any {
-		    if (!a) {
-		        return a;
-		    }
-		    if (a.slice && a.map) {
-		        return (a as any[]).map(elem => this.convertValues(elem, classs));
-		    } else if ("object" === typeof a) {
-		        if (asMap) {
-		            for (const key of Object.keys(a)) {
-		                a[key] = new classs(a[key]);
-		            }
-		            return a;
-		        }
-		        return new classs(a);
-		    }
-		    return a;
-		}
-	}
 	export class UsageInsight {
 	    totalCalls: number;
 	    totalTokensIn: number;
@@ -4630,7 +4630,7 @@ export namespace main {
 	    avgLatencyMs: number;
 	    totalCostUSD: number;
 	    modelCosts: ModelCostBreakdown[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new UsageInsight(source);
 	    }
@@ -4831,11 +4831,11 @@ export namespace metering {
 	    tokensOut: number;
 	    cacheHits: number;
 	    costUSD: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new AppSummary(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.appId = source["appId"];
@@ -4853,11 +4853,11 @@ export namespace metering {
 	    tokensOut: number;
 	    cacheHits: number;
 	    costUSD: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new DailySummary(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.date = source["date"];
@@ -4874,11 +4874,11 @@ export namespace metering {
 	    tokensIn: number;
 	    tokensOut: number;
 	    costUSD: number;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ModelSummary(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.model = source["model"];
@@ -4961,11 +4961,11 @@ export namespace modelcatalog {
 	    note?: string;
 	    // Go type: time
 	    testedAt: any;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new ModelAuthResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.providerId = source["providerId"];
@@ -4977,7 +4977,7 @@ export namespace modelcatalog {
 	        this.note = source["note"];
 	        this.testedAt = this.convertValues(source["testedAt"], null);
 	    }
-
+	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
 		    if (!a) {
 		        return a;
@@ -5005,11 +5005,11 @@ export namespace modelcatalog {
 	    error?: string;
 	    // Go type: time
 	    testedAt: any;
-
+	
 	    static createFrom(source: any = {}) {
 	        return new TestResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.providerId = source["providerId"];
@@ -5744,11 +5744,11 @@ export namespace relay {
 	    MatchedBy: string;
 	    Healthy: RelayEndpoint[];
 	    Ordered: RelayEndpoint[];
-
+	
 	    static createFrom(source: any = {}) {
 	        return new PickResult(source);
 	    }
-
+	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.Endpoint = this.convertValues(source["Endpoint"], RelayEndpoint);

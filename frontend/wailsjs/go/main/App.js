@@ -374,6 +374,10 @@ export function DownloadCreator() {
   return window['go']['main']['App']['DownloadCreator']();
 }
 
+export function DryRunRouter(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['DryRunRouter'](arg1, arg2, arg3, arg4);
+}
+
 export function EnableAutostart(arg1) {
   return window['go']['main']['App']['EnableAutostart'](arg1);
 }
@@ -572,6 +576,10 @@ export function GetContextFile(arg1, arg2) {
 
 export function GetConversation(arg1, arg2) {
   return window['go']['main']['App']['GetConversation'](arg1, arg2);
+}
+
+export function GetCostDashboard(arg1) {
+  return window['go']['main']['App']['GetCostDashboard'](arg1);
 }
 
 export function GetCurrentPrincipal() {
@@ -808,10 +816,6 @@ export function GetUpstreamProxy() {
 
 export function GetUsageInsights(arg1) {
   return window['go']['main']['App']['GetUsageInsights'](arg1);
-}
-
-export function GetCostDashboard(arg1) {
-  return window['go']['main']['App']['GetCostDashboard'](arg1);
 }
 
 export function GetUsageReport(arg1) {
@@ -1106,6 +1110,10 @@ export function LoadZeroClawConfig(arg1) {
   return window['go']['main']['App']['LoadZeroClawConfig'](arg1);
 }
 
+export function LogFrontendError(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['LogFrontendError'](arg1, arg2, arg3, arg4);
+}
+
 export function Login() {
   return window['go']['main']['App']['Login']();
 }
@@ -1156,10 +1164,6 @@ export function PickImportBundlePath() {
 
 export function PickRelayForTool(arg1) {
   return window['go']['main']['App']['PickRelayForTool'](arg1);
-}
-
-export function DryRunRouter(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['DryRunRouter'](arg1, arg2, arg3, arg4);
 }
 
 export function PickRepoAndAudit() {
@@ -1266,12 +1270,12 @@ export function RunEnvironmentCheck() {
   return window['go']['main']['App']['RunEnvironmentCheck']();
 }
 
-export function RunModelHealthCheck(arg1) {
-  return window['go']['main']['App']['RunModelHealthCheck'](arg1);
-}
-
 export function RunModelAuthCheck(arg1) {
   return window['go']['main']['App']['RunModelAuthCheck'](arg1);
+}
+
+export function RunModelHealthCheck(arg1) {
+  return window['go']['main']['App']['RunModelHealthCheck'](arg1);
 }
 
 export function SaveAppSettings(arg1) {

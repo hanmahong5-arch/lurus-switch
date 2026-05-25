@@ -403,7 +403,7 @@ function App() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <PageHeader />
           <div className="flex-1 overflow-hidden">
-            <ErrorBoundary>
+            <ErrorBoundary key={activeTool} name={`page:${activeTool}`} page={activeTool}>
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={`${activeTool}:${useConfigStore.getState().subTabState[activeTool] ?? ''}`}
