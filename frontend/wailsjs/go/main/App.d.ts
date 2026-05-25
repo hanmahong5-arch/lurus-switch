@@ -381,6 +381,8 @@ export function GetGeminiPresets():Promise<Array<preset.Preset>>;
 
 export function GetLastHealthCheckResults():Promise<Array<modelcatalog.TestResult>>;
 
+export function GetLastModelAuthResults():Promise<Array<modelcatalog.ModelAuthResult>>;
+
 export function GetLiveSessions():Promise<Array<livesession.LiveSession>>;
 
 export function GetModelSummaries(arg1:string):Promise<Array<metering.ModelSummary>>;
@@ -686,6 +688,8 @@ export function RunDiagnostics():Promise<main.DiagnosticsReport>;
 export function RunEnvironmentCheck():Promise<main.EnvironmentCheck>;
 
 export function RunModelHealthCheck(arg1:boolean):Promise<void>;
+
+export function RunModelAuthCheck(arg1:boolean):Promise<void>;
 
 export function SaveAppSettings(arg1:appconfig.AppSettings):Promise<void>;
 

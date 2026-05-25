@@ -13,8 +13,11 @@ import (
 
 const (
 	modelHealthCacheFile = "model-health-cache.json"
+	modelAuthCacheFile   = "model-auth-cache.json"
 	evtModelTestProgress = "model:test:progress"
 	evtModelTestDone     = "model:test:done"
+	evtModelAuthProgress = "model:auth:progress"
+	evtModelAuthDone     = "model:auth:done"
 )
 
 // buildHealthCheckEndpoints assembles the providers to probe: configured
@@ -114,3 +117,86 @@ func (a *App) saveHealthCheckResults(results []modelcatalog.TestResult) {
 	}
 	_ = os.WriteFile(a.healthCachePath(), data, 0o600)
 }
+
+// RunModelAuthCheck probes (endpoint × model) authenticity. Streams
+// per-endpoint progress over "model:auth:progress" and a final
+// "model:auth:done" with the full result set.
+//
+// COST WARNING — each (endpoint, model) pair triggers ONE real chat
+// completion. The probe payload is minimal (prompt="ping",
+// max_tokens=1) but it still consumes upstream tokens. The UI must
+// gate this behind an explicit user action and show the cost.
+func (a *App) RunModelAuthCheck(includeCustom bool) error {
+	endpoints := a.buildHealthCheckEndpoints(includeCustom)
+	if len(endpoints) == 0 {
+		if a.ctx != nil {
+			wailsRuntime.EventsEmit(a.ctx, evtModelAuthDone, []modelcatalog.ModelAuthResult{})
+		}
+		return nil
+	}
+
+	go safeGo("model-auth-check", func() {
+		ctx := a.ctx
+		if ctx == nil {
+			return
+		}
+		all := make([]modelcatalog.ModelAuthResult, 0, len(endpoints))
+		for _, ep := range endpoints {
+			models := a.authProbeModels(ep)
+			if len(models) == 0 {
+				continue
+			}
+			perEndpoint := modelcatalog.ProbeAuthenticity(ctx, ep, models)
+			for _, r := range perEndpoint {
+				all = append(all, r)
+				wailsRuntime.EventsEmit(ctx, evtModelAuthProgress, r)
+			}
+		}
+		a.saveAuthCheckResults(all)
+		wailsRuntime.EventsEmit(ctx, evtModelAuthDone, all)
+	})
+	return nil
+}
+
+// GetLastModelAuthResults returns the cached results from the most
+// recent authenticity sweep, or an empty slice if none.
+func (a *App) GetLastModelAuthResults() []modelcatalog.ModelAuthResult {
+	data, err := os.ReadFile(a.authCachePath())
+	if err != nil {
+		return []modelcatalog.ModelAuthResult{}
+	}
+	var results []modelcatalog.ModelAuthResult
+	if err := json.Unmarshal(data, &results); err != nil {
+		return []modelcatalog.ModelAuthResult{}
+	}
+	return results
+}
+
+func (a *App) authCachePath() string {
+	return filepath.Join(appDataBaseDir(), modelAuthCacheFile)
+}
+
+func (a *App) saveAuthCheckResults(results []modelcatalog.ModelAuthResult) {
+	data, err := json.MarshalIndent(results, "", "  ")
+	if err != nil {
+		return
+	}
+	_ = os.WriteFile(a.authCachePath(), data, 0o600)
+}
+
+// authProbeModels picks the list of models to probe on an endpoint.
+// Prefers the endpoint's own DefaultModels (set on custom providers);
+// falls back to the most recent /v1/models listing from the health
+// check cache so the user doesn't have to manually enumerate.
+func (a *App) authProbeModels(ep modelcatalog.ProviderEndpoint) []string {
+	if len(ep.DefaultModels) > 0 {
+		return ep.DefaultModels
+	}
+	for _, r := range a.GetLastHealthCheckResults() {
+		if r.ProviderID == ep.ID && len(r.Models) > 0 {
+			return r.Models
+		}
+	}
+	return nil
+}
+

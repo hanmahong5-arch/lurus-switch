@@ -654,6 +654,10 @@ export function GetLastHealthCheckResults() {
   return window['go']['main']['App']['GetLastHealthCheckResults']();
 }
 
+export function GetLastModelAuthResults() {
+  return window['go']['main']['App']['GetLastModelAuthResults']();
+}
+
 export function GetLiveSessions() {
   return window['go']['main']['App']['GetLiveSessions']();
 }
@@ -1264,6 +1268,10 @@ export function RunEnvironmentCheck() {
 
 export function RunModelHealthCheck(arg1) {
   return window['go']['main']['App']['RunModelHealthCheck'](arg1);
+}
+
+export function RunModelAuthCheck(arg1) {
+  return window['go']['main']['App']['RunModelAuthCheck'](arg1);
 }
 
 export function SaveAppSettings(arg1) {

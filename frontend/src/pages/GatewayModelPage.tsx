@@ -8,6 +8,7 @@ import { SearchBar } from '../components/gateway/SearchBar'
 import { Pagination } from '../components/gateway/Pagination'
 import { ConfirmModal } from '../components/gateway/ConfirmModal'
 import { ModelHealthMatrix } from '../components/ModelHealthMatrix'
+import { ModelAuthenticityPanel } from '../components/ModelAuthenticityPanel'
 
 type TabKey = 'models' | 'vendors' | 'sync' | 'health'
 
@@ -716,7 +717,14 @@ export function GatewayModelPage() {
         </>
       )}
 
-      {tab === 'health' && <ModelHealthMatrix includeCustom />}
+      {tab === 'health' && (
+        <div className="space-y-6">
+          <ModelHealthMatrix includeCustom />
+          <div className="border-t border-border pt-6">
+            <ModelAuthenticityPanel includeCustom />
+          </div>
+        </div>
+      )}
 
       {/* ===== Model Create/Edit Modal ===== */}
       <Modal
