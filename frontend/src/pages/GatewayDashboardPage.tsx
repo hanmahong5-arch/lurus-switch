@@ -23,6 +23,9 @@ import {
   type GatewayPerformanceStats,
 } from '../lib/dashboardSource'
 import { SimpleBarChart } from '../components/gateway/SimpleBarChart'
+import { makeWalletSource } from '../lib/walletSource'
+import type { admin } from '../../wailsjs/go/models'
+import { Wallet, TrendingDown, TrendingUp as TrendingUpIcon } from 'lucide-react'
 
 const BYTES_PER_MB = 1024 * 1024
 const SECONDS_PER_HOUR = 3600
@@ -190,6 +193,9 @@ export function GatewayDashboardPage() {
         ))}
       </div>
 
+      {/* Reseller-only wallet insight strip (Wave 5 W5.2) */}
+      {isReseller && <ResellerWalletStrip />}
+
       {/* Quota Trend Chart */}
       <Card variant="elevated" className="p-5 space-y-3">
         <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -224,5 +230,73 @@ export function GatewayDashboardPage() {
         </Card>
       )}
     </div>
+  )
+}
+
+// ResellerWalletStrip surfaces the reseller's lurus-platform wallet on the
+// Dashboard so they don't have to navigate to the Wallet tab just to check
+// "is my balance OK?". Wave 5 W5.2.
+//
+// Failure mode: walletSource.getInfo() throws when no admin token is set or
+// the Hub rejects auth. The strip silently hides itself rather than dropping
+// a red banner on the Dashboard — the user can investigate on the dedicated
+// Wallet page.
+export function ResellerWalletStrip() {
+  const { t } = useTranslation()
+  const [info, setInfo] = useState<admin.WalletInfo | null>(null)
+  const [errored, setErrored] = useState(false)
+
+  useEffect(() => {
+    const source = makeWalletSource('hub')
+    source
+      .getInfo()
+      .then(setInfo)
+      .catch(() => setErrored(true))
+  }, [])
+
+  if (errored || !info) return null
+
+  return (
+    <Card variant="elevated" className="p-3 space-y-2">
+      <div className="flex items-center justify-between">
+        <h3 className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+          [ {t('gateway.dashboard.walletStripTitle', 'Reseller Wallet').toUpperCase()} ]
+        </h3>
+        <a
+          href="#"
+          className="text-[10px] text-primary font-mono uppercase tracking-wider hover:underline"
+          onClick={(e) => {
+            e.preventDefault()
+            const ev = new CustomEvent('switch:gateway:goto', { detail: { sub: 'wallet' } })
+            window.dispatchEvent(ev)
+          }}
+        >
+          {t('gateway.dashboard.openWallet', 'Open Wallet →')}
+        </a>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <KpiCard
+          icon={Wallet}
+          label={t('wallet.balance', '账户余额')}
+          value={`¥ ${(info.balance ?? 0).toFixed(2)}`}
+          accent
+        />
+        <KpiCard
+          icon={Wallet}
+          label={t('wallet.available', '可用余额')}
+          value={`¥ ${(info.available ?? 0).toFixed(2)}`}
+        />
+        <KpiCard
+          icon={TrendingUpIcon}
+          label={t('wallet.lifetimeTopup', '累计充值')}
+          value={`¥ ${(info.lifetime_topup ?? 0).toFixed(2)}`}
+        />
+        <KpiCard
+          icon={TrendingDown}
+          label={t('wallet.lifetimeSpend', '累计消费')}
+          value={`¥ ${(info.lifetime_spend ?? 0).toFixed(2)}`}
+        />
+      </div>
+    </Card>
   )
 }

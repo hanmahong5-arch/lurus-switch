@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Gift, Plus, Trash2, RefreshCw, AlertCircle, Download } from 'lucide-react'
-import { Button, Card, Modal } from '../components/ui'
+import { Gift, Plus, Trash2, RefreshCw, AlertCircle, Download, TrendingUp, CheckCircle2, Percent, Timer } from 'lucide-react'
+import { Button, Card, KpiCard, Modal } from '../components/ui'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { useConfigStore } from '../stores/configStore'
 import {
@@ -22,6 +22,36 @@ const STATUS_MAP: Record<number, 'enabled' | 'disabled' | 'used'> = {
   1: 'enabled',
   2: 'disabled',
   3: 'used',
+}
+
+// Wave 5 W5.2 — page-scoped funnel summary. We don't paginate the full set
+// (could be 10K+ for active resellers) so the KPI strip is explicitly
+// "current page" stats. The caption underneath says so to keep the user
+// from mistaking page-level numbers for fleet-wide ones.
+const STATUS_USED = 3
+const DAY_MS = 86400000
+
+interface RedemptionFunnel {
+  total: number
+  used: number
+  ratePct: number  // 0..100
+  avgDaysToRedeem: number | null
+}
+
+function summarize(rows: GatewayRedemption[]): RedemptionFunnel {
+  if (rows.length === 0) {
+    return { total: 0, used: 0, ratePct: 0, avgDaysToRedeem: null }
+  }
+  const used = rows.filter((r) => r.status === STATUS_USED).length
+  const ratePct = (used / rows.length) * 100
+  const usedRows = rows.filter((r) => r.status === STATUS_USED && r.redeemed_time > 0 && r.created_time > 0)
+  const avg =
+    usedRows.length === 0
+      ? null
+      : usedRows.reduce((sum, r) => sum + (r.redeemed_time - r.created_time) * 1000, 0) /
+        usedRows.length /
+        DAY_MS
+  return { total: rows.length, used, ratePct, avgDaysToRedeem: avg }
 }
 
 export function GatewayRedemptionPage() {
@@ -184,6 +214,9 @@ export function GatewayRedemptionPage() {
       {error && (
         <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/30 rounded px-3 py-2 font-mono">▸ {error}</div>
       )}
+
+      {/* Funnel KPI strip — page-scoped (Wave 5 W5.2) */}
+      <FunnelStrip rows={redemptions} total={total} />
 
       {/* Issued-batch banner — appears after Create returns codes. CSV export
           uses the in-memory list, since Hub never returns the plaintext key
@@ -372,6 +405,53 @@ export function GatewayRedemptionPage() {
         onConfirm={handleDeleteInvalid}
         onCancel={() => setShowDeleteInvalid(false)}
       />
+    </div>
+  )
+}
+
+interface FunnelStripProps {
+  rows: GatewayRedemption[]
+  total: number
+}
+
+export function FunnelStrip({ rows, total }: FunnelStripProps) {
+  const { t } = useTranslation()
+  const funnel = useMemo(() => summarize(rows), [rows])
+
+  // Display the Hub-reported total when present (more honest about the
+  // fleet size) but fall back to page rows when total isn't populated.
+  const issued = total > 0 ? total : funnel.total
+  const avgLabel = funnel.avgDaysToRedeem == null
+    ? '—'
+    : `${funnel.avgDaysToRedeem.toFixed(1)} ${t('gateway.redemption.kpi.days', '天')}`
+
+  return (
+    <div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard
+          label={t('gateway.redemption.kpi.issued', '生成总数')}
+          value={issued.toLocaleString()}
+          icon={TrendingUp}
+        />
+        <KpiCard
+          label={t('gateway.redemption.kpi.used', '本页已兑换')}
+          value={funnel.used.toLocaleString()}
+          icon={CheckCircle2}
+        />
+        <KpiCard
+          label={t('gateway.redemption.kpi.rate', '本页兑换率')}
+          value={`${funnel.ratePct.toFixed(0)}%`}
+          icon={Percent}
+        />
+        <KpiCard
+          label={t('gateway.redemption.kpi.avgDays', '本页平均兑换天数')}
+          value={avgLabel}
+          icon={Timer}
+        />
+      </div>
+      <p className="mt-1 text-[10px] text-muted-foreground/70 font-mono uppercase tracking-wider">
+        {t('gateway.redemption.kpi.scopeHint', '* 兑换率与天数基于当前页统计 (issued 来自全量)')}
+      </p>
     </div>
   )
 }

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Users, Plus, Trash2, RefreshCw, AlertCircle, Edit2 } from 'lucide-react'
+import { Users, Plus, Trash2, RefreshCw, AlertCircle, Edit2, ArrowUpDown, AlertTriangle } from 'lucide-react'
 import { Button, Card, Modal } from '../components/ui'
 import { useGatewayStore } from '../stores/gatewayStore'
 import { createGatewayClient, type GatewayUser } from '../lib/gateway-api'
@@ -17,6 +17,18 @@ const ROLE_OPTIONS = [
   { value: 100, label: 'Root' },
 ]
 
+// Wave 5 W5.2 — usage threshold for the "即将耗尽" badge. used_quota / quota
+// ≥ 0.9 surfaces a red chip so resellers can DM the user before they hit the
+// wall. Unlimited (quota=0) users are excluded.
+const QUOTA_WARN_RATIO = 0.9
+
+type UserSort = 'id' | 'used_quota' | 'request_count'
+
+function usageRatio(u: GatewayUser): number {
+  if (u.quota <= 0) return 0
+  return u.used_quota / u.quota
+}
+
 export function GatewayUserPage() {
   const { t } = useTranslation()
   const { status: serverStatus, adminToken } = useGatewayStore()
@@ -27,6 +39,8 @@ export function GatewayUserPage() {
   const [keyword, setKeyword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sortBy, setSortBy] = useState<UserSort>('id')
+  const [sortDesc, setSortDesc] = useState(true)
 
   // Modal state
   const [showModal, setShowModal] = useState(false)
@@ -36,6 +50,27 @@ export function GatewayUserPage() {
   const client = serverStatus?.running && adminToken
     ? createGatewayClient(serverStatus.url, adminToken)
     : null
+
+  // Wave 5 W5.2 — client-side sort. Hub's user list endpoint doesn't accept
+  // a sort param, so we sort the in-memory page after fetch. For the typical
+  // <100 users/page that's cheap.
+  const sortedUsers = useMemo(() => {
+    const dir = sortDesc ? -1 : 1
+    return [...users].sort((a, b) => {
+      const va = (a[sortBy] as number) ?? 0
+      const vb = (b[sortBy] as number) ?? 0
+      return va === vb ? 0 : va < vb ? -dir : dir
+    })
+  }, [users, sortBy, sortDesc])
+
+  const cycleSort = (key: UserSort) => {
+    if (sortBy === key) {
+      setSortDesc((d) => !d)
+    } else {
+      setSortBy(key)
+      setSortDesc(true)
+    }
+  }
 
   const load = async (p = page) => {
     if (!client) return
@@ -149,26 +184,34 @@ export function GatewayUserPage() {
         <table className="w-full text-sm">
           <thead className="bg-card-recessed">
             <tr className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-              <th className="text-left px-4 py-2">[ ID ]</th>
+              <SortableTh sortKey="id" current={sortBy} desc={sortDesc} onClick={cycleSort}>ID</SortableTh>
               <th className="text-left px-4 py-2">[ {t('gateway.userUsername').toUpperCase()} ]</th>
               <th className="text-left px-4 py-2">[ {t('gateway.userDisplayName').toUpperCase()} ]</th>
               <th className="text-left px-4 py-2">[ {t('gateway.userEmail').toUpperCase()} ]</th>
               <th className="text-left px-4 py-2">[ {t('gateway.userRole').toUpperCase()} ]</th>
-              <th className="text-left px-4 py-2">[ {t('gateway.userQuota').toUpperCase()} ]</th>
+              <SortableTh sortKey="used_quota" current={sortBy} desc={sortDesc} onClick={cycleSort}>
+                {t('gateway.userQuota').toUpperCase()}
+              </SortableTh>
+              <SortableTh sortKey="request_count" current={sortBy} desc={sortDesc} onClick={cycleSort}>
+                {t('gateway.userRequests', '请求数').toUpperCase()}
+              </SortableTh>
               <th className="text-left px-4 py-2">[ {t('gateway.userGroup').toUpperCase()} ]</th>
               <th className="text-left px-4 py-2">[ {t('gateway.userStatus').toUpperCase()} ]</th>
               <th className="text-right px-4 py-2">[ {t('gateway.actions').toUpperCase()} ]</th>
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 && (
+            {sortedUsers.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center py-8 text-muted-foreground font-mono">
+                <td colSpan={10} className="text-center py-8 text-muted-foreground font-mono">
                   ▪ {loading ? t('status.loading') : t('gateway.noUsers')}
                 </td>
               </tr>
             )}
-            {users.map((u) => (
+            {sortedUsers.map((u) => {
+              const ratio = usageRatio(u)
+              const nearLimit = u.quota > 0 && ratio >= QUOTA_WARN_RATIO
+              return (
               <tr key={u.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                 <td className="px-4 py-2 text-muted-foreground font-mono tabular-nums">{u.id}</td>
                 <td className="px-4 py-2 font-medium">{u.username}</td>
@@ -179,7 +222,21 @@ export function GatewayUserPage() {
                     {ROLE_LABELS[u.role] ?? `Role ${u.role}`}
                   </span>
                 </td>
-                <td className="px-4 py-2 font-mono tabular-nums">{u.used_quota} / {u.quota}</td>
+                <td className="px-4 py-2 font-mono tabular-nums">
+                  <div className="flex items-center gap-2">
+                    <span>{u.used_quota} / {u.quota || '∞'}</span>
+                    {nearLimit && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 text-[10px]"
+                        title={t('gateway.userNearLimitHint', '使用率 ≥ 90%')}
+                      >
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        {t('gateway.userNearLimit', '即将耗尽')}
+                      </span>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-2 font-mono tabular-nums">{u.request_count ?? 0}</td>
                 <td className="px-4 py-2 text-xs font-mono">{u.group || '-'}</td>
                 <td className="px-4 py-2">
                   <button onClick={() => handleToggleStatus(u)} className="transition-opacity hover:opacity-80">
@@ -207,7 +264,7 @@ export function GatewayUserPage() {
                   </div>
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </Card>
@@ -313,5 +370,29 @@ export function GatewayUserPage() {
         )}
       </Modal>
     </div>
+  )
+}
+
+interface SortableThProps {
+  sortKey: UserSort
+  current: UserSort
+  desc: boolean
+  onClick: (key: UserSort) => void
+  children: React.ReactNode
+}
+
+function SortableTh({ sortKey, current, desc, onClick, children }: SortableThProps) {
+  const active = current === sortKey
+  return (
+    <th className="text-left px-4 py-2">
+      <button
+        type="button"
+        onClick={() => onClick(sortKey)}
+        className={`inline-flex items-center gap-1 hover:text-foreground transition-colors ${active ? 'text-primary' : ''}`}
+      >
+        <span>[ {children} ]</span>
+        {active ? <span className="text-[10px]">{desc ? '↓' : '↑'}</span> : <ArrowUpDown className="h-2.5 w-2.5 opacity-50" />}
+      </button>
+    </th>
   )
 }

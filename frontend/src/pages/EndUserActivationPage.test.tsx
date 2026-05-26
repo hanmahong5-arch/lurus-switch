@@ -45,14 +45,27 @@ describe('ErrorActions — kind → CTA mapping', () => {
     contact: boolean
   }
   const specs: Spec[] = [
-    { kind: 'network',          retry: true,  clear: false, contact: false },
-    { kind: 'server',           retry: true,  clear: false, contact: false },
-    { kind: 'endpoint_absent',  retry: true,  clear: false, contact: false },
-    { kind: 'invalid_input',    retry: false, clear: true,  contact: false },
-    { kind: 'code_not_found',   retry: false, clear: true,  contact: true },
-    { kind: 'code_used',        retry: false, clear: false, contact: true },
-    { kind: 'code_expired',     retry: false, clear: false, contact: true },
-    { kind: 'code_disabled',    retry: false, clear: false, contact: true },
+    { kind: 'network',                retry: true,  clear: false, contact: false },
+    { kind: 'server',                 retry: true,  clear: false, contact: false },
+    { kind: 'endpoint_absent',        retry: true,  clear: false, contact: false },
+    { kind: 'invalid_input',          retry: false, clear: true,  contact: false },
+    { kind: 'code_not_found',         retry: false, clear: true,  contact: true },
+    { kind: 'code_used',              retry: false, clear: false, contact: true },
+    { kind: 'code_expired',           retry: false, clear: false, contact: true },
+    { kind: 'code_disabled',          retry: false, clear: false, contact: true },
+    // Wave 5 W5.2 — transport/retry-able
+    { kind: 'rate_limit',             retry: true,  clear: false, contact: false },
+    { kind: 'timeout',                retry: true,  clear: false, contact: false },
+    { kind: 'clock_skew',             retry: true,  clear: false, contact: false },
+    { kind: 'unknown',                retry: true,  clear: false, contact: false },
+    // Wave 5 W5.2 — operator-needed
+    { kind: 'tenant_disabled',        retry: false, clear: false, contact: true },
+    { kind: 'tenant_quota_exhausted', retry: false, clear: false, contact: true },
+    { kind: 'activation_paused',      retry: false, clear: false, contact: true },
+    { kind: 'mismatched_user',        retry: false, clear: false, contact: true },
+    { kind: 'multiple_redemptions',   retry: false, clear: false, contact: true },
+    { kind: 'version_too_old',        retry: false, clear: false, contact: true },
+    { kind: 'unsupported_region',     retry: false, clear: false, contact: true },
   ]
 
   for (const s of specs) {

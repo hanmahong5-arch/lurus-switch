@@ -11,8 +11,11 @@ interface Props {
 
 // Maps Hub-classified error kinds (returned suffixed as `[kind=...]` from
 // the Go binding) to localized headlines. The hint follows in the
-// secondary line — no need for verbose i18n keys per kind.
+// secondary line — no need for verbose i18n keys per kind. Kinds added
+// in Wave 5 W5.2 (tenant_/version_/clock_skew/...) extend the catalogue
+// so the EndUser sees actionable copy instead of a generic "server".
 const KIND_TO_KEY: Record<string, string> = {
+  // Pre-existing — keep IDs stable for upstream Hub error contract.
   invalid_input: 'enduser.error.invalidInput',
   network: 'enduser.error.network',
   code_not_found: 'enduser.error.notFound',
@@ -21,6 +24,19 @@ const KIND_TO_KEY: Record<string, string> = {
   code_disabled: 'enduser.error.disabled',
   endpoint_absent: 'enduser.error.endpointAbsent',
   server: 'enduser.error.server',
+  // Wave 5 W5.2 — protocol-level / transport-level / device-context
+  // failures that previously collapsed into "server".
+  rate_limit: 'enduser.error.rateLimit',
+  timeout: 'enduser.error.timeout',
+  mismatched_user: 'enduser.error.mismatchedUser',
+  tenant_disabled: 'enduser.error.tenantDisabled',
+  tenant_quota_exhausted: 'enduser.error.tenantQuotaExhausted',
+  activation_paused: 'enduser.error.activationPaused',
+  version_too_old: 'enduser.error.versionTooOld',
+  clock_skew: 'enduser.error.clockSkew',
+  unsupported_region: 'enduser.error.unsupportedRegion',
+  multiple_redemptions: 'enduser.error.multipleRedemptions',
+  unknown: 'enduser.error.unknown',
 }
 
 // EndUser activation page — the first thing users see when launching a
@@ -210,8 +226,29 @@ export function ErrorActions({
     : ''
 
   // Map each kind to its preferred recovery actions.
-  const showRetry = kind === 'network' || kind === 'server' || kind === 'endpoint_absent'
-  const showContact = kind === 'code_used' || kind === 'code_expired' || kind === 'code_disabled' || kind === 'code_not_found'
+  // Wave 5: extended kinds (rate_limit / timeout / clock_skew → retry;
+  // tenant_* / activation_paused / multiple_redemptions → contact;
+  // version_too_old / unsupported_region → contact + custom hint).
+  const showRetry =
+    kind === 'network' ||
+    kind === 'server' ||
+    kind === 'endpoint_absent' ||
+    kind === 'rate_limit' ||
+    kind === 'timeout' ||
+    kind === 'clock_skew' ||
+    kind === 'unknown'
+  const showContact =
+    kind === 'code_used' ||
+    kind === 'code_expired' ||
+    kind === 'code_disabled' ||
+    kind === 'code_not_found' ||
+    kind === 'tenant_disabled' ||
+    kind === 'tenant_quota_exhausted' ||
+    kind === 'activation_paused' ||
+    kind === 'mismatched_user' ||
+    kind === 'multiple_redemptions' ||
+    kind === 'version_too_old' ||
+    kind === 'unsupported_region'
   const showClear = kind === 'invalid_input' || kind === 'code_not_found'
 
   if (!showRetry && !showContact && !showClear) return null
