@@ -890,6 +890,10 @@ export function HubGetQuotaDates(arg1, arg2) {
   return window['go']['main']['App']['HubGetQuotaDates'](arg1, arg2);
 }
 
+export function HubGetWalletInfo() {
+  return window['go']['main']['App']['HubGetWalletInfo']();
+}
+
 export function HubListChannels(arg1, arg2, arg3) {
   return window['go']['main']['App']['HubListChannels'](arg1, arg2, arg3);
 }
@@ -912,6 +916,10 @@ export function HubListTenants() {
 
 export function HubListTokens(arg1, arg2) {
   return window['go']['main']['App']['HubListTokens'](arg1, arg2);
+}
+
+export function HubListWalletTransactions(arg1) {
+  return window['go']['main']['App']['HubListWalletTransactions'](arg1);
 }
 
 export function HubSearchChannels(arg1) {

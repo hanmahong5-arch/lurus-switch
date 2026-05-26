@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 import {
   Settings, BarChart3, Smartphone, Network,
-  Layers, Key, Box, Users, Gift, FileText, CreditCard, Settings2, Shield, Package,
+  Layers, Key, Box, Users, Gift, FileText, CreditCard, Settings2, Shield, Package, Wallet,
 } from 'lucide-react'
 import { useConfigStore, type GatewaySubTab } from '../stores/configStore'
 import { useBillingStore } from '../stores/billingStore'
@@ -17,6 +17,7 @@ import { GatewayUserPage } from './GatewayUserPage'
 import { GatewayRedemptionPage } from './GatewayRedemptionPage'
 import { GatewayLogPage } from './GatewayLogPage'
 import { GatewaySubscriptionPage } from './GatewaySubscriptionPage'
+import { GatewayWalletPage } from './GatewayWalletPage'
 import { GatewaySettingsPage } from './GatewaySettingsPage'
 import { ToolReleasePage } from './ToolReleasePage'
 import { AdminPage } from './AdminPage'
@@ -71,6 +72,7 @@ export function NewGatewayPage() {
     { id: 'redemptions', label: t('gateway.redemptions'), icon: Gift },
     { id: 'logs', label: t('gateway.logs'), icon: FileText },
     { id: 'subscriptions', label: t('gateway.subscriptions'), icon: CreditCard },
+    { id: 'wallet', label: t('gateway.wallet', '钱包'), icon: Wallet },
     { id: 'tool-releases', label: t('gateway.toolReleases', '工具上架'), icon: Package },
     { id: 'admin-settings', label: t('gateway.gatewaySettings'), icon: Settings2 },
   ]
@@ -125,6 +127,8 @@ export function NewGatewayPage() {
         return <GatewayRequiredGuard><GatewayLogPage /></GatewayRequiredGuard>
       case 'subscriptions':
         return <GatewayRequiredGuard><GatewaySubscriptionPage /></GatewayRequiredGuard>
+      case 'wallet':
+        return <GatewayRequiredGuard><GatewayWalletPage /></GatewayRequiredGuard>
       case 'admin-settings':
         return <GatewayRequiredGuard><GatewaySettingsPage /></GatewayRequiredGuard>
       case 'tool-releases':

@@ -47,6 +47,36 @@
       "desc": "终端用户：用经销商发的激活码激活客户端，自动装 CLI 工具，开箱即用。"
     }
   },
+  "wallet": {
+    "title": "经销商钱包",
+    "resellerOnly": "钱包功能仅在 Reseller 模式可用",
+    "notLinkedTitle": "当前账号未绑定 lurus-platform 钱包",
+    "notLinkedDesc": "显示的是 Hub 本地配额，非平台真实钱包。请联系平台管理员完成账号绑定。",
+    "balance": "账户余额",
+    "available": "可用余额",
+    "frozen": "冻结金额",
+    "periodCredit": "本页入账",
+    "periodDebit": "本页出账",
+    "transactions": "交易明细",
+    "empty": "暂无交易记录",
+    "withdrawRequest": "申请提现",
+    "withdrawTitle": "申请提现",
+    "withdrawNote": "v1 阶段提现走客服邮件审批 — 复制下方模板发送至客服邮箱，或点击「打开邮件客户端」自动填充。",
+    "supportEmail": "客服邮箱",
+    "mailTemplate": "邮件模板",
+    "mailSubject": "【经销商提现】Switch 钱包提现申请",
+    "mailBody": "您好，\n\n我是 Lurus Switch 经销商，希望申请钱包提现。\n\n当前可用余额：¥ {{balance}}\n提现金额：¥ ___\n收款方式：（支付宝 / 微信 / 银行卡，请填写账号）\n\n谢谢。",
+    "openMail": "打开邮件客户端",
+    "openTopup": "打开充值页",
+    "col": {
+      "time": "时间",
+      "type": "类型",
+      "amount": "金额 (¥)",
+      "balance": "余额 (¥)",
+      "product": "来源",
+      "desc": "备注"
+    }
+  },
   "enduser": {
     "activate": {
       "title": "激活你的服务",
@@ -726,6 +756,7 @@
     "redemptions": "兑换码",
     "logs": "请求日志",
     "subscriptions": "订阅管理",
+    "wallet": "钱包",
     "settings": {
       "title": "设置",
       "save": "保存",

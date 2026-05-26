@@ -415,6 +415,31 @@ func (a *App) HubCreateTenant(slug, name string) (*admin.Tenant, error) {
 	return c.CreateTenant(a.hubCtx(), admin.CreateTenantInput{Slug: slug, Name: name})
 }
 
+// ── Wallet (Reseller financial visibility, Wave 5 W5.1) ───────────────────
+
+// HubGetWalletInfo returns the Hub-side wallet snapshot used by the
+// Reseller Wallet page top KPI cards. Source = "platform" when backed by
+// lurus-platform, "internal" when the account isn't bridged (frontend
+// surfaces a banner in that case).
+func (a *App) HubGetWalletInfo() (*admin.WalletInfo, error) {
+	c, err := hubClient()
+	if err != nil {
+		return nil, err
+	}
+	return c.GetWalletInfo(a.hubCtx())
+}
+
+// HubListWalletTransactions returns paginated wallet transactions for the
+// admin's bound platform account. q.Page defaults to 1, q.PageSize to 20
+// (clamped to 200 max on the Hub side).
+func (a *App) HubListWalletTransactions(q admin.WalletQuery) (*admin.WalletTransactionPage, error) {
+	c, err := hubClient()
+	if err != nil {
+		return nil, err
+	}
+	return c.ListWalletTransactions(a.hubCtx(), q)
+}
+
 // ── Switch presets (public, no auth) ──────────────────────────────────────
 
 // HubListSwitchPresets pulls the public preset catalog. Works in any mode

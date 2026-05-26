@@ -58,7 +58,7 @@ export type GatewaySubTab =
   | 'control' | 'usage' | 'apps' | 'relay'
   // Admin — Reseller mode (newapi admin scope)
   | 'dashboard' | 'channels' | 'tokens' | 'models' | 'users'
-  | 'redemptions' | 'logs' | 'subscriptions' | 'admin-settings'
+  | 'redemptions' | 'logs' | 'subscriptions' | 'wallet' | 'admin-settings'
   | 'tool-releases'
   // Root — Reseller mode (newapi root scope: option/oauth/performance/ratio)
   | 'system'

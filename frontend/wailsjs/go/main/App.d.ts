@@ -499,6 +499,8 @@ export function HubGetPerformanceStats():Promise<admin.PerformanceStats>;
 
 export function HubGetQuotaDates(arg1:string,arg2:string):Promise<Array<admin.QuotaDate>>;
 
+export function HubGetWalletInfo():Promise<admin.WalletInfo>;
+
 export function HubListChannels(arg1:number,arg2:number,arg3:string):Promise<admin.ChannelPage>;
 
 export function HubListLogs(arg1:admin.LogQuery):Promise<admin.LogPage>;
@@ -510,6 +512,8 @@ export function HubListSwitchPresets():Promise<Array<admin.SwitchPreset>>;
 export function HubListTenants():Promise<admin.TenantList>;
 
 export function HubListTokens(arg1:number,arg2:number):Promise<admin.TokenPage>;
+
+export function HubListWalletTransactions(arg1:admin.WalletQuery):Promise<admin.WalletTransactionPage>;
 
 export function HubSearchChannels(arg1:string):Promise<Array<admin.Channel>>;
 

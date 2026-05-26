@@ -414,6 +414,116 @@ export namespace admin {
 		    return a;
 		}
 	}
+	export class WalletInfo {
+	    source: string;
+	    balance: number;
+	    frozen: number;
+	    available: number;
+	    lifetime_topup: number;
+	    lifetime_spend: number;
+	    active_preauths: number;
+	    pending_orders: number;
+	    topup_url?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new WalletInfo(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.balance = source["balance"];
+	        this.frozen = source["frozen"];
+	        this.available = source["available"];
+	        this.lifetime_topup = source["lifetime_topup"];
+	        this.lifetime_spend = source["lifetime_spend"];
+	        this.active_preauths = source["active_preauths"];
+	        this.pending_orders = source["pending_orders"];
+	        this.topup_url = source["topup_url"];
+	    }
+	}
+	export class WalletQuery {
+	    page: number;
+	    page_size: number;
+
+	    static createFrom(source: any = {}) {
+	        return new WalletQuery(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	    }
+	}
+	export class WalletTransaction {
+	    id: number;
+	    account_id: number;
+	    type: string;
+	    amount: number;
+	    balance_after: number;
+	    product_id: string;
+	    reference_type: string;
+	    reference_id: string;
+	    description: string;
+	    metadata?: any;
+	    created_at: string;
+
+	    static createFrom(source: any = {}) {
+	        return new WalletTransaction(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.account_id = source["account_id"];
+	        this.type = source["type"];
+	        this.amount = source["amount"];
+	        this.balance_after = source["balance_after"];
+	        this.product_id = source["product_id"];
+	        this.reference_type = source["reference_type"];
+	        this.reference_id = source["reference_id"];
+	        this.description = source["description"];
+	        this.metadata = source["metadata"];
+	        this.created_at = source["created_at"];
+	    }
+	}
+	export class WalletTransactionPage {
+	    items: WalletTransaction[];
+	    total: number;
+	    page: number;
+	    page_size: number;
+
+	    static createFrom(source: any = {}) {
+	        return new WalletTransactionPage(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.items = this.convertValues(source["items"], WalletTransaction);
+	        this.total = source["total"];
+	        this.page = source["page"];
+	        this.page_size = source["page_size"];
+	    }
+
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Token {
 	    id: number;
 	    user_id: number;

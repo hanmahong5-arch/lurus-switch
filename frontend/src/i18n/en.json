@@ -47,6 +47,36 @@
       "desc": "Customer: activate the client your reseller gave you, install CLI tools automatically, get to work."
     }
   },
+  "wallet": {
+    "title": "Reseller Wallet",
+    "resellerOnly": "Wallet is only available in Reseller mode",
+    "notLinkedTitle": "This account is not linked to a lurus-platform wallet",
+    "notLinkedDesc": "Showing Hub-local quota, not the real platform wallet. Contact the platform admin to link your account.",
+    "balance": "Balance",
+    "available": "Available",
+    "frozen": "Frozen",
+    "periodCredit": "Page credits",
+    "periodDebit": "Page debits",
+    "transactions": "Transactions",
+    "empty": "No transactions yet",
+    "withdrawRequest": "Request withdrawal",
+    "withdrawTitle": "Request withdrawal",
+    "withdrawNote": "v1 withdrawals go through support email approval — copy the template below and send it to support, or click \"Open mail client\" for a pre-filled message.",
+    "supportEmail": "Support email",
+    "mailTemplate": "Email template",
+    "mailSubject": "[Reseller Withdraw] Switch wallet withdrawal request",
+    "mailBody": "Hello,\n\nI'm a Lurus Switch reseller and would like to request a wallet withdrawal.\n\nCurrent available balance: ¥ {{balance}}\nWithdraw amount: ¥ ___\nPayout method: (Alipay / WeChat / bank card, please include account info)\n\nThanks.",
+    "openMail": "Open mail client",
+    "openTopup": "Open top-up page",
+    "col": {
+      "time": "Time",
+      "type": "Type",
+      "amount": "Amount (¥)",
+      "balance": "Balance (¥)",
+      "product": "Source",
+      "desc": "Description"
+    }
+  },
   "enduser": {
     "activate": {
       "title": "Activate your service",
@@ -724,6 +754,7 @@
     "redemptions": "Redemptions",
     "logs": "Logs",
     "subscriptions": "Subscriptions",
+    "wallet": "Wallet",
     "settings": {
       "title": "Settings",
       "save": "Save",
