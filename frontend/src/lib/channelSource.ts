@@ -21,6 +21,12 @@ import {
   HubDeleteChannelBatch,
   HubTestChannel,
   HubCopyChannel,
+  HubBatchSetChannelTag,
+  HubEnableChannelsByTag,
+  HubDisableChannelsByTag,
+  HubEditChannelTag,
+  HubFetchChannelModels,
+  HubFixChannelAbilities,
 } from '../../wailsjs/go/main/App'
 import type { admin } from '../../wailsjs/go/models'
 
@@ -132,20 +138,24 @@ class LocalChannelSource implements ChannelSource {
 
 // HubChannelSource — Reseller mode, talks to remote lurus-newhub via Wails.
 //
-// Capabilities are scoped to what bindings_hub.go currently exposes. Tag
-// operations and batch enable/disable will be added when their UI use case
-// becomes important enough to bind — Reseller deployments are typically
-// single-tenant + small channel counts, so the absence is rarely felt.
+// Wave 5 W5.3: capability gap closed — Hub now matches Personal mode on
+// tag-scoped enable/disable, batch-tag, fetch-models, and fix-abilities.
+//
+// `batchEnableDisable` stays false because newhub has no by-ids enable /
+// disable endpoint (POST /api/channel/batch is delete-only on Hub) — the
+// upstream equivalent is to tag the affected channels then call enable/
+// disable by tag. Surfacing that as a separate flow keeps the contract
+// honest rather than silently routing batch-enable to a destructive op.
 class HubChannelSource implements ChannelSource {
   readonly kind = 'hub' as const
   readonly capabilities: ChannelSourceCapabilities = {
     search: true,
     copy: true,
-    fetchModels: false,
+    fetchModels: true,
     batchEnableDisable: false,
-    batchSetTag: false,
-    tagOperations: false,
-    fixAbilities: false,
+    batchSetTag: true,
+    tagOperations: true,
+    fixAbilities: true,
   }
 
   async list(page: number, perPage: number, opts?: { keyword?: string }) {
@@ -183,6 +193,25 @@ class HubChannelSource implements ChannelSource {
   }
   async copy(id: number) {
     await HubCopyChannel(id)
+  }
+  async fetchModels(id: number) {
+    const models = await HubFetchChannelModels(id)
+    return models ?? []
+  }
+  async batchSetTag(ids: number[], tag: string) {
+    await HubBatchSetChannelTag(ids, tag)
+  }
+  async enableByTag(tag: string) {
+    await HubEnableChannelsByTag(tag)
+  }
+  async disableByTag(tag: string) {
+    await HubDisableChannelsByTag(tag)
+  }
+  async editTag(oldTag: string, newTag: string) {
+    await HubEditChannelTag(oldTag, newTag)
+  }
+  async fixAbilities() {
+    await HubFixChannelAbilities()
   }
 }
 

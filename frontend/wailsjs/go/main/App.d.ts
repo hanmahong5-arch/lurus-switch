@@ -483,6 +483,8 @@ export function HubDeleteChannel(arg1:number):Promise<void>;
 
 export function HubDeleteChannelBatch(arg1:Array<number>):Promise<void>;
 
+export function HubBatchSetChannelTag(arg1:Array<number>,arg2:string):Promise<void>;
+
 export function HubDeleteInvalidRedemptions():Promise<void>;
 
 export function HubDeleteRedemption(arg1:number):Promise<void>;
@@ -490,6 +492,16 @@ export function HubDeleteRedemption(arg1:number):Promise<void>;
 export function HubDeleteToken(arg1:number):Promise<void>;
 
 export function HubDeleteTokenBatch(arg1:Array<number>):Promise<void>;
+
+export function HubDisableChannelsByTag(arg1:string):Promise<void>;
+
+export function HubEditChannelTag(arg1:string,arg2:string):Promise<void>;
+
+export function HubEnableChannelsByTag(arg1:string):Promise<void>;
+
+export function HubFetchChannelModels(arg1:number):Promise<Array<string>>;
+
+export function HubFixChannelAbilities():Promise<void>;
 
 export function HubGetChannel(arg1:number):Promise<admin.Channel>;
 

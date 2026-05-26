@@ -874,6 +874,30 @@ export function HubDeleteTokenBatch(arg1) {
   return window['go']['main']['App']['HubDeleteTokenBatch'](arg1);
 }
 
+export function HubBatchSetChannelTag(arg1, arg2) {
+  return window['go']['main']['App']['HubBatchSetChannelTag'](arg1, arg2);
+}
+
+export function HubDisableChannelsByTag(arg1) {
+  return window['go']['main']['App']['HubDisableChannelsByTag'](arg1);
+}
+
+export function HubEditChannelTag(arg1, arg2) {
+  return window['go']['main']['App']['HubEditChannelTag'](arg1, arg2);
+}
+
+export function HubEnableChannelsByTag(arg1) {
+  return window['go']['main']['App']['HubEnableChannelsByTag'](arg1);
+}
+
+export function HubFetchChannelModels(arg1) {
+  return window['go']['main']['App']['HubFetchChannelModels'](arg1);
+}
+
+export function HubFixChannelAbilities() {
+  return window['go']['main']['App']['HubFixChannelAbilities']();
+}
+
 export function HubGetChannel(arg1) {
   return window['go']['main']['App']['HubGetChannel'](arg1);
 }

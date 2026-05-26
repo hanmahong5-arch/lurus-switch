@@ -202,6 +202,62 @@ func (a *App) HubTestChannel(id int, model string) error {
 	return c.TestChannel(a.hubCtx(), id, model)
 }
 
+// ── Channel batch / tag ops (Wave 5 W5.3) ─────────────────────────────────
+
+// HubBatchSetChannelTag tags multiple channels in one Hub call.
+func (a *App) HubBatchSetChannelTag(ids []int, tag string) error {
+	c, err := hubClient()
+	if err != nil {
+		return err
+	}
+	return c.BatchSetChannelTag(a.hubCtx(), ids, tag)
+}
+
+// HubEnableChannelsByTag enables every channel carrying tag.
+func (a *App) HubEnableChannelsByTag(tag string) error {
+	c, err := hubClient()
+	if err != nil {
+		return err
+	}
+	return c.EnableChannelsByTag(a.hubCtx(), tag)
+}
+
+// HubDisableChannelsByTag disables every channel carrying tag.
+func (a *App) HubDisableChannelsByTag(tag string) error {
+	c, err := hubClient()
+	if err != nil {
+		return err
+	}
+	return c.DisableChannelsByTag(a.hubCtx(), tag)
+}
+
+// HubEditChannelTag renames a tag everywhere it appears.
+func (a *App) HubEditChannelTag(oldTag, newTag string) error {
+	c, err := hubClient()
+	if err != nil {
+		return err
+	}
+	return c.EditChannelTag(a.hubCtx(), oldTag, newTag)
+}
+
+// HubFetchChannelModels asks Hub to pull upstream's model catalogue.
+func (a *App) HubFetchChannelModels(id int) ([]string, error) {
+	c, err := hubClient()
+	if err != nil {
+		return nil, err
+	}
+	return c.FetchChannelModels(a.hubCtx(), id)
+}
+
+// HubFixChannelAbilities reconciles channel abilities rows server-side.
+func (a *App) HubFixChannelAbilities() error {
+	c, err := hubClient()
+	if err != nil {
+		return err
+	}
+	return c.FixChannelAbilities(a.hubCtx())
+}
+
 // ── Tokens ────────────────────────────────────────────────────────────────
 
 // HubListTokens returns paginated tokens.

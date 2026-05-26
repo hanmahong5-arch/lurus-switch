@@ -71,6 +71,52 @@ func (c *Client) CopyChannel(ctx context.Context, id int) error {
 	return c.do(ctx, http.MethodPost, fmt.Sprintf("/api/channel/copy/%d", id), nil, nil, nil)
 }
 
+// ── Batch / tag ops (Wave 5 W5.3) ─────────────────────────────────────────
+
+// BatchSetChannelTag tags multiple channels in one call. Hub merges tags;
+// duplicates are ignored server-side.
+func (c *Client) BatchSetChannelTag(ctx context.Context, ids []int, tag string) error {
+	body := map[string]any{"ids": ids, "tag": tag}
+	return c.do(ctx, http.MethodPost, "/api/channel/batch/tag", nil, body, nil)
+}
+
+// EnableChannelsByTag enables every channel carrying tag.
+func (c *Client) EnableChannelsByTag(ctx context.Context, tag string) error {
+	body := map[string]any{"tag": tag}
+	return c.do(ctx, http.MethodPost, "/api/channel/tag/enabled", nil, body, nil)
+}
+
+// DisableChannelsByTag disables every channel carrying tag.
+func (c *Client) DisableChannelsByTag(ctx context.Context, tag string) error {
+	body := map[string]any{"tag": tag}
+	return c.do(ctx, http.MethodPost, "/api/channel/tag/disabled", nil, body, nil)
+}
+
+// EditChannelTag renames a tag everywhere it appears. Hub's PUT /channel/tag
+// uses body `{tag: oldTag, new_tag: newTag}` (NOT old_tag).
+func (c *Client) EditChannelTag(ctx context.Context, oldTag, newTag string) error {
+	body := map[string]any{"tag": oldTag, "new_tag": newTag}
+	return c.do(ctx, http.MethodPut, "/api/channel/tag", nil, body, nil)
+}
+
+// FetchChannelModels asks Hub to query the upstream provider for its
+// model catalogue and return the list. The frontend uses this to
+// auto-populate a channel's `models` field.
+func (c *Client) FetchChannelModels(ctx context.Context, id int) ([]string, error) {
+	var out []string
+	if err := c.do(ctx, http.MethodGet, fmt.Sprintf("/api/channel/fetch_models/%d", id), nil, nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// FixChannelAbilities reconciles abilities rows when channel models drift
+// from the recorded abilities table. Safe to invoke any time — Hub diffs
+// before writing.
+func (c *Client) FixChannelAbilities(ctx context.Context) error {
+	return c.do(ctx, http.MethodPost, "/api/channel/fix", nil, nil, nil)
+}
+
 // newQuery returns a url.Values with one key set, or nil when v is empty.
 // Used by endpoints that take a single query param so callers don't have to
 // build url.Values inline.
