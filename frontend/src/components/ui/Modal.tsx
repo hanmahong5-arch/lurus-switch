@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 import * as Dialog from '@radix-ui/react-dialog'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import { X, type LucideIcon } from 'lucide-react'
 import { cn } from '../../lib/utils'
 

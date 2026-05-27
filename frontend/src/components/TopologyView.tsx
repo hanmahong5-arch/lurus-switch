@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import { BorderBeam } from './ui/magicui/BorderBeam'
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -439,8 +440,27 @@ export function TopologyView() {
   const summary = snapshot.summary
   const total = summary.ok + summary.degraded + summary.down + summary.notconfigured + summary.unknown
 
+  // Show BorderBeam only when all nodes are ok (healthy glow) or when
+  // there are nodes that need attention (warn glow) — not when completely
+  // unconfigured (no data yet).
+  const beamColor =
+    summary.down > 0
+      ? 'hsl(var(--destructive) / 0.6)'
+      : summary.ok > 0
+        ? 'hsl(var(--primary) / 0.55)'
+        : undefined
+
   return (
-    <div className="rounded-lg border border-border bg-card overflow-hidden">
+    <div className="relative rounded-lg border border-border bg-card overflow-hidden">
+      {beamColor && (
+        <BorderBeam
+          colorFrom={beamColor}
+          colorTo="transparent"
+          duration={8}
+          borderRadius="0.5rem"
+          borderWidth={1.5}
+        />
+      )}
       {/* Headline + summary chips + refresh */}
       <div className="flex items-start justify-between p-4 border-b border-border">
         <div className="flex-1 min-w-0">

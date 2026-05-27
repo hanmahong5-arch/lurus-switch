@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'motion/react'
 import './style.css'
 import { Sidebar, RESELLER_ONLY_PAGES, PERSONAL_ONLY_PAGES, ENDUSER_VISIBLE_PAGES, ADMIN_PAGES } from './components/Sidebar'
 import { PageHeader } from './components/PageHeader'

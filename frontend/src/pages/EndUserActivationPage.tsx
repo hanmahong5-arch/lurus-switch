@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Loader2, KeyRound, Check, AlertTriangle, Shield, RefreshCw, Mail, Eraser } from 'lucide-react'
-import { Button, Card } from '../components/ui'
+import { Card } from '../components/ui'
+import { ShimmerButton } from '../components/ui/magicui/ShimmerButton'
 import { ActivateRedemption, GetDeviceFingerprint, GetAppSettings, SetAppMode } from '../../wailsjs/go/main/App'
 
 interface Props {
@@ -151,15 +152,21 @@ export function EndUserActivationPage({ hubURL, onActivated }: Props) {
           </Card>
         )}
 
-        <Button
+        <ShimmerButton
           onClick={handleSubmit}
           disabled={!codeOK || submitting}
-          loading={submitting}
-          icon={!submitting ? <Check className="h-4 w-4" /> : undefined}
-          className="w-full justify-center bg-emerald-600 hover:bg-emerald-500 ring-emerald-500/40"
+          background="hsl(142 71% 35%)"
+          shimmerColor="rgba(255,255,255,0.25)"
+          borderRadius="6px"
+          className="w-full h-10 text-white"
         >
+          {submitting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Check className="h-4 w-4" />
+          )}
           {t('enduser.activate.submit', '激活')}
-        </Button>
+        </ShimmerButton>
 
         <div
           className="mt-6 pt-4 border-t border-border/60 flex items-center gap-2 text-[11px] text-muted-foreground/80"

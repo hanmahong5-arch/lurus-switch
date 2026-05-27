@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2, Gift } from 'lucide-react'
 import { cn } from '../../lib/utils'
 import { classifyError } from '../../lib/errorClassifier'
+import { ShimmerButton } from '../ui/magicui/ShimmerButton'
 
 interface RedeemPanelProps {
   onRedeem: (code: string) => Promise<number>
@@ -43,18 +44,16 @@ export function RedeemPanel({ onRedeem }: RedeemPanelProps) {
           className="flex-1 px-3 py-1.5 rounded-md text-sm border border-border bg-background focus:outline-none focus:ring-1 focus:ring-primary"
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
         />
-        <button
+        <ShimmerButton
           onClick={handleSubmit}
           disabled={!code.trim() || submitting}
-          className={cn(
-            'flex items-center gap-1.5 px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
-            'bg-primary text-primary-foreground hover:bg-primary/90',
-            'disabled:opacity-50 disabled:cursor-not-allowed'
-          )}
+          shimmerDuration="1.8s"
+          borderRadius="6px"
+          className="h-9 px-4 text-sm"
         >
           {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
           Redeem
-        </button>
+        </ShimmerButton>
       </div>
 
       {result && (
