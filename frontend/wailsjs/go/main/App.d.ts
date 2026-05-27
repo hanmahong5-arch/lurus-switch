@@ -29,6 +29,7 @@ import {metering} from '../models';
 import {audit} from '../models';
 import {auth} from '../models';
 import {promptlib} from '../models';
+import {rulesmarket} from '../models';
 import {agenttemplate} from '../models';
 import {preset} from '../models';
 import {docmgr} from '../models';
@@ -473,6 +474,8 @@ export function HubAddChannel(arg1:Record<string, any>):Promise<void>;
 
 export function HubAddToken(arg1:Record<string, any>):Promise<void>;
 
+export function HubBatchSetChannelTag(arg1:Array<number>,arg2:string):Promise<void>;
+
 export function HubCopyChannel(arg1:number):Promise<void>;
 
 export function HubCreateRedemptions(arg1:string,arg2:number,arg3:number,arg4:number):Promise<Array<admin.Redemption>>;
@@ -482,8 +485,6 @@ export function HubCreateTenant(arg1:string,arg2:string):Promise<admin.Tenant>;
 export function HubDeleteChannel(arg1:number):Promise<void>;
 
 export function HubDeleteChannelBatch(arg1:Array<number>):Promise<void>;
-
-export function HubBatchSetChannelTag(arg1:Array<number>,arg2:string):Promise<void>;
 
 export function HubDeleteInvalidRedemptions():Promise<void>;
 
@@ -602,6 +603,12 @@ export function ListOpenClawConfigs():Promise<Array<string>>;
 export function ListPicoClawConfigs():Promise<Array<string>>;
 
 export function ListPrompts(arg1:string):Promise<Array<promptlib.Prompt>>;
+
+export function RulesMarketList():Promise<Array<rulesmarket.RuleTemplate>>;
+
+export function RulesMarketRefresh(arg1:string):Promise<{success:boolean;message:string}>;
+
+export function RulesMarketWrite(arg1:string,arg2:rulesmarket.RuleTemplate,arg3:string,arg4:boolean):Promise<{success:boolean;message:string;path?:string;appended?:boolean;skipped?:boolean}>;
 
 export function ListResellerDeployKinds():Promise<Array<main.resellerKindEntry>>;
 

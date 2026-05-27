@@ -1887,6 +1887,62 @@
     "contextDrawer": "Project context",
     "exportSuccess": "Exported to {{path}}",
     "forkSuccess": "Forked into session {{sid}} ({{n}} messages kept)",
-    "reindexed": "Scanned {{n}} sessions ({{a}} new)"
+    "reindexed": "Scanned {{n}} sessions ({{a}} new)",
+    "noMessages": "No messages in this session.",
+    "copy": "Copy",
+    "forkHere": "Fork conversation here",
+    "toolArgs": "tool args",
+    "miniRail": "Timeline navigator",
+    "role": {
+      "user": "User",
+      "assistant": "Assistant",
+      "system": "System",
+      "tool_use": "Tool call",
+      "tool_result": "Tool result",
+      "meta": "Meta"
+    },
+    "kpi": {
+      "messages": "Messages",
+      "tokens": "Tokens",
+      "timeSpan": "Time span",
+      "models": "Models"
+    }
+  },
+  "rulesmarket": {
+    "title": "Rules Market",
+    "subtitle": "Browse and install AI coding rule templates (AGENTS.md / CLAUDE.md / .cursorrules).",
+    "search": "Search templates…",
+    "install": "Install",
+    "targetFormat": "Target format",
+    "projectDir": "Project directory",
+    "installing": "Installing…",
+    "installed": "Rule installed",
+    "installFailed": "Install failed",
+    "formatLabel": {
+      "agents_md": "AGENTS.md",
+      "claude_md": "CLAUDE.md",
+      "cursorrules": ".cursorrules",
+      "windsurf_rules": ".windsurfrules"
+    },
+    "category": {
+      "all": "All",
+      "framework": "Framework",
+      "language": "Language",
+      "custom": "Custom",
+      "tool": "Tool",
+      "testing": "Testing"
+    },
+    "noResults": "No templates match your search.",
+    "loading": "Loading templates…",
+    "source": "Source",
+    "builtin": "Built-in",
+    "modal": {
+      "title": "Install rule template",
+      "desc": "Select the target format and the project directory where the rule file will be written.",
+      "overwrite": "Replace existing file (overwrite)",
+      "append": "Append to existing file (default)",
+      "cancel": "Cancel",
+      "confirm": "Install"
+    }
   }
 }

@@ -838,6 +838,10 @@ export function HubAddToken(arg1) {
   return window['go']['main']['App']['HubAddToken'](arg1);
 }
 
+export function HubBatchSetChannelTag(arg1, arg2) {
+  return window['go']['main']['App']['HubBatchSetChannelTag'](arg1, arg2);
+}
+
 export function HubCopyChannel(arg1) {
   return window['go']['main']['App']['HubCopyChannel'](arg1);
 }
@@ -872,10 +876,6 @@ export function HubDeleteToken(arg1) {
 
 export function HubDeleteTokenBatch(arg1) {
   return window['go']['main']['App']['HubDeleteTokenBatch'](arg1);
-}
-
-export function HubBatchSetChannelTag(arg1, arg2) {
-  return window['go']['main']['App']['HubBatchSetChannelTag'](arg1, arg2);
 }
 
 export function HubDisableChannelsByTag(arg1) {
@@ -1096,6 +1096,18 @@ export function ListPicoClawConfigs() {
 
 export function ListPrompts(arg1) {
   return window['go']['main']['App']['ListPrompts'](arg1);
+}
+
+export function RulesMarketList() {
+  return window['go']['main']['App']['RulesMarketList']();
+}
+
+export function RulesMarketRefresh(arg1) {
+  return window['go']['main']['App']['RulesMarketRefresh'](arg1);
+}
+
+export function RulesMarketWrite(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['RulesMarketWrite'](arg1, arg2, arg3, arg4);
 }
 
 export function ListResellerDeployKinds() {

@@ -1,0 +1,102 @@
+[
+  {
+    "id": "nextjs-best-practices",
+    "name": "Next.js Best Practices",
+    "category": "framework",
+    "framework": "Next.js",
+    "description": "TypeScript-first rules for Next.js App Router projects: server components, data fetching, and performance patterns.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# Next.js Best Practices\n\n## General\n- Prefer App Router over Pages Router for new projects\n- Use TypeScript with strict mode enabled\n- Co-locate components, hooks, and types near their usage\n\n## Server vs Client Components\n- Default to Server Components; add `\"use client\"` only when needed\n- Server Components: data fetching, database access, auth checks\n- Client Components: interactivity, browser APIs, event handlers, hooks\n\n## Data Fetching\n- Fetch data in Server Components using async/await directly\n- Use `cache()` for request deduplication\n- Use `revalidate` options for ISR rather than client-side polling\n\n## Performance\n- Use `next/image` for all images with explicit width/height\n- Use `next/font` for fonts to avoid layout shift\n- Implement loading.tsx and error.tsx for every route segment\n- Keep bundle size small: dynamic import heavy components\n\n## File Naming\n- `page.tsx` — route entry\n- `layout.tsx` — shared layout\n- `loading.tsx` — suspense fallback\n- `error.tsx` — error boundary\n- `not-found.tsx` — 404 handler\n- `route.ts` — API route handler\n"
+  },
+  {
+    "id": "react-typescript-component",
+    "name": "React TypeScript Components",
+    "category": "framework",
+    "framework": "React",
+    "description": "Rules for writing clean, accessible React components in TypeScript with hooks and composition patterns.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# React TypeScript Component Rules\n\n## Component Design\n- Prefer function components with hooks over class components\n- Extract complex state logic into custom hooks (`use` prefix)\n- Keep components small and single-purpose (<150 lines)\n- Use composition over prop drilling; prefer Context or state libraries for deep sharing\n\n## TypeScript\n- Type all props explicitly; avoid `any`\n- Use `React.FC<Props>` or inline prop typing; prefer the latter\n- Use discriminated unions for variant props instead of optional booleans\n- Export prop types for reusable components\n\n## Hooks\n- Follow the rules of hooks: only call at top level, only in React functions\n- Memoize expensive computations with `useMemo`\n- Stabilize callbacks passed to children with `useCallback`\n- Clean up effects: return cleanup function from `useEffect`\n\n## Styling\n- Use CSS Modules or Tailwind; avoid inline styles except for truly dynamic values\n- Namespace class names to avoid collisions in CSS Modules\n\n## Accessibility\n- Use semantic HTML elements (button, nav, main, aside)\n- Provide `aria-label` for icon-only buttons\n- Ensure all interactive elements are keyboard-reachable\n"
+  },
+  {
+    "id": "vue3-composition",
+    "name": "Vue 3 Composition API",
+    "category": "framework",
+    "framework": "Vue",
+    "description": "Best practices for Vue 3 with Composition API, TypeScript, and Vite.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# Vue 3 Composition API Rules\n\n## Setup & Structure\n- Use `<script setup>` syntax for all new components\n- Define props with `defineProps<{...}>()` for type safety\n- Use `defineEmits<{...}>()` with typed event signatures\n- Organize setup: props → emits → composables → reactive state → computed → watchers → methods\n\n## Reactivity\n- Use `ref` for primitives and `reactive` for complex objects\n- Destructure reactive objects through `toRefs` to preserve reactivity\n- Prefer `computed` over methods for derived values\n- Use `watchEffect` for side effects that depend on reactive state automatically\n\n## Composables\n- Extract reusable logic into composables in `composables/` or `use/` directory\n- Name composables with `use` prefix\n- Return an object from composables for named destructuring\n\n## Performance\n- Use `v-memo` and `v-once` judiciously to skip re-renders\n- Use `shallowRef`/`shallowReactive` for large data structures you own externally\n- Virtualize long lists with `@tanstack/vue-virtual`\n"
+  },
+  {
+    "id": "golang-api-service",
+    "name": "Go API Service",
+    "category": "language",
+    "framework": "Go",
+    "description": "Rules for idiomatic Go HTTP services: error handling, context propagation, testing, and structure.",
+    "format": "agents_md",
+    "source_url": "",
+    "content": "# Go API Service Rules\n\n## Code Style\n- Run `gofmt` and `golangci-lint run` before committing\n- Follow standard Go project layout: `cmd/`, `internal/`, `pkg/` (only truly reusable)\n- Use `errors.As` / `errors.Is` for error inspection; wrap with `fmt.Errorf(\"%s: %w\", msg, err)`\n\n## Context\n- Pass `context.Context` as the first argument to all I/O-bound functions\n- Never store Context in a struct; accept it at call time\n- Always set timeouts: `context.WithTimeout` before external calls\n\n## Error Handling\n- Never discard errors with `_` unless the function signature guarantees no meaningful error\n- Add context to errors at each level: `fmt.Errorf(\"user.Get %d: %w\", id, err)`\n- Distinguish transient vs permanent errors for retry logic\n\n## HTTP Handlers\n- Use `net/http` or lightweight routers (chi, gin); avoid heavy frameworks\n- Read the request body once; use middleware for common concerns\n- Return proper HTTP status codes; use `http.Error` or structured JSON errors\n\n## Testing\n- Use table-driven tests with `t.Run` subtests\n- Test packages through their public API\n- Use `httptest.NewRecorder` and `httptest.NewServer` for handler tests\n- Avoid global state; inject dependencies\n"
+  },
+  {
+    "id": "rust-systems",
+    "name": "Rust Systems Programming",
+    "category": "language",
+    "framework": "Rust",
+    "description": "Rules for safe, idiomatic Rust: ownership, error handling, testing, and performance patterns.",
+    "format": "agents_md",
+    "source_url": "",
+    "content": "# Rust Systems Programming Rules\n\n## Safety\n- Prefer safe abstractions; use `unsafe` only when necessary and document invariants with `// SAFETY:`\n- Never use `unwrap()`/`expect()` in library code; use `?` and proper error types\n- Use `Result<T, E>` with custom error types that implement `std::error::Error`\n\n## Ownership & Borrowing\n- Prefer borrowing (`&T`, `&mut T`) over cloning unless ownership transfer is semantically correct\n- Use `Arc<T>` for shared ownership across threads, `Rc<T>` for single-threaded sharing\n- Structure data to minimize lifetime annotations; favor owned types in public APIs\n\n## Error Handling\n- Use `thiserror` for library error types, `anyhow` for application error handling\n- Provide context with `.context(\"...\")` or `.with_context(|| ...)`\n- Make error messages actionable: what failed, expected vs actual, how to fix\n\n## Performance\n- Benchmark before optimizing: use `criterion` for micro-benchmarks\n- Avoid unnecessary allocations: prefer slices over `Vec` in function args, `&str` over `String`\n- Use iterators over manual indexing; the optimizer handles them well\n\n## Testing\n- Write unit tests in the same file with `#[cfg(test)]` modules\n- Use integration tests in `tests/` for public API coverage\n- Run `cargo clippy --all-targets -- -D warnings` in CI\n"
+  },
+  {
+    "id": "python-general",
+    "name": "Python Best Practices",
+    "category": "language",
+    "framework": "Python",
+    "description": "Rules for clean, maintainable Python code: type hints, error handling, testing, and project structure.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# Python Best Practices\n\n## Code Quality\n- Use type hints throughout; run `mypy --strict` in CI\n- Format with `black` and lint with `ruff`\n- Use `dataclasses` or `pydantic` for structured data instead of dicts\n- Prefer `pathlib.Path` over `os.path`\n\n## Error Handling\n- Catch specific exceptions, not bare `except:`\n- Use custom exception classes for domain errors\n- Log exceptions with `logging.exception()` to preserve stack traces\n\n## Project Structure\n- Organize by domain, not by type: `users/`, `orders/`, not `models/`, `views/`\n- Use `__init__.py` sparingly; avoid re-exporting everything\n- Put configuration in `settings.py` or environment variables; never hardcode\n\n## Testing\n- Use `pytest` with fixtures for test setup\n- Aim for ≥80% coverage on business logic\n- Use `unittest.mock.patch` to isolate external dependencies\n- Parameterize tests with `@pytest.mark.parametrize`\n"
+  },
+  {
+    "id": "fastapi-microservice",
+    "name": "FastAPI Microservice",
+    "category": "framework",
+    "framework": "FastAPI",
+    "description": "Rules for building production-ready FastAPI services: routing, validation, async, and middleware.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# FastAPI Microservice Rules\n\n## Router Organization\n- Split routes by resource into separate `APIRouter` instances\n- Version APIs from the start: `/v1/`, `/v2/`\n- Use `dependencies=` at the router level for auth guards\n\n## Request & Response\n- Use Pydantic v2 models for all request/response schemas\n- Never return internal model objects directly — use dedicated response schemas\n- Use `response_model_exclude_unset=True` to avoid null noise in responses\n- Validate business rules in service layer, not in Pydantic validators\n\n## Async\n- Use `async def` for I/O-bound endpoints; `def` for CPU-bound (runs in thread pool)\n- Use `asyncpg` or `sqlalchemy[asyncio]` for async database access\n- Avoid blocking calls (`time.sleep`, `requests`) in async handlers\n\n## Error Handling\n- Define custom exception classes and register `@app.exception_handler` globally\n- Return consistent error shapes: `{\"error\": {\"code\": \"...\", \"message\": \"...\"}}`\n- Use HTTP 422 for validation errors (FastAPI default), 400 for business logic errors\n"
+  },
+  {
+    "id": "django-web",
+    "name": "Django Web Application",
+    "category": "framework",
+    "framework": "Django",
+    "description": "Rules for Django projects: models, views, security, and deployment patterns.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# Django Web Application Rules\n\n## Models\n- Use `AbstractUser` or `AbstractBaseUser` for custom user models — set this before the first migration\n- Define `__str__` and `get_absolute_url` on every model\n- Use `select_related` / `prefetch_related` to eliminate N+1 queries\n- Write migrations for every model change; never modify existing migrations\n\n## Views & URLs\n- Prefer class-based views (CBVs) for standard CRUD; function-based views (FBVs) for complex one-offs\n- Keep views thin: business logic belongs in model methods or service modules\n- Name all URL patterns and use `reverse()` / `{% url %}` — never hardcode paths\n\n## Security\n- Always use Django's CSRF protection; never disable it globally\n- Use `django-environ` for secrets; never commit `.env` files\n- Run `python manage.py check --deploy` before each production release\n- Use `django.db.models.F()` expressions for atomic counter updates\n\n## Testing\n- Use `TestCase` for DB tests, `SimpleTestCase` for non-DB tests\n- Use `Client` for view tests; avoid testing implementation details\n- Use `factory_boy` for test fixtures instead of fixtures JSON\n"
+  },
+  {
+    "id": "flutter-mobile",
+    "name": "Flutter Mobile App",
+    "category": "framework",
+    "framework": "Flutter",
+    "description": "Rules for Flutter apps: widget architecture, state management, and platform patterns.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# Flutter Mobile App Rules\n\n## Widget Architecture\n- Separate UI widgets from business logic; use Provider, Riverpod, or BLoC\n- Prefer `const` constructors everywhere to enable widget caching\n- Extract complex `build()` methods into smaller sub-widgets, not helper methods\n- Use `key` parameters for stateful widgets in lists to preserve state across rebuilds\n\n## State Management\n- Use Riverpod for most state; BLoC for complex event-driven flows\n- Keep state minimal and derivable: compute totals from source data, don't store them\n- Expose AsyncValue / Stream for async state to handle loading and error UI uniformly\n\n## Performance\n- Use `ListView.builder` for long lists; never `ListView` with a large children list\n- Use `RepaintBoundary` to isolate frequently-updating widgets\n- Profile with Flutter DevTools before optimizing; don't guess\n\n## Platform\n- Use `Platform.isIOS` / `Platform.isAndroid` only at the boundary layer\n- Wrap platform channels in an abstract interface for testability\n- Test on real devices: emulator GPU behavior differs significantly\n"
+  },
+  {
+    "id": "nodejs-backend",
+    "name": "Node.js Backend Service",
+    "category": "framework",
+    "framework": "Node.js",
+    "description": "Rules for Node.js backend services: async patterns, error handling, security, and structure.",
+    "format": "cursorrules",
+    "source_url": "",
+    "content": "# Node.js Backend Service Rules\n\n## Async Patterns\n- Use `async/await` over callbacks and raw Promise chains\n- Always `await` Promises; never fire-and-forget unless explicitly intentional (and log it)\n- Use `Promise.all` for parallel independent async operations\n- Avoid blocking the event loop: offload CPU work to worker threads or child processes\n\n## Error Handling\n- Use centralized error handling middleware in Express; never leak stack traces to clients\n- Distinguish operational errors (HTTP 4xx) from programmer errors (HTTP 5xx)\n- Use structured logging (pino, winston) with request IDs for traceability\n\n## Security\n- Validate all inputs with zod or joi; never trust raw `req.body`\n- Use `helmet` middleware for security headers\n- Rate-limit public endpoints with `express-rate-limit`\n- Store secrets in environment variables; use `dotenv` only in development\n\n## Project Structure\n- Organize by feature: `users/`, `orders/`, not `controllers/`, `models/`\n- Use dependency injection for services to enable testing\n- Keep `package.json` scripts consistent: `start`, `dev`, `test`, `lint`, `build`\n"
+  }
+]
