@@ -221,6 +221,58 @@ func TestDefaultBindings(t *testing.T) {
 	}
 }
 
+// TestDefaultBindings_QuickSwitch_IsCtrlShiftP guards the Ctrl+Shift+P default
+// for the provider quick-switch overlay so a silent typo doesn't ship a broken
+// factory chord.
+func TestDefaultBindings_QuickSwitch_IsCtrlShiftP(t *testing.T) {
+	b := DefaultBindings()
+	got, ok := b["quickSwitch"]
+	if !ok {
+		t.Fatal("DefaultBindings missing 'quickSwitch'")
+	}
+	if got != "Ctrl+Shift+P" {
+		t.Errorf("quickSwitch default: got %q, want %q", got, "Ctrl+Shift+P")
+	}
+}
+
+// TestDefaultBindings_QuickSwitch_ParsesCleanly verifies the Ctrl+Shift+P
+// shortcut passes the parser on the current platform.
+func TestDefaultBindings_QuickSwitch_ParsesCleanly(t *testing.T) {
+	shortcut, ok := DefaultBindings()["quickSwitch"]
+	if !ok {
+		t.Fatal("quickSwitch missing from defaults")
+	}
+	if _, err := parseShortcut(shortcut); err != nil {
+		t.Fatalf("default quickSwitch shortcut %q failed to parse: %v", shortcut, err)
+	}
+}
+
+// TestLoadBindings_BackfillsQuickSwitchP verifies that an existing user with
+// the old Ctrl+Shift+S binding is migrated to Ctrl+Shift+P on next launch.
+// The back-fill only applies to missing keys, so a user who customized their
+// binding keeps their custom chord.
+func TestLoadBindings_BackfillsQuickSwitchP(t *testing.T) {
+	dir := t.TempDir()
+	// Simulate a pre-quickSwitch-P config: only showWindow saved.
+	legacy := Bindings{
+		"showWindow": "Ctrl+Shift+W",
+	}
+	if err := saveBindings(dir, legacy); err != nil {
+		t.Fatal(err)
+	}
+	b, err := loadBindings(dir)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	got, ok := b["quickSwitch"]
+	if !ok {
+		t.Fatal("loadBindings should back-fill 'quickSwitch' from defaults")
+	}
+	if got != "Ctrl+Shift+P" {
+		t.Errorf("back-fill value mismatch: got %q want %q", got, "Ctrl+Shift+P")
+	}
+}
+
 // TestDefaultBindings_ShowLive_ParsesCleanly guards against a typo in the
 // default chord — we want the parser to accept it on the current platform
 // without an ErrInvalidKey surprise the first time a user runs the app.

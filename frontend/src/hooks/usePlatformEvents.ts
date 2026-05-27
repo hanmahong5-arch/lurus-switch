@@ -6,6 +6,7 @@ import { useToastStore } from '../stores/toastStore'
 import { useDeepLinkImportStore, type DeepLinkPayload } from '../stores/deeplinkImportStore'
 import { useConfigStore } from '../stores/configStore'
 import { useConversationStore } from '../stores/conversationStore'
+import { useQuickSwitchStore } from '../stores/quickSwitchStore'
 
 /**
  * Subscribes to all backend-originated desktop events:
@@ -23,8 +24,10 @@ export function usePlatformEvents() {
     const offs: Array<() => void> = []
 
     // Hotkeys — backend already WindowShow()s before emitting.
+    // Ctrl+Shift+P triggers the provider quick-switch overlay; the generic
+    // command palette is still available from the UI toolbar.
     offs.push(EventsOn('hotkey:quickSwitch', () => {
-      useCommandPaletteStore.getState().setOpen(true)
+      useQuickSwitchStore.getState().open_()
     }))
     offs.push(EventsOn('hotkey:showWindow', () => {
       // Window is already restored by the backend; nothing else to do.
@@ -37,8 +40,10 @@ export function usePlatformEvents() {
     }))
 
     // Tray menu clicks.
+    // "Switch Provider…" in the tray opens the same quick-switch overlay as
+    // the Ctrl+Shift+P hotkey — both surfaces route to the same dedicated UI.
     offs.push(EventsOn('tray:switch-provider', () => {
-      useCommandPaletteStore.getState().setOpen(true)
+      useQuickSwitchStore.getState().open_()
     }))
     offs.push(EventsOn('tray:gateway-toggle', async () => {
       try {

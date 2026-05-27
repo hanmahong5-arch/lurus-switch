@@ -1,4 +1,15 @@
 {
+  "quickSwitch": {
+    "title": "Quick Switch Provider",
+    "close": "Close",
+    "listLabel": "Relay endpoints",
+    "noEndpoints": "No relay endpoints configured",
+    "hint": "↑↓ navigate · Enter apply · Esc close",
+    "applying": "Applying…",
+    "switched": "Switched to {{name}}",
+    "partialSwitch": "{{count}} tool(s) failed to switch",
+    "error": "Switch failed: {{msg}}"
+  },
   "app": {
     "title": "Lurus Switch",
     "subtitle": "Local AI Gateway"
@@ -186,6 +197,7 @@
     "admin": "Admin",
     "process": "Processes",
     "prompts": "Prompts",
+    "rules": "Rules Market",
     "documents": "Documents",
     "relay": "Relay Stations",
     "cliRunner": "CLI Runner",
@@ -1943,6 +1955,59 @@
       "append": "Append to existing file (default)",
       "cancel": "Cancel",
       "confirm": "Install"
+    }
+  },
+  "mcpmarket": {
+    "title": "MCP Market",
+    "subtitle": "Browse and install MCP servers across Claude Code, Cursor, Gemini, and Antigravity simultaneously.",
+    "search": "Search MCP servers…",
+    "install": "Install",
+    "installing": "Installing…",
+    "installed": "MCP server installed",
+    "installFailed": "Install failed",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "refreshed": "Registry updated",
+    "refreshFailed": "Refresh failed",
+    "savePreset": "Save as Preset",
+    "presetSaved": "Preset saved",
+    "presetFailed": "Failed to save preset",
+    "stars": "uses",
+    "verified": "Verified",
+    "builtin": "Built-in",
+    "source": "Source",
+    "noResults": "No servers match your search.",
+    "loading": "Loading servers…",
+    "empty": "No servers available.",
+    "tab": {
+      "registry": "Registry",
+      "builtin": "Built-in"
+    },
+    "category": {
+      "all": "All",
+      "vcs": "VCS",
+      "files": "Files",
+      "database": "Database",
+      "browser": "Browser",
+      "web": "Web",
+      "search": "Search",
+      "communication": "Chat",
+      "project-management": "Projects",
+      "productivity": "Productivity",
+      "memory": "Memory",
+      "reasoning": "Reasoning"
+    },
+    "modal": {
+      "title": "Install MCP Server",
+      "desc": "Select which AI coding tools to configure. The MCP server will be added to each tool's settings file.",
+      "targetTools": "Target tools",
+      "config": "Server configuration",
+      "noConfig": "No configuration required for this server.",
+      "savePreset": "Save as preset for future use",
+      "cancel": "Cancel",
+      "confirm": "Install",
+      "partial": "Partially installed — check statuses below",
+      "toolStatus": "Tool install results"
     }
   }
 }

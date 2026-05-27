@@ -21,6 +21,7 @@ import { ActivityPane } from './components/ActivityPane'
 import { ActivityDrawer, useActivityIngest } from './components/ActivityDrawer'
 import { SnapshotsHub } from './components/snapshots/SnapshotsHub'
 import { FeatureTourModal } from './components/FeatureTourModal'
+import { QuickSwitchOverlay } from './components/QuickSwitchOverlay'
 import { useFeatureTourStore } from './stores/featureTourStore'
 import { HomePage } from './pages/HomePage'
 import { AgentsPage } from './pages/AgentsPage'
@@ -390,6 +391,7 @@ function App() {
       <ConnectionBanner />
       <ToastContainer />
       <CommandPalette />
+      <QuickSwitchOverlay />
       <DeepLinkImportModal />
       <RepoAuditMount />
       <BashGuardMount />

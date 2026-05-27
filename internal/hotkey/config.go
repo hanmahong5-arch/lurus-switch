@@ -14,7 +14,9 @@ type Bindings map[string]string
 
 // DefaultBindings returns the factory-default shortcut bindings.
 //
-// "quickSwitch" opens command palette.
+// "quickSwitch" shows the provider quick-switch overlay — lets the user
+//               flip all tools to a different relay endpoint in one
+//               keystroke without opening the full main window.
 // "showWindow"  brings the main window to the foreground.
 // "show-live"   brings the main window forward AND jumps to the Live
 //               Sessions Inspector page in one keystroke.
@@ -24,7 +26,7 @@ type Bindings map[string]string
 // works everywhere without per-OS forks.
 func DefaultBindings() Bindings {
 	return Bindings{
-		"quickSwitch": "Ctrl+Shift+S",
+		"quickSwitch": "Ctrl+Shift+P",
 		"showWindow":  "Ctrl+Shift+W",
 		"show-live":   "CommandOrControl+Shift+L",
 	}
