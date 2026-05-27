@@ -1561,3 +1561,19 @@ export function WriteDebugDump() {
 export function ZipWhiteLabelOutputDir(arg1) {
   return window['go']['main']['App']['ZipWhiteLabelOutputDir'](arg1);
 }
+
+export function McpMarketList() {
+  return window['go']['main']['App']['McpMarketList']();
+}
+
+export function McpMarketRefresh(arg1) {
+  return window['go']['main']['App']['McpMarketRefresh'](arg1);
+}
+
+export function McpMarketInstall(arg1, arg2, arg3) {
+  return window['go']['main']['App']['McpMarketInstall'](arg1, arg2, arg3);
+}
+
+export function McpMarketSavePreset(arg1, arg2) {
+  return window['go']['main']['App']['McpMarketSavePreset'](arg1, arg2);
+}

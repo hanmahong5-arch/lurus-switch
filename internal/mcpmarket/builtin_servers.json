@@ -1,0 +1,258 @@
+[
+  {
+    "id": "github",
+    "qualifiedName": "@modelcontextprotocol/server-github",
+    "name": "GitHub",
+    "description": "Access GitHub repositories, issues, pull requests, and code search.",
+    "category": "vcs",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-github",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": {
+          "type": "string",
+          "description": "GitHub personal access token"
+        }
+      },
+      "required": ["GITHUB_PERSONAL_ACCESS_TOKEN"]
+    },
+    "capabilities": ["tools"],
+    "stars": 5200,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/github",
+    "builtin": true
+  },
+  {
+    "id": "filesystem",
+    "qualifiedName": "@modelcontextprotocol/server-filesystem",
+    "name": "Filesystem",
+    "description": "Read and write files on the local filesystem with configurable allowed paths.",
+    "category": "files",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-filesystem",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "allowedPaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of allowed filesystem paths"
+        }
+      }
+    },
+    "capabilities": ["tools", "resources"],
+    "stars": 4800,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+    "builtin": true
+  },
+  {
+    "id": "postgres",
+    "qualifiedName": "@modelcontextprotocol/server-postgres",
+    "name": "PostgreSQL",
+    "description": "Read-only access to a PostgreSQL database via SQL queries and schema inspection.",
+    "category": "database",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-postgres",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "connectionString": {
+          "type": "string",
+          "description": "PostgreSQL connection string, e.g. postgresql://user:pass@host/db"
+        }
+      },
+      "required": ["connectionString"]
+    },
+    "capabilities": ["tools", "resources"],
+    "stars": 3600,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/postgres",
+    "builtin": true
+  },
+  {
+    "id": "sqlite",
+    "qualifiedName": "@modelcontextprotocol/server-sqlite",
+    "name": "SQLite",
+    "description": "Read and write a local SQLite database with full SQL support.",
+    "category": "database",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-sqlite",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "dbPath": {
+          "type": "string",
+          "description": "Path to the SQLite database file"
+        }
+      },
+      "required": ["dbPath"]
+    },
+    "capabilities": ["tools", "resources"],
+    "stars": 2900,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/sqlite",
+    "builtin": true
+  },
+  {
+    "id": "playwright",
+    "qualifiedName": "@executeautomation/playwright-mcp-server",
+    "name": "Playwright",
+    "description": "Browser automation via Playwright — navigate, click, screenshot, and scrape web pages.",
+    "category": "browser",
+    "author": "executeautomation",
+    "installCommand": "npx -y @executeautomation/playwright-mcp-server",
+    "configSchema": {},
+    "capabilities": ["tools"],
+    "stars": 2400,
+    "verified": true,
+    "homepage": "https://github.com/executeautomation/mcp-playwright",
+    "builtin": true
+  },
+  {
+    "id": "fetch",
+    "qualifiedName": "@modelcontextprotocol/server-fetch",
+    "name": "Fetch",
+    "description": "Fetch web content and convert it to Markdown for AI consumption.",
+    "category": "web",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-fetch",
+    "configSchema": {},
+    "capabilities": ["tools"],
+    "stars": 3100,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch",
+    "builtin": true
+  },
+  {
+    "id": "brave-search",
+    "qualifiedName": "@modelcontextprotocol/server-brave-search",
+    "name": "Brave Search",
+    "description": "Web and local search using the Brave Search API.",
+    "category": "search",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-brave-search",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "BRAVE_API_KEY": {
+          "type": "string",
+          "description": "Brave Search API key"
+        }
+      },
+      "required": ["BRAVE_API_KEY"]
+    },
+    "capabilities": ["tools"],
+    "stars": 2700,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/brave-search",
+    "builtin": true
+  },
+  {
+    "id": "slack",
+    "qualifiedName": "@modelcontextprotocol/server-slack",
+    "name": "Slack",
+    "description": "Read and send Slack messages, list channels, and manage threads.",
+    "category": "communication",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-slack",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "SLACK_BOT_TOKEN": {
+          "type": "string",
+          "description": "Slack bot OAuth token"
+        },
+        "SLACK_TEAM_ID": {
+          "type": "string",
+          "description": "Slack workspace team ID"
+        }
+      },
+      "required": ["SLACK_BOT_TOKEN", "SLACK_TEAM_ID"]
+    },
+    "capabilities": ["tools"],
+    "stars": 2100,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/slack",
+    "builtin": true
+  },
+  {
+    "id": "linear",
+    "qualifiedName": "@linear/mcp-server",
+    "name": "Linear",
+    "description": "Create and update Linear issues, projects, and cycles from your AI assistant.",
+    "category": "project-management",
+    "author": "linear",
+    "installCommand": "npx -y @linear/mcp-server",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "LINEAR_API_KEY": {
+          "type": "string",
+          "description": "Linear API key"
+        }
+      },
+      "required": ["LINEAR_API_KEY"]
+    },
+    "capabilities": ["tools"],
+    "stars": 1900,
+    "verified": true,
+    "homepage": "https://linear.app/docs/mcp",
+    "builtin": true
+  },
+  {
+    "id": "notion",
+    "qualifiedName": "@modelcontextprotocol/server-notion",
+    "name": "Notion",
+    "description": "Read and write Notion pages, databases, and blocks.",
+    "category": "productivity",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-notion",
+    "configSchema": {
+      "type": "object",
+      "properties": {
+        "NOTION_API_KEY": {
+          "type": "string",
+          "description": "Notion integration token"
+        }
+      },
+      "required": ["NOTION_API_KEY"]
+    },
+    "capabilities": ["tools", "resources"],
+    "stars": 1700,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/notion",
+    "builtin": true
+  },
+  {
+    "id": "memory",
+    "qualifiedName": "@modelcontextprotocol/server-memory",
+    "name": "Memory",
+    "description": "Persistent key-value memory store so the AI can remember facts across sessions.",
+    "category": "memory",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-memory",
+    "configSchema": {},
+    "capabilities": ["tools", "resources"],
+    "stars": 4100,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/memory",
+    "builtin": true
+  },
+  {
+    "id": "sequential-thinking",
+    "qualifiedName": "@modelcontextprotocol/server-sequential-thinking",
+    "name": "Sequential Thinking",
+    "description": "Structured step-by-step reasoning with revision and branching support.",
+    "category": "reasoning",
+    "author": "modelcontextprotocol",
+    "installCommand": "npx -y @modelcontextprotocol/server-sequential-thinking",
+    "configSchema": {},
+    "capabilities": ["tools"],
+    "stars": 3400,
+    "verified": true,
+    "homepage": "https://github.com/modelcontextprotocol/servers/tree/main/src/sequentialthinking",
+    "builtin": true
+  }
+]

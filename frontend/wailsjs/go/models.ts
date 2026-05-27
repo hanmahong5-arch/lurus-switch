@@ -6659,3 +6659,65 @@ export namespace validator {
 
 }
 
+
+export namespace mcpmarket {
+
+	export class MarketServer {
+	    id: string;
+	    qualifiedName?: string;
+	    name: string;
+	    description: string;
+	    category: string;
+	    author?: string;
+	    installCommand?: string;
+	    configSchema?: Record<string, any>;
+	    capabilities?: string[];
+	    stars: number;
+	    verified: boolean;
+	    homepage?: string;
+	    builtin: boolean;
+	    fetchedAt?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new MarketServer(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.qualifiedName = source["qualifiedName"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.category = source["category"];
+	        this.author = source["author"];
+	        this.installCommand = source["installCommand"];
+	        this.configSchema = source["configSchema"];
+	        this.capabilities = source["capabilities"];
+	        this.stars = source["stars"];
+	        this.verified = source["verified"];
+	        this.homepage = source["homepage"];
+	        this.builtin = source["builtin"];
+	        this.fetchedAt = source["fetchedAt"];
+	    }
+	}
+
+	export class ToolInstallStatus {
+	    tool: string;
+	    ok: boolean;
+	    path?: string;
+	    error?: string;
+
+	    static createFrom(source: any = {}) {
+	        return new ToolInstallStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.tool = source["tool"];
+	        this.ok = source["ok"];
+	        this.path = source["path"];
+	        this.error = source["error"];
+	    }
+	}
+
+}

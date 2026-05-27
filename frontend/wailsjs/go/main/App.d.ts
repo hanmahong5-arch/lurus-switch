@@ -32,6 +32,7 @@ import {promptlib} from '../models';
 import {rulesmarket} from '../models';
 import {agenttemplate} from '../models';
 import {preset} from '../models';
+import {mcpmarket} from '../models';
 import {docmgr} from '../models';
 import {gateway} from '../models';
 import {store} from '../models';
@@ -835,3 +836,11 @@ export function WhiteLabelPreflight(arg1:string,arg2:string):Promise<main.Prefli
 export function WriteDebugDump():Promise<string>;
 
 export function ZipWhiteLabelOutputDir(arg1:string):Promise<string>;
+
+export function McpMarketList():Promise<Array<mcpmarket.MarketServer>>;
+
+export function McpMarketRefresh(arg1:string):Promise<{success:boolean;message:string}>;
+
+export function McpMarketInstall(arg1:string,arg2:Record<string,string>,arg3:Array<string>):Promise<{success:boolean;message:string;statuses?:Array<mcpmarket.ToolInstallStatus>}>;
+
+export function McpMarketSavePreset(arg1:string,arg2:Record<string,string>):Promise<{success:boolean;message:string;presetId?:string}>;
