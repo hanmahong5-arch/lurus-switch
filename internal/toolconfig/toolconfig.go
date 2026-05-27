@@ -61,13 +61,15 @@ func openClawDir() string {
 }
 
 var toolDefs = map[string]configDef{
-	"claude":   {dir: claudeDir, filename: "settings.json", language: "json"},
-	"codex":    {dir: codexDir, filename: "config.toml", language: "toml"},
-	"gemini":   {dir: geminiDir, filename: "settings.json", language: "json"},
-	"picoclaw": {dir: picoClawDir, filename: "config.json", language: "json"},
-	"nullclaw": {dir: nullClawDir, filename: "config.json", language: "json"},
-	"zeroclaw": {dir: zeroClawDir, filename: "config.toml", language: "toml"},
-	"openclaw": {dir: openClawDir, filename: "openclaw.json", language: "json"},
+	"claude":      {dir: claudeDir, filename: "settings.json", language: "json"},
+	"codex":       {dir: codexDir, filename: "config.toml", language: "toml"},
+	"gemini":      {dir: geminiDir, filename: "settings.json", language: "json"},
+	"antigravity": {dir: antigravityConfigDir, filename: AntigravityConfigFilename, language: "json"},
+	"opencode":    {dir: opencodeConfigDir, filename: OpenCodeConfigFilename, language: "json"},
+	"picoclaw":    {dir: picoClawDir, filename: "config.json", language: "json"},
+	"nullclaw":    {dir: nullClawDir, filename: "config.json", language: "json"},
+	"zeroclaw":    {dir: zeroClawDir, filename: "config.toml", language: "toml"},
+	"openclaw":    {dir: openClawDir, filename: "openclaw.json", language: "json"},
 }
 
 // Default config templates for when no config file exists yet
@@ -107,6 +109,33 @@ wire_api = "chat"
   "tools": {
     "sandbox": false
   }
+}
+`,
+	// TODO: update schema URL once official Antigravity schema is published.
+	"antigravity": `{
+  "model": {
+    "name": "gemini-2.5-flash"
+  },
+  "general": {
+    "defaultApprovalMode": "default"
+  },
+  "apiKey": "",
+  "apiEndpoint": "",
+  "proxy": ""
+}
+`,
+	// opencode uses XDG config: $XDG_CONFIG_HOME/opencode/opencode.json
+	// Model format: "provider/model-id" (e.g. "anthropic/claude-sonnet-4")
+	// Provider entries override per-provider API keys and base URLs.
+	// TODO: add mcp, agent, and plugin sections when Switch requires them.
+	"opencode": `{
+  "model": "anthropic/claude-sonnet-4-5",
+  "provider": {
+    "anthropic": {
+      "api": ""
+    }
+  },
+  "autoupdate": "notify"
 }
 `,
 	"picoclaw": `{
@@ -184,7 +213,7 @@ audit_log = false
 func GetConfigPath(tool string) (string, error) {
 	def, ok := toolDefs[tool]
 	if !ok {
-		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, picoclaw, nullclaw, zeroclaw, openclaw", tool)
+		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, antigravity, opencode, picoclaw, nullclaw, zeroclaw, openclaw", tool)
 	}
 	return filepath.Join(def.dir(), def.filename), nil
 }
