@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   MessageSquare, RefreshCw, Search, Filter, Download, ShieldAlert,
@@ -9,6 +9,8 @@ import { useToastStore } from '../stores/toastStore'
 import { Timeline } from '../components/conversation/Timeline'
 import { ProjectContextDrawer } from '../components/conversation/ProjectContextDrawer'
 import { ForkTreeView } from '../components/conversation/ForkTreeView'
+import { SessionKpiStrip } from '../components/conversation/SessionKpiStrip'
+import { MiniRail } from '../components/conversation/MiniRail'
 import { cn } from '../lib/utils'
 import { Button } from '../components/ui'
 import {
@@ -30,8 +32,48 @@ export function ConversationsPage() {
 
   const [activeSel, setActiveSel] = useState<{ tool: string; sessionID: string } | null>(null)
   const [showContext, setShowContext] = useState(false)
+  const [activeMsgIdx, setActiveMsgIdx] = useState(0)
+  const messageRefs = useRef<Array<HTMLDivElement | null>>([])
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => { void list() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Track which message is currently in view so the MiniRail can highlight
+  // the active dot. IntersectionObserver scoped to the scroll container.
+  useEffect(() => {
+    const root = scrollContainerRef.current
+    if (!root || !active) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        let bestIdx = -1
+        let bestRatio = 0
+        for (const e of entries) {
+          if (!e.isIntersecting) continue
+          const idx = Number((e.target as HTMLElement).dataset.idx || -1)
+          if (idx < 0) continue
+          if (e.intersectionRatio > bestRatio) {
+            bestRatio = e.intersectionRatio
+            bestIdx = idx
+          }
+        }
+        if (bestIdx >= 0) setActiveMsgIdx(bestIdx)
+      },
+      { root, threshold: [0.25, 0.5, 0.75] },
+    )
+    for (let i = 0; i < messageRefs.current.length; i++) {
+      const el = messageRefs.current[i]
+      if (el) {
+        el.dataset.idx = String(i)
+        observer.observe(el)
+      }
+    }
+    return () => observer.disconnect()
+  }, [active])
+
+  const jumpToMessage = useCallback((idx: number) => {
+    const el = messageRefs.current[idx]
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [])
 
   // Facet: unique models present in the index so the dropdown surfaces
   // only what the user actually has, not a hardcoded list.
@@ -260,13 +302,21 @@ export function ConversationsPage() {
 
             <ForkTreeView current={active.meta} siblings={conversations} onJump={onOpen} />
 
+            <SessionKpiStrip events={active.events || []} />
+
             <div className="flex-1 flex overflow-hidden">
-              <div className="flex-1 overflow-y-auto">
+              <MiniRail
+                events={active.events || []}
+                activeIdx={activeMsgIdx}
+                onJump={jumpToMessage}
+              />
+              <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
                 <Timeline
                   events={active.events || []}
                   dlpHits={dlpHits}
                   onFork={onFork}
                   forking={forking}
+                  messageRefs={messageRefs}
                 />
               </div>
               {showContext && (
