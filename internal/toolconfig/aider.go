@@ -260,6 +260,11 @@ func injectAiderEnvKeys(creds CredSet) error {
 		}
 		val, ok := existing[key]
 		if !ok {
+			// Not a tracked KEY=VALUE entry — this is a raw line without '='
+			// (recorded verbatim during the read pass). Preserve it as-is so
+			// hand-edited lines in the user's .env survive the rewrite.
+			sb.WriteString(key)
+			sb.WriteByte('\n')
 			continue
 		}
 		sb.WriteString(key)

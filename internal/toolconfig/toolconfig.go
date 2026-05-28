@@ -14,7 +14,7 @@ type ToolConfigInfo struct {
 	Tool     string `json:"tool"`
 	Path     string `json:"path"`
 	Exists   bool   `json:"exists"`
-	Language string `json:"language"` // "json" | "toml" | "markdown"
+	Language string `json:"language"` // "json" | "toml" | "yaml" | "markdown"
 	Content  string `json:"content"`
 }
 
@@ -60,12 +60,20 @@ func openClawDir() string {
 	return filepath.Join(home, ".openclaw")
 }
 
+// aiderConfigDir returns the home directory — aider's config file
+// (.aider.conf.yml) lives directly in $HOME rather than a subdirectory.
+func aiderConfigDir() string {
+	home, _ := os.UserHomeDir()
+	return home
+}
+
 var toolDefs = map[string]configDef{
 	"claude":      {dir: claudeDir, filename: "settings.json", language: "json"},
 	"codex":       {dir: codexDir, filename: "config.toml", language: "toml"},
 	"gemini":      {dir: geminiDir, filename: "settings.json", language: "json"},
 	"antigravity": {dir: antigravityConfigDir, filename: AntigravityConfigFilename, language: "json"},
 	"opencode":    {dir: opencodeConfigDir, filename: OpenCodeConfigFilename, language: "json"},
+	"aider":       {dir: aiderConfigDir, filename: aiderConfigFilename, language: "yaml"},
 	"picoclaw":    {dir: picoClawDir, filename: "config.json", language: "json"},
 	"nullclaw":    {dir: nullClawDir, filename: "config.json", language: "json"},
 	"zeroclaw":    {dir: zeroClawDir, filename: "config.toml", language: "toml"},
@@ -207,13 +215,21 @@ audit_log = false
   }
 }
 `,
+	"aider": `# Aider configuration (~/.aider.conf.yml)
+# Switch can inject relay credentials via the "Inject Credentials" button.
+# Manual reference: https://aider.chat/docs/config/aider_conf.html
+
+# openai-api-base: ""
+# openai-api-key: ""
+# anthropic-api-key: ""
+`,
 }
 
 // GetConfigPath returns the full path to a tool's config file
 func GetConfigPath(tool string) (string, error) {
 	def, ok := toolDefs[tool]
 	if !ok {
-		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, antigravity, opencode, picoclaw, nullclaw, zeroclaw, openclaw", tool)
+		return "", fmt.Errorf("unknown tool: %s, expected: claude, codex, gemini, antigravity, opencode, aider, picoclaw, nullclaw, zeroclaw, openclaw", tool)
 	}
 	return filepath.Join(def.dir(), def.filename), nil
 }

@@ -84,6 +84,67 @@ type OpenCodeConfig struct {
 
 	// Shell overrides the default shell used for terminal and bash tool execution.
 	Shell string `json:"shell,omitempty"`
+
+	// Extra holds every top-level field not modelled above (mcp, agent, plugin,
+	// instructions, keybinds, …). It is populated on read and merged back on
+	// write so that a Read→mutate→Write round-trip never drops the user's
+	// unmanaged configuration. Known fields always win on conflict.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+// opencodeKnownFields lists the JSON keys handled by the structured fields of
+// OpenCodeConfig. They are stripped from Extra so a round-trip does not emit a
+// field twice.
+var opencodeKnownFields = []string{"model", "small_model", "provider", "autoupdate", "shell"}
+
+// UnmarshalJSON decodes the known fields and captures any remaining top-level
+// keys into Extra for verbatim round-tripping.
+func (c *OpenCodeConfig) UnmarshalJSON(data []byte) error {
+	type alias OpenCodeConfig // alias drops the custom methods to avoid recursion
+	var known alias
+	if err := json.Unmarshal(data, &known); err != nil {
+		return err
+	}
+	*c = OpenCodeConfig(known)
+
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(data, &all); err != nil {
+		return err
+	}
+	for _, k := range opencodeKnownFields {
+		delete(all, k)
+	}
+	if len(all) > 0 {
+		c.Extra = all
+	} else {
+		c.Extra = nil
+	}
+	return nil
+}
+
+// MarshalJSON emits the known fields and overlays Extra, preserving unmanaged
+// configuration. Known fields take precedence if a key appears in both.
+func (c OpenCodeConfig) MarshalJSON() ([]byte, error) {
+	type alias OpenCodeConfig // alias drops the custom methods and Extra (json:"-")
+	knownData, err := json.Marshal(alias(c))
+	if err != nil {
+		return nil, err
+	}
+	if len(c.Extra) == 0 {
+		return knownData, nil
+	}
+
+	merged := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(knownData, &merged); err != nil {
+		return nil, err
+	}
+	for k, v := range c.Extra {
+		if _, exists := merged[k]; exists {
+			continue // known field wins
+		}
+		merged[k] = v
+	}
+	return json.Marshal(merged)
 }
 
 // OpenCodeProviderConfig holds per-provider settings that opencode supports.

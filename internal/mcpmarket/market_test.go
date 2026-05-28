@@ -1,10 +1,13 @@
 package mcpmarket
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -167,6 +170,52 @@ func TestRefreshFromRegistry_NetworkErrorIsSwallowed(t *testing.T) {
 	// Should return nil (not an error) when the network is unreachable.
 	if err := m.RefreshFromRegistry(ctx, "query"); err != nil {
 		t.Errorf("expected nil on network failure, got: %v", err)
+	}
+}
+
+// captureTransport records the query value of each request and serves a
+// minimal valid registry response.
+type captureTransport struct {
+	gotQuery string
+	parseErr error
+}
+
+func (c *captureTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Parse the raw query the way a real server would; an invalid percent
+	// sequence surfaces here.
+	vals, err := url.ParseQuery(req.URL.RawQuery)
+	if err != nil {
+		c.parseErr = err
+	}
+	c.gotQuery = vals.Get("q")
+	body := fakeRegistryResponse(nil)
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": {"application/json"}},
+		Body:       io.NopCloser(bytes.NewReader(body)),
+		Request:    req,
+	}, nil
+}
+
+// TestRefreshFromRegistry_NonASCIIQueryEncoded guards against the regression
+// where a hand-rolled escaper emitted %4E2D for a CJK rune instead of the valid
+// UTF-8 percent sequence, corrupting the search term.
+func TestRefreshFromRegistry_NonASCIIQueryEncoded(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("APPDATA", tmpDir)
+
+	ct := &captureTransport{}
+	m := &Market{httpClient: &http.Client{Transport: ct, Timeout: time.Second}}
+
+	const query = "中文 search"
+	if err := m.RefreshFromRegistry(context.Background(), query); err != nil {
+		t.Fatalf("RefreshFromRegistry error: %v", err)
+	}
+	if ct.parseErr != nil {
+		t.Fatalf("server failed to parse query string: %v", ct.parseErr)
+	}
+	if ct.gotQuery != query {
+		t.Errorf("query round-trip mismatch: got %q, want %q", ct.gotQuery, query)
 	}
 }
 

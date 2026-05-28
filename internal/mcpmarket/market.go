@@ -10,15 +10,16 @@ package mcpmarket
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
-	_ "embed"
 
 	"lurus-switch/internal/mcp"
 )
@@ -124,12 +125,12 @@ func (m *Market) RefreshFromRegistry(ctx context.Context, query string) error {
 		return nil
 	}
 
-	url := fmt.Sprintf("%s/servers?pageSize=%d", registryBase, registryDefaultLimit)
+	reqURL := fmt.Sprintf("%s/servers?pageSize=%d", registryBase, registryDefaultLimit)
 	if query != "" {
-		url += "&q=" + urlQueryEscape(query)
+		reqURL += "&q=" + url.QueryEscape(query)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
 	if err != nil {
 		return fmt.Errorf("mcpmarket: build request: %w", err)
 	}
@@ -375,23 +376,4 @@ func (m *Market) SaveAsPreset(store *mcp.Store, server MarketServer, userConfig 
 		return nil, fmt.Errorf("mcpmarket.SaveAsPreset: %w", err)
 	}
 	return &preset, nil
-}
-
-// urlQueryEscape percent-encodes a string for use as a URL query value.
-// This avoids importing net/url in a way that could conflict with stdlib usage.
-func urlQueryEscape(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		switch {
-		case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r >= '0' && r <= '9',
-			r == '-', r == '_', r == '.', r == '~':
-			b.WriteRune(r)
-		case r == ' ':
-			b.WriteByte('+')
-		default:
-			encoded := fmt.Sprintf("%%%02X", r)
-			b.WriteString(encoded)
-		}
-	}
-	return b.String()
 }

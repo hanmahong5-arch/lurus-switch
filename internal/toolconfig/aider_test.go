@@ -330,6 +330,35 @@ func TestInjectCredentials_PreservesOtherEnvLines(t *testing.T) {
 	}
 }
 
+func TestInjectCredentials_PreservesNonKeyValueLines(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+
+	// A hand-edited .env containing a line with no '=' separator. The rewrite
+	// must not silently drop it.
+	preExisting := "VALID=1\nexport SOMETHING\nANOTHER=2\n"
+	envPath := filepath.Join(tmpHome, aiderEnvFilename)
+	if err := os.WriteFile(envPath, []byte(preExisting), 0o600); err != nil {
+		t.Fatalf("setup .env: %v", err)
+	}
+
+	if err := InjectCredentials(CredSet{GeminiKey: "AIza-new"}); err != nil {
+		t.Fatalf("InjectCredentials() error: %v", err)
+	}
+
+	data, err := os.ReadFile(envPath)
+	if err != nil {
+		t.Fatalf("read .env: %v", err)
+	}
+	content := string(data)
+	for _, want := range []string{"VALID=1", "export SOMETHING", "ANOTHER=2", "GEMINI_API_KEY=AIza-new"} {
+		if !strings.Contains(content, want) {
+			t.Errorf(".env = %q, lost line %q", content, want)
+		}
+	}
+}
+
 func TestInjectCredentials_UpdatesExistingEnvKey(t *testing.T) {
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)

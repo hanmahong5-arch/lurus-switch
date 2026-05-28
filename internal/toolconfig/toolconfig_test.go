@@ -1,6 +1,7 @@
 package toolconfig
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +20,9 @@ func TestGetConfigPath_KnownTools(t *testing.T) {
 		{"claude", "settings.json"},
 		{"codex", "config.toml"},
 		{"gemini", "settings.json"},
+		{"antigravity", AntigravityConfigFilename},
+		{"opencode", OpenCodeConfigFilename},
+		{"aider", aiderConfigFilename},
 		{"picoclaw", "config.json"},
 	}
 
@@ -170,7 +174,7 @@ func TestWriteConfig_AllTools(t *testing.T) {
 
 func TestGetAllConfigPaths_ReturnsFourTools(t *testing.T) {
 	paths := GetAllConfigPaths()
-	expected := []string{"claude", "codex", "gemini", "antigravity", "opencode", "picoclaw", "nullclaw", "zeroclaw", "openclaw"}
+	expected := []string{"claude", "codex", "gemini", "antigravity", "opencode", "aider", "picoclaw", "nullclaw", "zeroclaw", "openclaw"}
 
 	for _, tool := range expected {
 		if _, ok := paths[tool]; !ok {
@@ -178,8 +182,8 @@ func TestGetAllConfigPaths_ReturnsFourTools(t *testing.T) {
 		}
 	}
 
-	if len(paths) != 9 {
-		t.Errorf("expected 9 paths, got %d", len(paths))
+	if len(paths) != len(expected) {
+		t.Errorf("expected %d paths, got %d", len(expected), len(paths))
 	}
 }
 
@@ -242,7 +246,7 @@ func TestToolConfigInfo_Fields(t *testing.T) {
 // === configDef Tests ===
 
 func TestConfigDef_LanguageValues(t *testing.T) {
-	validLanguages := map[string]bool{"json": true, "toml": true, "markdown": true}
+	validLanguages := map[string]bool{"json": true, "toml": true, "yaml": true, "markdown": true}
 	for tool, def := range toolDefs {
 		if !validLanguages[def.language] {
 			t.Errorf("tool %q has invalid language %q", tool, def.language)
@@ -444,6 +448,58 @@ func TestWriteOpenCodeConfig_RoundTrip(t *testing.T) {
 	}
 	if got.Provider["anthropic"].APIKey != "sk-test-123" {
 		t.Errorf("Provider anthropic APIKey = %q, want sk-test-123", got.Provider["anthropic"].APIKey)
+	}
+}
+
+func TestOpenCodeConfig_PreservesUnknownFields(t *testing.T) {
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(tmpHome, ".config"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(tmpHome, "AppData", "Local"))
+
+	// Seed a config file that contains sections Switch does not model.
+	dir := filepath.Join(tmpHome, ".config", "opencode")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	seed := `{
+  "model": "anthropic/claude-sonnet-4-5",
+  "mcp": {"fs": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}},
+  "agent": {"build": {"model": "anthropic/claude-haiku-4-5"}},
+  "instructions": ["AGENTS.md"]
+}`
+	path := filepath.Join(dir, OpenCodeConfigFilename)
+	if err := os.WriteFile(path, []byte(seed), 0o600); err != nil {
+		t.Fatalf("seed write: %v", err)
+	}
+
+	// Read → mutate a managed field → write.
+	cfg, err := ReadOpenCodeConfig()
+	if err != nil {
+		t.Fatalf("ReadOpenCodeConfig: %v", err)
+	}
+	cfg.Model = "anthropic/claude-opus-4-8"
+	if err := WriteOpenCodeConfig(cfg); err != nil {
+		t.Fatalf("WriteOpenCodeConfig: %v", err)
+	}
+
+	// The unmanaged sections must survive the round-trip.
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	var out map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &out); err != nil {
+		t.Fatalf("unmarshal back: %v", err)
+	}
+	for _, key := range []string{"mcp", "agent", "instructions"} {
+		if _, ok := out[key]; !ok {
+			t.Errorf("unmanaged field %q was dropped on round-trip; file=%s", key, raw)
+		}
+	}
+	if got := string(out["model"]); got != `"anthropic/claude-opus-4-8"` {
+		t.Errorf("model = %s, want the mutated value", got)
 	}
 }
 
