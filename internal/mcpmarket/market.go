@@ -41,9 +41,12 @@ const (
 // Market provides server discovery and cross-tool installation.
 type Market struct {
 	// httpClient is used for all registry requests.  Callers may replace it
-	// in tests to avoid network calls.  When nil, http.DefaultClient is used
-	// so that BYO proxy configured via internal/netproxy is picked up
-	// automatically (netproxy mutates http.DefaultTransport).
+	// in tests to avoid network calls.  When nil, http.DefaultClient is used.
+	//
+	// BYO proxy (internal/netproxy) is honoured either way: netproxy reassigns
+	// http.DefaultTransport, and a client with a nil Transport (like the one
+	// NewMarket builds) resolves http.DefaultTransport lazily at request time.
+	// So the Timeout-only client below still routes through the BYO proxy.
 	httpClient *http.Client
 }
 

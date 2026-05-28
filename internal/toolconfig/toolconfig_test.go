@@ -467,7 +467,8 @@ func TestOpenCodeConfig_PreservesUnknownFields(t *testing.T) {
   "model": "anthropic/claude-sonnet-4-5",
   "mcp": {"fs": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}},
   "agent": {"build": {"model": "anthropic/claude-haiku-4-5"}},
-  "instructions": ["AGENTS.md"]
+  "instructions": ["AGENTS.md"],
+  "provider": {"openai": {"api": "sk-old", "options": {"baseURL": "https://relay.example.com/v1"}, "models": {"gpt-x": {}}}}
 }`
 	path := filepath.Join(dir, OpenCodeConfigFilename)
 	if err := os.WriteFile(path, []byte(seed), 0o600); err != nil {
@@ -500,6 +501,23 @@ func TestOpenCodeConfig_PreservesUnknownFields(t *testing.T) {
 	}
 	if got := string(out["model"]); got != `"anthropic/claude-opus-4-8"` {
 		t.Errorf("model = %s, want the mutated value", got)
+	}
+
+	// Provider sub-fields Switch does not model (options/models) must also survive.
+	var prov struct {
+		Provider map[string]map[string]json.RawMessage `json:"provider"`
+	}
+	if err := json.Unmarshal(raw, &prov); err != nil {
+		t.Fatalf("unmarshal provider: %v", err)
+	}
+	openai, ok := prov.Provider["openai"]
+	if !ok {
+		t.Fatalf("provider.openai dropped on round-trip; file=%s", raw)
+	}
+	for _, key := range []string{"options", "models"} {
+		if _, ok := openai[key]; !ok {
+			t.Errorf("provider.openai.%s dropped on round-trip; file=%s", key, raw)
+		}
 	}
 }
 

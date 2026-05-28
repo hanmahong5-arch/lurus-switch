@@ -156,6 +156,64 @@ type OpenCodeProviderConfig struct {
 
 	// Name is an optional human-readable label for the provider entry.
 	Name string `json:"name,omitempty"`
+
+	// Extra preserves provider sub-fields Switch does not model (options,
+	// models, npm, …) so a round-trip never drops them. Without this, mutating
+	// one provider's APIKey would silently delete its custom base URL / model
+	// list. Known fields win on conflict.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+// opencodeProviderKnownFields lists the JSON keys handled by the structured
+// fields of OpenCodeProviderConfig.
+var opencodeProviderKnownFields = []string{"api", "name"}
+
+// UnmarshalJSON decodes the known provider fields and captures the rest in Extra.
+func (p *OpenCodeProviderConfig) UnmarshalJSON(data []byte) error {
+	type alias OpenCodeProviderConfig
+	var known alias
+	if err := json.Unmarshal(data, &known); err != nil {
+		return err
+	}
+	*p = OpenCodeProviderConfig(known)
+
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(data, &all); err != nil {
+		return err
+	}
+	for _, k := range opencodeProviderKnownFields {
+		delete(all, k)
+	}
+	if len(all) > 0 {
+		p.Extra = all
+	} else {
+		p.Extra = nil
+	}
+	return nil
+}
+
+// MarshalJSON emits the known provider fields and overlays Extra.
+func (p OpenCodeProviderConfig) MarshalJSON() ([]byte, error) {
+	type alias OpenCodeProviderConfig
+	knownData, err := json.Marshal(alias(p))
+	if err != nil {
+		return nil, err
+	}
+	if len(p.Extra) == 0 {
+		return knownData, nil
+	}
+
+	merged := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(knownData, &merged); err != nil {
+		return nil, err
+	}
+	for k, v := range p.Extra {
+		if _, exists := merged[k]; exists {
+			continue // known field wins
+		}
+		merged[k] = v
+	}
+	return json.Marshal(merged)
 }
 
 // ReadOpenCodeConfig reads and parses the opencode.json config file.
