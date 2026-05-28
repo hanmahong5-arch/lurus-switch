@@ -1,10 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { BookOpen, FileText, Activity } from 'lucide-react'
+import { BookOpen, BookMarked, Plug, FileText, Activity } from 'lucide-react'
 import { useConfigStore, type WorkspaceSubTab } from '../stores/configStore'
 import { TabBar } from '../components/TabBar'
 import { PromptLibraryPage } from './PromptLibraryPage'
 import { DocumentPage } from './DocumentPage'
 import { ProcessPage } from './ProcessPage'
+import { RulesMarketPage } from './RulesMarketPage'
+import { McpMarketPage } from './McpMarketPage'
 
 export function WorkspacePage() {
   const { t } = useTranslation()
@@ -13,6 +15,8 @@ export function WorkspacePage() {
 
   const tabs = [
     { id: 'prompts', label: t('nav.prompts'), icon: BookOpen },
+    { id: 'rules', label: t('nav.rules', 'Rules Market'), icon: BookMarked },
+    { id: 'mcp-market', label: t('nav.mcpMarket', 'MCP Market'), icon: Plug },
     { id: 'context', label: t('nav.documents'), icon: FileText },
     { id: 'process', label: t('home.processTab'), icon: Activity },
   ]
@@ -26,6 +30,8 @@ export function WorkspacePage() {
       />
       <div className="flex-1 overflow-hidden">
         {activeTab === 'prompts' && <PromptLibraryPage />}
+        {activeTab === 'rules' && <RulesMarketPage />}
+        {activeTab === 'mcp-market' && <McpMarketPage />}
         {activeTab === 'context' && <DocumentPage />}
         {activeTab === 'process' && (
           <div className="h-full flex flex-col overflow-hidden">

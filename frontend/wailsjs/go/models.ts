@@ -4710,6 +4710,40 @@ export namespace main {
 	        this.size = source["size"];
 	    }
 	}
+	export class AiderDetectResult {
+	    installed: boolean;
+	    path: string;
+	    version: string;
+
+	    static createFrom(source: any = {}) {
+	        return new AiderDetectResult(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.path = source["path"];
+	        this.version = source["version"];
+	    }
+	}
+	export class GeminiDeprecationStatus {
+	    isDeprecated: boolean;
+	    eolDate: string;
+	    daysRemaining: number;
+	    successorTool: string;
+
+	    static createFrom(source: any = {}) {
+	        return new GeminiDeprecationStatus(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.isDeprecated = source["isDeprecated"];
+	        this.eolDate = source["eolDate"];
+	        this.daysRemaining = source["daysRemaining"];
+	        this.successorTool = source["successorTool"];
+	    }
+	}
 	export class UpstreamHealthResult {
 	    reachable: boolean;
 	    latencyMs: number;

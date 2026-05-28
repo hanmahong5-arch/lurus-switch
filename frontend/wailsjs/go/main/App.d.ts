@@ -844,3 +844,13 @@ export function McpMarketRefresh(arg1:string):Promise<{success:boolean;message:s
 export function McpMarketInstall(arg1:string,arg2:Record<string,string>,arg3:Array<string>):Promise<{success:boolean;message:string;statuses?:Array<mcpmarket.ToolInstallStatus>}>;
 
 export function McpMarketSavePreset(arg1:string,arg2:Record<string,string>):Promise<{success:boolean;message:string;presetId?:string}>;
+
+export function GetGeminiDeprecationStatus():Promise<main.GeminiDeprecationStatus>;
+
+export function BuildGeminiMigrationPlan():Promise<any>;
+
+export function ApplyGeminiMigration():Promise<main.ToolConfigResult>;
+
+export function DetectAider():Promise<main.AiderDetectResult>;
+
+export function InjectAiderCredentials():Promise<main.ToolConfigResult>;

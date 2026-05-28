@@ -1577,3 +1577,23 @@ export function McpMarketInstall(arg1, arg2, arg3) {
 export function McpMarketSavePreset(arg1, arg2) {
   return window['go']['main']['App']['McpMarketSavePreset'](arg1, arg2);
 }
+
+export function GetGeminiDeprecationStatus() {
+  return window['go']['main']['App']['GetGeminiDeprecationStatus']();
+}
+
+export function BuildGeminiMigrationPlan() {
+  return window['go']['main']['App']['BuildGeminiMigrationPlan']();
+}
+
+export function ApplyGeminiMigration() {
+  return window['go']['main']['App']['ApplyGeminiMigration']();
+}
+
+export function DetectAider() {
+  return window['go']['main']['App']['DetectAider']();
+}
+
+export function InjectAiderCredentials() {
+  return window['go']['main']['App']['InjectAiderCredentials']();
+}

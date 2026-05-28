@@ -198,6 +198,7 @@
     "process": "Processes",
     "prompts": "Prompts",
     "rules": "Rules Market",
+    "mcpMarket": "MCP Market",
     "documents": "Documents",
     "relay": "Relay Stations",
     "cliRunner": "CLI Runner",
@@ -1571,7 +1572,28 @@
   },
   "toolConfig": {
     "notInstalledHint": "Config changes won't take effect until the tool is installed",
-    "goInstall": "Go to Install →"
+    "goInstall": "Go to Install →",
+    "deprecation": {
+      "title": "{{tool}} is shutting down on {{date}}",
+      "daysLeft": "{{days}} days remaining",
+      "eolPassed": "End-of-life has passed",
+      "migrateBtn": "Migrate to {{successor}}",
+      "migrating": "Migrating…",
+      "migrateSuccess": "Migration applied — {{successor}} config written",
+      "migrateError": "Migration failed: {{error}}",
+      "confirmTitle": "Review Migration Plan",
+      "confirmApply": "Apply Migration",
+      "confirmCancel": "Cancel",
+      "fieldMap": "Field mapping",
+      "needsReview": "Needs manual review",
+      "warnings": "Warnings"
+    },
+    "aider": {
+      "injectBtn": "Inject Credentials",
+      "injecting": "Injecting…",
+      "injectSuccess": "Aider credentials injected",
+      "injectError": "Injection failed: {{error}}"
+    }
   },
   "relay": {
     "title": "Relay Management",

@@ -10,13 +10,16 @@ interface TabItem {
 }
 
 const ALL_TOOLS: TabItem[] = [
-  { id: 'claude',    label: 'Claude Code', icon: Bot,      color: 'text-orange-500' },
-  { id: 'codex',     label: 'Codex',       icon: Zap,      color: 'text-green-500'  },
-  { id: 'gemini',    label: 'Gemini CLI',  icon: Sparkles, color: 'text-blue-500'   },
-  { id: 'picoclaw',  label: 'PicoClaw',    icon: Terminal, color: 'text-pink-500'   },
-  { id: 'nullclaw',  label: 'NullClaw',    icon: Terminal, color: 'text-cyan-500'   },
-  { id: 'zeroclaw',  label: 'ZeroClaw',    icon: Terminal, color: 'text-violet-500' },
-  { id: 'openclaw',  label: 'OpenClaw',    icon: Terminal, color: 'text-rose-500'   },
+  { id: 'claude',       label: 'Claude Code',  icon: Bot,      color: 'text-orange-500'  },
+  { id: 'codex',        label: 'Codex',        icon: Zap,      color: 'text-green-500'   },
+  { id: 'gemini',       label: 'Gemini CLI',   icon: Sparkles, color: 'text-blue-500'    },
+  { id: 'antigravity',  label: 'Antigravity',  icon: Sparkles, color: 'text-indigo-500'  },
+  { id: 'opencode',     label: 'OpenCode',     icon: Terminal, color: 'text-emerald-500' },
+  { id: 'aider',        label: 'Aider',        icon: Terminal, color: 'text-amber-500'   },
+  { id: 'picoclaw',     label: 'PicoClaw',     icon: Terminal, color: 'text-pink-500'    },
+  { id: 'nullclaw',     label: 'NullClaw',     icon: Terminal, color: 'text-cyan-500'    },
+  { id: 'zeroclaw',     label: 'ZeroClaw',     icon: Terminal, color: 'text-violet-500'  },
+  { id: 'openclaw',     label: 'OpenClaw',     icon: Terminal, color: 'text-rose-500'    },
 ]
 
 interface ProductTabBarProps {

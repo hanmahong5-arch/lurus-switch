@@ -21,7 +21,12 @@ import {
   RestoreConfigSnapshot,
   DeleteConfigSnapshot,
   FetchCloudPresets,
+  InjectAiderCredentials,
 } from '../../wailsjs/go/main/App'
+import {
+  DeprecationBanner,
+  useGeminiDeprecationStatus,
+} from '../components/toolconfig/DeprecationBanner'
 import { ClaudeConfigForm } from '../components/forms/ClaudeConfigForm'
 import { CodexConfigForm } from '../components/forms/CodexConfigForm'
 import { GeminiConfigForm } from '../components/forms/GeminiConfigForm'
@@ -39,28 +44,35 @@ import type { ToolSchema } from '../lib/toolSchema'
 const TOOLS_WITH_FORM = new Set(['claude', 'codex', 'gemini', 'zeroclaw', 'openclaw'])
 
 const TOOL_DESCRIPTIONS: Record<string, string> = {
-  claude:   '~/.claude/settings.json',
-  codex:    '~/.codex/config.toml',
-  gemini:   '~/.gemini/settings.json',
-  picoclaw: '~/.picoclaw/config.json',
-  nullclaw: '~/.nullclaw/config.json',
-  zeroclaw: '~/.zeroclaw/config.toml',
-  openclaw: '~/.openclaw/openclaw.json',
+  claude:      '~/.claude/settings.json',
+  codex:       '~/.codex/config.toml',
+  gemini:      '~/.gemini/settings.json',
+  antigravity: '%LOCALAPPDATA%/Antigravity/config.json',
+  opencode:    '%LOCALAPPDATA%/xdg.config/opencode/opencode.json',
+  aider:       '~/.aider.conf.yml',
+  picoclaw:    '~/.picoclaw/config.json',
+  nullclaw:    '~/.nullclaw/config.json',
+  zeroclaw:    '~/.zeroclaw/config.toml',
+  openclaw:    '~/.openclaw/openclaw.json',
 }
 
 const TOOL_LABELS: Record<string, string> = {
-  claude:   'Claude Code',
-  codex:    'Codex CLI',
-  gemini:   'Gemini CLI',
-  picoclaw: 'PicoClaw',
-  nullclaw: 'NullClaw',
-  zeroclaw: 'ZeroClaw',
-  openclaw: 'OpenClaw',
+  claude:      'Claude Code',
+  codex:       'Codex CLI',
+  gemini:      'Gemini CLI',
+  antigravity: 'Antigravity CLI',
+  opencode:    'OpenCode',
+  aider:       'Aider',
+  picoclaw:    'PicoClaw',
+  nullclaw:    'NullClaw',
+  zeroclaw:    'ZeroClaw',
+  openclaw:    'OpenClaw',
 }
 
 const MONACO_LANGUAGE: Record<string, string> = {
   json:     'json',
   toml:     'ini',
+  yaml:     'yaml',
   markdown: 'markdown',
 }
 
@@ -131,7 +143,7 @@ interface SnapshotMeta {
 }
 
 const TOOL_NAMES: ToolsSubTab[] = [
-  'claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
+  'claude', 'codex', 'gemini', 'antigravity', 'opencode', 'aider', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw',
 ]
 
 export function ToolConfigPage() {
@@ -147,6 +159,8 @@ export function ToolConfigPage() {
   const { tools } = useDashboardStore()
   const toast = useToastStore((s) => s.addToast)
   const [dismissedBanner, setDismissedBanner] = useState(false)
+  const geminiDeprecation = useGeminiDeprecationStatus()
+  const [aiderInjecting, setAiderInjecting] = useState(false)
 
   // Determine active tool from sub-tab state (new navigation model)
   const activeToolSubTab = getSubTab('tools', lastActiveTool || 'claude') as ToolsSubTab
@@ -326,6 +340,22 @@ export function ToolConfigPage() {
     }
   }
 
+  const handleInjectAiderCredentials = async () => {
+    setAiderInjecting(true)
+    try {
+      const result = await InjectAiderCredentials()
+      if (!result.success) {
+        toast('error', result.message || 'Injection failed')
+        return
+      }
+      toast('success', result.message || 'Aider credentials injected')
+    } catch (err) {
+      toast('error', String(err))
+    } finally {
+      setAiderInjecting(false)
+    }
+  }
+
   const hasChanges = content !== originalContent
   const desc = TOOL_DESCRIPTIONS[tool] || ''
   const quickRef = QUICK_REFERENCE[tool] || []
@@ -492,6 +522,44 @@ export function ToolConfigPage() {
 
       {/* ProductTabBar — tool switcher */}
       <ProductTabBar activeTool={tool} onSelect={(t) => { setSubTab('tools', t); setLastActiveTool(t) }} />
+
+      {/* Gemini CLI deprecation banner — shown below tab bar when on gemini tab */}
+      {tool === 'gemini' && geminiDeprecation && (
+        <DeprecationBanner
+          cli="gemini"
+          status={geminiDeprecation}
+          onMigrated={() => {
+            setSubTab('tools', 'antigravity')
+            setLastActiveTool('antigravity')
+          }}
+        />
+      )}
+
+      {/* Aider credential injection action bar */}
+      {tool === 'aider' && (
+        <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/5 border-b border-primary/10 text-xs shrink-0">
+          <span className="flex-1 text-muted-foreground">
+            Inject Switch relay credentials into <span className="font-mono">~/.aider.conf.yml</span>
+          </span>
+          <button
+            data-testid="inject-aider-credentials-btn"
+            onClick={handleInjectAiderCredentials}
+            disabled={aiderInjecting}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors',
+              'bg-primary text-primary-foreground hover:bg-primary/90',
+              'disabled:opacity-50 disabled:cursor-not-allowed'
+            )}
+          >
+            {aiderInjecting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : null}
+            {aiderInjecting
+              ? t('toolConfig.aider.injecting')
+              : t('toolConfig.aider.injectBtn')}
+          </button>
+        </div>
+      )}
 
       {/* Main content: ContextSidebar + Editor + Sidebars */}
       <div className="flex-1 flex overflow-hidden">

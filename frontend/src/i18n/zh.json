@@ -198,6 +198,7 @@
     "process": "进程监控",
     "prompts": "提示词库",
     "rules": "规则市场",
+    "mcpMarket": "MCP 商店",
     "documents": "上下文文件",
     "relay": "中转站",
     "cliRunner": "CLI 运行器",
@@ -1573,7 +1574,28 @@
   },
   "toolConfig": {
     "notInstalledHint": "配置保存后不会生效，请先安装工具",
-    "goInstall": "前往安装 →"
+    "goInstall": "前往安装 →",
+    "deprecation": {
+      "title": "{{tool}} 将于 {{date}} 关停",
+      "daysLeft": "剩余 {{days}} 天",
+      "eolPassed": "已过停止支持日期",
+      "migrateBtn": "迁移到 {{successor}}",
+      "migrating": "迁移中…",
+      "migrateSuccess": "迁移完成 — {{successor}} 配置已写入",
+      "migrateError": "迁移失败:{{error}}",
+      "confirmTitle": "查看迁移计划",
+      "confirmApply": "执行迁移",
+      "confirmCancel": "取消",
+      "fieldMap": "字段映射",
+      "needsReview": "需要手工核对",
+      "warnings": "警告"
+    },
+    "aider": {
+      "injectBtn": "注入凭证",
+      "injecting": "注入中…",
+      "injectSuccess": "Aider 凭证已注入",
+      "injectError": "注入失败:{{error}}"
+    }
   },
   "relay": {
     "title": "中转站管理",

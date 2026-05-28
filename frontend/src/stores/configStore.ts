@@ -50,7 +50,7 @@ export type ActiveTool =
   | 'chargeback'
 
 // Sub-tab identifiers for each page
-export type ToolsSubTab = 'claude' | 'codex' | 'gemini' | 'picoclaw' | 'nullclaw' | 'zeroclaw' | 'openclaw' | 'mcp' | 'snapshots'
+export type ToolsSubTab = 'claude' | 'codex' | 'gemini' | 'antigravity' | 'opencode' | 'aider' | 'picoclaw' | 'nullclaw' | 'zeroclaw' | 'openclaw' | 'mcp' | 'snapshots'
 // Gateway page tabs — basic + admin + root sections (admin/root only show in
 // Reseller mode; root will gate further on user role once wired).
 export type GatewaySubTab =
@@ -62,7 +62,7 @@ export type GatewaySubTab =
   | 'tool-releases'
   // Root — Reseller mode (newapi root scope: option/oauth/performance/ratio)
   | 'system'
-export type WorkspaceSubTab = 'prompts' | 'context' | 'process'
+export type WorkspaceSubTab = 'prompts' | 'rules' | 'mcp-market' | 'context' | 'process'
 export type AccountSubTab = 'connection' | 'billing'
 
 // Legacy route values for backward compatibility (startupPage, etc.)
@@ -75,7 +75,7 @@ type LegacyActiveTool =
   | 'gateway-models' | 'gateway-users' | 'gateway-redemptions' | 'gateway-logs'
   | 'gateway-subscriptions' | 'gateway-settings'
 
-const TOOL_NAMES: ToolsSubTab[] = ['claude', 'codex', 'gemini', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw']
+const TOOL_NAMES: ToolsSubTab[] = ['claude', 'codex', 'gemini', 'antigravity', 'opencode', 'aider', 'picoclaw', 'nullclaw', 'zeroclaw', 'openclaw']
 
 // Map legacy route values to new navigation
 export function migrateLegacyRoute(legacy: string): { tool: ActiveTool; subTab?: string } {
