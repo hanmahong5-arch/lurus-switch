@@ -216,7 +216,7 @@ func (s *Server) proxyStreaming(w http.ResponseWriter, resp *http.Response, meta
 	copyResponseHeaders(w, resp)
 	w.WriteHeader(resp.StatusCode)
 
-	var totalUsage UsageFromResponse
+	var scanner sseUsageScanner
 	buf := make([]byte, 4096)
 
 	for {
@@ -225,19 +225,14 @@ func (s *Server) proxyStreaming(w http.ResponseWriter, resp *http.Response, meta
 			chunk := buf[:n]
 			w.Write(chunk)
 			flusher.Flush()
-
-			// Try to extract usage from the final SSE data chunk.
-			// OpenAI sends usage in the last "data: {...}" line when stream_options.include_usage is set.
-			if u := extractUsageFromSSEChunk(chunk); u.TotalTokens > 0 {
-				totalUsage = u
-			}
+			scanner.feed(chunk)
 		}
 		if readErr != nil {
 			break
 		}
 	}
 
-	s.recordUsage(meta, model, totalUsage, resp.StatusCode)
+	s.recordUsage(meta, model, scanner.finish(), resp.StatusCode)
 }
 
 // --- metering helpers ---
@@ -419,6 +414,57 @@ func toolFromRequest(r *http.Request) string {
 		return "openclaw"
 	}
 	return ""
+}
+
+// usageNonZero reports whether any usage counter was actually populated.
+// Some OpenAI-compatible providers send prompt/completion tokens without a
+// total_tokens field, so keying solely on TotalTokens would drop their
+// usage — checking any positive field avoids that metering leak.
+func usageNonZero(u UsageFromResponse) bool {
+	return u.TotalTokens > 0 || u.PromptTokens > 0 || u.CompletionTokens > 0
+}
+
+// maxSSELineBuf caps the per-line accumulation buffer. SSE lines always end
+// in '\n', so the cap is never hit in practice — it is purely a memory
+// backstop against a pathological newline-less upstream stream.
+const maxSSELineBuf = 1 << 20 // 1 MB
+
+// sseUsageScanner accumulates raw stream bytes across Read() boundaries so
+// usage extraction operates on COMPLETE SSE lines. A naive per-chunk scan
+// loses the usage line whenever its bytes straddle a read boundary — the
+// common case for streaming chat — which silently books 0 tokens. The
+// scanner keeps the last non-zero usage it observes (OpenAI emits usage in
+// the penultimate "data: {...}" line when stream_options.include_usage is
+// set). It is single-goroutine: the proxy feeds it one chunk at a time.
+type sseUsageScanner struct {
+	buf  []byte            // unterminated trailing bytes not yet scanned
+	last UsageFromResponse // most recent non-zero usage seen
+}
+
+// feed appends a chunk and scans every newly completed line for usage.
+func (s *sseUsageScanner) feed(chunk []byte) {
+	s.buf = append(s.buf, chunk...)
+	if idx := bytes.LastIndexByte(s.buf, '\n'); idx >= 0 {
+		if u := extractUsageFromSSEChunk(s.buf[:idx+1]); usageNonZero(u) {
+			s.last = u
+		}
+		// Retain only the unterminated remainder after the last newline.
+		s.buf = append(s.buf[:0], s.buf[idx+1:]...)
+	}
+	if len(s.buf) > maxSSELineBuf {
+		s.buf = s.buf[:0]
+	}
+}
+
+// finish scans any trailing line left unterminated when the stream ended and
+// returns the final observed usage.
+func (s *sseUsageScanner) finish() UsageFromResponse {
+	if len(s.buf) > 0 {
+		if u := extractUsageFromSSEChunk(s.buf); usageNonZero(u) {
+			s.last = u
+		}
+	}
+	return s.last
 }
 
 // extractUsageFromSSEChunk attempts to parse usage from an SSE data line.

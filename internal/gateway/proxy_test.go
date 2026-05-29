@@ -191,3 +191,71 @@ func TestExtractUsageFromSSEChunk(t *testing.T) {
 		t.Fatalf("expected 0 total tokens for DONE, got %d", usage3.TotalTokens)
 	}
 }
+
+// feedAll drives a scanner with the given byte fragments and returns the
+// final usage — modelling proxyStreaming's chunked Read() loop.
+func feedAll(fragments ...[]byte) UsageFromResponse {
+	var s sseUsageScanner
+	for _, f := range fragments {
+		s.feed(f)
+	}
+	return s.finish()
+}
+
+func TestSSEUsageScanner_WholeLine(t *testing.T) {
+	full := []byte(`data: {"model":"m","usage":{"prompt_tokens":5,"completion_tokens":15,"total_tokens":20}}` + "\n\n")
+	u := feedAll(full)
+	if u.TotalTokens != 20 || u.PromptTokens != 5 || u.CompletionTokens != 15 {
+		t.Fatalf("unexpected usage: %+v", u)
+	}
+}
+
+func TestSSEUsageScanner_SplitAcrossBoundary(t *testing.T) {
+	// The bug: a 4 KB Read() splits the usage line. Each half is unparseable
+	// on its own; only line-buffered accumulation recovers it.
+	full := `data: {"choices":[{"delta":{"content":"hi"}}]}` + "\n\n" +
+		`data: {"model":"m","usage":{"prompt_tokens":7,"completion_tokens":11,"total_tokens":18}}` + "\n\n"
+	for split := 1; split < len(full); split++ {
+		u := feedAll([]byte(full[:split]), []byte(full[split:]))
+		if u.TotalTokens != 18 {
+			t.Fatalf("split at %d: expected 18 total tokens, got %d (%+v)", split, u.TotalTokens, u)
+		}
+	}
+}
+
+func TestSSEUsageScanner_ByteByByte(t *testing.T) {
+	full := []byte(`data: {"usage":{"prompt_tokens":3,"completion_tokens":4,"total_tokens":7}}` + "\n\n")
+	var s sseUsageScanner
+	for i := 0; i < len(full); i++ {
+		s.feed(full[i : i+1])
+	}
+	if u := s.finish(); u.TotalTokens != 7 {
+		t.Fatalf("byte-by-byte: expected 7 total tokens, got %d", u.TotalTokens)
+	}
+}
+
+func TestSSEUsageScanner_NoTotalTokens(t *testing.T) {
+	// Some OpenAI-compatible providers omit total_tokens; usage must still be
+	// recorded from prompt/completion (the usageNonZero fix).
+	full := []byte(`data: {"usage":{"prompt_tokens":12,"completion_tokens":8}}` + "\n\n")
+	u := feedAll(full)
+	if u.PromptTokens != 12 || u.CompletionTokens != 8 {
+		t.Fatalf("expected prompt=12 completion=8, got %+v", u)
+	}
+}
+
+func TestSSEUsageScanner_UnterminatedTail(t *testing.T) {
+	// Stream ends without a trailing newline — finish() must still scan it.
+	full := []byte(`data: {"usage":{"prompt_tokens":1,"completion_tokens":2,"total_tokens":3}}`)
+	u := feedAll(full)
+	if u.TotalTokens != 3 {
+		t.Fatalf("expected 3 total tokens from unterminated tail, got %d", u.TotalTokens)
+	}
+}
+
+func TestSSEUsageScanner_NoUsage(t *testing.T) {
+	full := []byte("data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n")
+	if u := feedAll(full); usageNonZero(u) {
+		t.Fatalf("expected zero usage, got %+v", u)
+	}
+}

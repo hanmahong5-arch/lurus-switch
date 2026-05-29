@@ -108,6 +108,56 @@ func TestAnthropic_BridgesToOpenAIUpstream(t *testing.T) {
 	}
 }
 
+// TestAnthropic_StreamingIsMetered guards the regression where streaming
+// Claude Code traffic (/v1/messages with stream:true) was forwarded but
+// never metered nor charged against the budget wall — the gateway's primary
+// client silently bypassed accounting.
+func TestAnthropic_StreamingIsMetered(t *testing.T) {
+	srv, reg, meter, upstream := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		// OpenAI-shaped SSE with a trailing usage chunk (include_usage).
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n")
+		io.WriteString(w, "data: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n")
+		io.WriteString(w, "data: {\"choices\":[],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":7,\"total_tokens\":18}}\n\n")
+		io.WriteString(w, "data: [DONE]\n\n")
+	})
+	defer upstream.Close()
+
+	app, err := reg.Register("Claude Code", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := `{"model":"deepseek-chat","max_tokens":1024,"stream":true,"messages":[{"role":"user","content":"Hi"}]}`
+	req := httptest.NewRequest("POST", "/v1/messages", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+app.Token)
+	req.Header.Set("Content-Type", "application/json")
+
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status=%d body=%s", w.Code, w.Body.String())
+	}
+	// Client must have received translated Anthropic SSE with the usage.
+	out := w.Body.String()
+	if !strings.Contains(out, "event: message_delta") || !strings.Contains(out, `"output_tokens":7`) {
+		t.Fatalf("missing translated usage in stream output: %s", out)
+	}
+
+	// The regression: metering must reflect the streamed tokens.
+	summary := meter.TodaySummary()
+	if summary.TotalCalls < 1 {
+		t.Fatalf("streaming request was not metered: %+v", summary)
+	}
+	if summary.TokensIn != 11 || summary.TokensOut != 7 {
+		t.Fatalf("metered tokens = in:%d out:%d, want in:11 out:7", summary.TokensIn, summary.TokensOut)
+	}
+}
+
 func TestAnthropic_RejectsMalformedBody(t *testing.T) {
 	srv, reg, _, upstream := setupTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		t.Error("upstream should not be called when body is malformed")

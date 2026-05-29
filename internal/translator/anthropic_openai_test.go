@@ -242,6 +242,33 @@ data: [DONE]
 	mustHave(t, out, `"stop_reason":"end_turn"`)
 	mustHave(t, out, `"output_tokens":4`)
 	mustHave(t, out, "event: message_stop")
+
+	// Usage() must surface the upstream's final usage chunk so the gateway
+	// can meter streaming traffic and feed the budget wall.
+	in, outTok := tr.Usage()
+	if in != 12 || outTok != 4 {
+		t.Fatalf("Usage() = (%d, %d), want (12, 4)", in, outTok)
+	}
+}
+
+func TestStreamTranslator_UsageZeroWithoutUpstreamChunk(t *testing.T) {
+	// Upstream never sends a usage chunk — Usage() falls back to the seed
+	// input count and zero output (no fabricated tokens).
+	upstream := `data: {"choices":[{"delta":{"content":"hi"}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+`
+	var buf bytes.Buffer
+	tr := NewStreamTranslator("msg_z", "deepseek-chat", 3)
+	if err := tr.Run(strings.NewReader(upstream), &buf, nil); err != nil {
+		t.Fatal(err)
+	}
+	in, outTok := tr.Usage()
+	if in != 3 || outTok != 0 {
+		t.Fatalf("Usage() = (%d, %d), want (3, 0)", in, outTok)
+	}
 }
 
 func TestStreamTranslator_ToolCallFlow(t *testing.T) {

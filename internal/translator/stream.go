@@ -52,6 +52,15 @@ func NewStreamTranslator(msgID, model string, inputTokens int) *StreamTranslator
 	}
 }
 
+// Usage returns the token counts captured during Run: the input (prompt)
+// count from the upstream's final usage chunk — or the seed value passed to
+// NewStreamTranslator when upstream omitted one — and the output (completion)
+// count. Both are 0 if the upstream sent no usage chunk. Call after Run
+// returns; the caller meters and feeds the budget guard from these values.
+func (s *StreamTranslator) Usage() (inputTokens, outputTokens int) {
+	return s.inputTokens, s.finalOutputTokens
+}
+
 // Run consumes the upstream stream and writes Anthropic SSE events to
 // out. flush is invoked after each event so an http.Flusher can push
 // bytes downstream immediately. Returns when upstream EOFs or errors.

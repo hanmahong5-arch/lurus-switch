@@ -220,10 +220,21 @@ func (s *Server) streamAnthropic(
 		return
 	}
 	_ = req
-	// Stream metering happens inside the translator via the final usage
-	// chunk; the budget guard is fed via a tail-side helper that we pass
-	// here. To keep things simple we omit live token feed mid-stream and
-	// account at the end via a small re-parse — not perfect but cheap.
+
+	// Account streaming usage. The translator captured the upstream's final
+	// usage chunk (we request include_usage during translation), so its
+	// Usage() now holds the real token counts. Without this the gateway's
+	// primary client — Claude Code on /v1/messages with stream:true — would
+	// go entirely unmetered and silently bypass the budget wall.
+	inTok, outTok := tr.Usage()
+	s.recordAnthropicUsage(meta, model, translator.OpenAIUsage{
+		PromptTokens:     inTok,
+		CompletionTokens: outTok,
+		TotalTokens:      inTok + outTok,
+	}, http.StatusOK)
+	if guard != nil {
+		guard.RecordUsage(int64(inTok), int64(outTok))
+	}
 }
 
 // recordAnthropicUsage mirrors recordUsage in proxy.go but takes the
@@ -241,6 +252,10 @@ func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u transla
 		LatencyMs:  time.Since(meta.StartTime).Milliseconds(),
 		StatusCode: statusCode,
 		Timestamp:  time.Now(),
+		// Routing attribution — same dimensions the OpenAI-protocol path
+		// records, so dashboards bucket Claude Code traffic by upstream too.
+		ServedBy:  meta.ServedBy,
+		MatchedBy: meta.MatchedBy,
 	}
 	s.meter.Record(rec)
 }
