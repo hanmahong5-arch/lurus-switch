@@ -20,6 +20,8 @@ import (
 
 	"lurus-switch/internal/notify/feishu"
 	"lurus-switch/internal/notify/rules"
+	"lurus-switch/internal/notify/slack"
+	"lurus-switch/internal/notify/telegram"
 )
 
 // configFilename is what we persist on disk under appDataBaseDir. Keep it
@@ -37,9 +39,13 @@ type AppConfig struct {
 	// no transports registered and the Engine isn't ticking.
 	Enabled bool `json:"enabled"`
 
-	// Feishu is the per-transport block. Other transports get their own
-	// nested struct here when they land.
-	Feishu feishu.Config `json:"feishu"`
+	// Feishu / Telegram / Slack are the per-transport blocks. Each is
+	// registered on the bus independently when its required fields are
+	// filled (see bindings_notify.go rebuildNotifyLocked), so the user can
+	// run any combination of them at once.
+	Feishu   feishu.Config   `json:"feishu"`
+	Telegram telegram.Config `json:"telegram"`
+	Slack    slack.Config    `json:"slack"`
 
 	// Rules mirrors rules.Config but with durations represented as
 	// integer seconds for ergonomics in the form layer.

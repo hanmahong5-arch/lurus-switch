@@ -522,11 +522,11 @@ function SettingRow({ label, description, children }: {
   )
 }
 
-// NotifyTab renders the per-transport settings for outbound push (currently
-// Feishu only — Telegram / Slack stub options stay disabled until those
-// transports land). Loads + saves through `notifyApi` direct-bridge calls
-// so we don't depend on `wails generate module` having picked up the new
-// bindings, which has been unreliable on this repo.
+// NotifyTab renders the per-transport settings for outbound push (Feishu,
+// Telegram, Slack — each registered independently on the bus, so any
+// combination can be active at once). Loads + saves through `notifyApi`
+// direct-bridge calls so we don't depend on `wails generate module` having
+// picked up the new bindings, which has been unreliable on this repo.
 function NotifyTab() {
   const { t } = useTranslation()
   const addToast = useToastStore((s) => s.addToast)
@@ -557,6 +557,8 @@ function NotifyTab() {
           ...DEFAULT_NOTIFY_CONFIG,
           ...loaded,
           feishu: { ...DEFAULT_NOTIFY_CONFIG.feishu, ...(loaded.feishu ?? {}) },
+          telegram: { ...DEFAULT_NOTIFY_CONFIG.telegram, ...(loaded.telegram ?? {}) },
+          slack: { ...DEFAULT_NOTIFY_CONFIG.slack, ...(loaded.slack ?? {}) },
           rules: { ...DEFAULT_NOTIFY_CONFIG.rules, ...(loaded.rules ?? {}) },
         })
       })
@@ -582,7 +584,7 @@ function NotifyTab() {
     setTesting(true)
     try {
       await testNotify()
-      addToast('success', t('settings.notify.testSent', '已推送测试卡片,请在 Feishu 群确认'))
+      addToast('success', t('settings.notify.testSent', '已推送测试卡片,请在对应聊天软件确认'))
       reloadRecent()
     } catch (err) {
       addToast('error', t('settings.notify.testFailed', '测试失败') + ': ' + classifyError(err).message)
@@ -599,8 +601,19 @@ function NotifyTab() {
     )
   }
 
-  const webhookEmpty = cfg.feishu.webhookUrl.trim() === ''
-  const httpsBad = !webhookEmpty && !/^https:\/\//i.test(cfg.feishu.webhookUrl.trim())
+  // Per-transport "is configured" + "looks valid" derivations. A transport
+  // is registered on the bus only when configured, so Test broadcasts to
+  // whatever's set; Save is blocked only on an https-shaped error.
+  const feishuConfigured = cfg.feishu.webhookUrl.trim() !== ''
+  const feishuHttpsBad = feishuConfigured && !/^https:\/\//i.test(cfg.feishu.webhookUrl.trim())
+  const telegramConfigured = cfg.telegram.botToken.trim() !== '' && cfg.telegram.chatId.trim() !== ''
+  const telegramPartial =
+    !telegramConfigured && (cfg.telegram.botToken.trim() !== '' || cfg.telegram.chatId.trim() !== '')
+  const slackConfigured = cfg.slack.webhookUrl.trim() !== ''
+  const slackHttpsBad = slackConfigured && !/^https:\/\//i.test(cfg.slack.webhookUrl.trim())
+
+  const anyConfigured = feishuConfigured || telegramConfigured || slackConfigured
+  const saveBlocked = cfg.enabled && (feishuHttpsBad || slackHttpsBad || telegramPartial)
 
   return (
     <div className="space-y-6">
@@ -629,15 +642,19 @@ function NotifyTab() {
       <div className="space-y-2">
         <p className="text-sm font-medium">{t('settings.notify.transport', '推送渠道')}</p>
         <div className="grid grid-cols-2 gap-2">
-          <TransportPill name="Feishu / 飞书" selected disabled={!cfg.enabled} />
-          <TransportPill name={'Telegram (' + t('settings.notify.comingSoon', '即将支持') + ')'} selected={false} disabled />
-          <TransportPill name={'Slack (' + t('settings.notify.comingSoon', '即将支持') + ')'} selected={false} disabled />
+          <TransportPill name="Feishu / 飞书" selected={feishuConfigured} disabled={!cfg.enabled} />
+          <TransportPill name="Telegram" selected={telegramConfigured} disabled={!cfg.enabled} />
+          <TransportPill name="Slack" selected={slackConfigured} disabled={!cfg.enabled} />
           <TransportPill name={'DingTalk (' + t('settings.notify.comingSoon', '即将支持') + ')'} selected={false} disabled />
         </div>
+        <p className="text-[11px] text-muted-foreground">
+          {t('settings.notify.transportHint', '填写任意渠道的凭证即可启用该渠道;多个渠道可同时接收推送。高亮表示已配置。')}
+        </p>
       </div>
 
       {/* Feishu config block */}
       <div className="space-y-3 p-3 border border-border rounded-md">
+        <p className="text-sm font-medium">Feishu / 飞书</p>
         <div>
           <label className="text-xs font-medium block mb-1">
             {t('settings.notify.feishu.webhookUrl', 'Webhook URL')}
@@ -653,7 +670,7 @@ function NotifyTab() {
             }
             className="w-full px-2 py-1.5 text-xs font-mono bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
           />
-          {httpsBad && (
+          {feishuHttpsBad && (
             <p className="text-[11px] text-red-500 mt-1">
               {t('settings.notify.feishu.httpsRequired', 'Webhook URL 必须是 https://')}
             </p>
@@ -681,6 +698,83 @@ function NotifyTab() {
         </div>
       </div>
 
+      {/* Telegram config block */}
+      <div className="space-y-3 p-3 border border-border rounded-md">
+        <p className="text-sm font-medium">Telegram</p>
+        <div>
+          <label className="text-xs font-medium block mb-1">
+            {t('settings.notify.telegram.botToken', 'Bot Token')}
+            <span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <input
+            type="password"
+            value={cfg.telegram.botToken}
+            placeholder="123456:ABC-DEF…"
+            disabled={!cfg.enabled}
+            onChange={(e) =>
+              setCfg({ ...cfg, telegram: { ...cfg.telegram, botToken: e.target.value } })
+            }
+            className="w-full px-2 py-1.5 text-xs font-mono bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          />
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {t('settings.notify.telegram.botTokenHint', '通过 @BotFather 创建机器人后获得')}
+          </p>
+        </div>
+        <div>
+          <label className="text-xs font-medium block mb-1">
+            {t('settings.notify.telegram.chatId', 'Chat ID')}
+            <span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <input
+            type="text"
+            value={cfg.telegram.chatId}
+            placeholder="-1001234567890"
+            disabled={!cfg.enabled}
+            onChange={(e) =>
+              setCfg({ ...cfg, telegram: { ...cfg.telegram, chatId: e.target.value } })
+            }
+            className="w-full px-2 py-1.5 text-xs font-mono bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          />
+          {telegramPartial && (
+            <p className="text-[11px] text-red-500 mt-1">
+              {t('settings.notify.telegram.bothRequired', 'Bot Token 和 Chat ID 需要同时填写')}
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {t('settings.notify.telegram.chatIdHint', '目标会话 ID;私聊填你的用户 ID,群组填以 - 开头的群 ID(可用 @userinfobot 查询)')}
+          </p>
+        </div>
+      </div>
+
+      {/* Slack config block */}
+      <div className="space-y-3 p-3 border border-border rounded-md">
+        <p className="text-sm font-medium">Slack</p>
+        <div>
+          <label className="text-xs font-medium block mb-1">
+            {t('settings.notify.slack.webhookUrl', 'Webhook URL')}
+            <span className="text-red-500 ml-0.5">*</span>
+          </label>
+          <input
+            type="text"
+            value={cfg.slack.webhookUrl}
+            placeholder="https://hooks.slack.com/services/…"
+            disabled={!cfg.enabled}
+            onChange={(e) =>
+              setCfg({ ...cfg, slack: { ...cfg.slack, webhookUrl: e.target.value } })
+            }
+            className="w-full px-2 py-1.5 text-xs font-mono bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          />
+          {slackHttpsBad && (
+            <p className="text-[11px] text-red-500 mt-1">
+              {t('settings.notify.slack.httpsRequired', 'Webhook URL 必须是 https://')}
+            </p>
+          )}
+          <p className="text-[11px] text-muted-foreground mt-1">
+            {t('settings.notify.slack.webhookUrlHint', 'Slack App → Incoming Webhooks → Add New Webhook 后复制')}
+          </p>
+        </div>
+      </div>
+
       {/* Rule toggles */}
       <div className="space-y-2 p-3 border border-border rounded-md">
         <p className="text-sm font-medium">{t('settings.notify.rules', '推送时机')}</p>
@@ -704,7 +798,7 @@ function NotifyTab() {
       <div className="flex gap-2">
         <button
           onClick={handleSave}
-          disabled={saving || (cfg.enabled && !webhookEmpty && httpsBad)}
+          disabled={saving || saveBlocked}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
@@ -712,9 +806,9 @@ function NotifyTab() {
         </button>
         <button
           onClick={handleTest}
-          disabled={testing || !cfg.enabled || webhookEmpty}
+          disabled={testing || !cfg.enabled || !anyConfigured}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted disabled:opacity-50"
-          title={!cfg.enabled || webhookEmpty ? t('settings.notify.testDisabledHint', '请先开启并填写 Webhook URL,保存后再测试') : ''}
+          title={!cfg.enabled || !anyConfigured ? t('settings.notify.testDisabledHint', '请先开启并填写至少一个渠道的凭证,保存后再测试') : ''}
         >
           {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
           {t('settings.notify.testButton', '测试推送')}

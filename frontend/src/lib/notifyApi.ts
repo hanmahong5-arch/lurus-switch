@@ -32,12 +32,26 @@ function getBridge(): NotifyBridge | undefined {
 export interface NotifyConfig {
   enabled: boolean
   feishu: FeishuConfig
+  telegram: TelegramConfig
+  slack: SlackConfig
   rules: NotifyRulesConfig
 }
 
 export interface FeishuConfig {
   webhookUrl: string
   secret?: string
+}
+
+// TelegramConfig mirrors telegram.Config in Go (botToken / chatId json
+// tags). apiBaseUrl is a test-only override and never set from the UI.
+export interface TelegramConfig {
+  botToken: string
+  chatId: string
+}
+
+// SlackConfig mirrors slack.Config in Go (Incoming Webhook URL).
+export interface SlackConfig {
+  webhookUrl: string
 }
 
 // NotifyRulesConfig mirrors store.RulesPersist. Durations live as integer
@@ -80,6 +94,8 @@ export interface NotifyEvent {
 export const DEFAULT_NOTIFY_CONFIG: NotifyConfig = {
   enabled: false,
   feishu: { webhookUrl: '', secret: '' },
+  telegram: { botToken: '', chatId: '' },
+  slack: { webhookUrl: '' },
   rules: {
     stuckAfterSec: 60,
     stuckEscalateSec: 300,

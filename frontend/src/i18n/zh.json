@@ -629,6 +629,21 @@
       "startupPage": "启动页面",
       "startupPageDesc": "应用启动后默认显示的页面"
     },
+    "notify": {
+      "transportHint": "填写任意渠道的凭证即可启用该渠道;多个渠道可同时接收推送。高亮表示已配置。",
+      "telegram": {
+        "botToken": "Bot Token",
+        "botTokenHint": "通过 @BotFather 创建机器人后获得,形如 123456:ABC-DEF…",
+        "chatId": "Chat ID",
+        "chatIdHint": "目标会话 ID;私聊填你的用户 ID,群组填以 - 开头的群 ID(可用 @userinfobot 查询)",
+        "bothRequired": "Bot Token 和 Chat ID 需要同时填写"
+      },
+      "slack": {
+        "webhookUrl": "Webhook URL",
+        "webhookUrlHint": "Slack App → Incoming Webhooks → Add New Webhook 后复制,形如 https://hooks.slack.com/services/…",
+        "httpsRequired": "Webhook URL 必须是 https://"
+      }
+    },
     "proxy": {
       "movedNotice": "中转 API 配置（API Key / 端点）已移至「账户 > 连接与配置」页面。",
       "hint": "提示：前往「账户」页面配置 API 中转设置。"

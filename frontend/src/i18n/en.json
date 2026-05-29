@@ -627,6 +627,21 @@
       "startupPage": "Startup Page",
       "startupPageDesc": "Default page shown when app launches"
     },
+    "notify": {
+      "transportHint": "Fill in any channel's credentials to enable it; multiple channels can receive pushes at once. Highlighted means configured.",
+      "telegram": {
+        "botToken": "Bot Token",
+        "botTokenHint": "Obtained from @BotFather after creating a bot, e.g. 123456:ABC-DEF…",
+        "chatId": "Chat ID",
+        "chatIdHint": "Target chat ID; for DMs use your user ID, for groups use the - prefixed group ID (look it up via @userinfobot)",
+        "bothRequired": "Bot Token and Chat ID must both be filled in"
+      },
+      "slack": {
+        "webhookUrl": "Webhook URL",
+        "webhookUrlHint": "Copy from Slack App → Incoming Webhooks → Add New Webhook, e.g. https://hooks.slack.com/services/…",
+        "httpsRequired": "Webhook URL must start with https://"
+      }
+    },
     "proxy": {
       "movedNotice": "Relay API config (key / endpoint) has been moved to Account > Connection.",
       "hint": "Tip: Go to Account page to configure relay API settings."

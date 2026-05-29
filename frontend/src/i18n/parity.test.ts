@@ -54,6 +54,17 @@ const NEW_KEYS = [
   // CommandPalette undo-action user-facing toasts
   'commandPalette.undoNothing',
   'commandPalette.undoDone',
+
+  // NotifyTab — Telegram + Slack transport fields (PR-B push channels)
+  'settings.notify.transportHint',
+  'settings.notify.telegram.botToken',
+  'settings.notify.telegram.botTokenHint',
+  'settings.notify.telegram.chatId',
+  'settings.notify.telegram.chatIdHint',
+  'settings.notify.telegram.bothRequired',
+  'settings.notify.slack.webhookUrl',
+  'settings.notify.slack.webhookUrlHint',
+  'settings.notify.slack.httpsRequired',
 ] as const
 
 describe('i18n parity — newly added keys', () => {

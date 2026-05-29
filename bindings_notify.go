@@ -10,7 +10,9 @@ import (
 	"lurus-switch/internal/notify"
 	"lurus-switch/internal/notify/feishu"
 	"lurus-switch/internal/notify/rules"
+	"lurus-switch/internal/notify/slack"
 	"lurus-switch/internal/notify/store"
+	"lurus-switch/internal/notify/telegram"
 )
 
 // ============================
@@ -68,6 +70,12 @@ func (a *App) rebuildNotifyLocked(cfg store.AppConfig) {
 	if cfg.Feishu.WebhookURL != "" {
 		bus.Register(feishu.New(cfg.Feishu))
 	}
+	if cfg.Telegram.BotToken != "" && cfg.Telegram.ChatID != "" {
+		bus.Register(telegram.New(cfg.Telegram))
+	}
+	if cfg.Slack.WebhookURL != "" {
+		bus.Register(slack.New(cfg.Slack))
+	}
 	a.notifyBus = bus
 
 	// Only spin the rules engine when the watcher exists — otherwise the
@@ -96,12 +104,27 @@ func (a *App) GetNotifyConfig() store.AppConfig {
 // validation failure returns before touching disk so the user keeps their
 // last good config.
 func (a *App) SaveNotifyConfig(cfg store.AppConfig) error {
-	// Validate the active transport's config when the feature is on and a
-	// URL is present. Empty URL while Enabled=true is allowed — it lets
-	// the user toggle Enabled on as a precursor to filling in credentials.
-	if cfg.Enabled && cfg.Feishu.WebhookURL != "" {
-		if err := cfg.Feishu.Validate(); err != nil {
-			return err
+	// Validate each transport's config when the feature is on and that
+	// transport has been touched. An empty block while Enabled=true is
+	// allowed — it lets the user toggle Enabled on as a precursor to
+	// filling in credentials, and lets them run any subset of transports.
+	if cfg.Enabled {
+		if cfg.Feishu.WebhookURL != "" {
+			if err := cfg.Feishu.Validate(); err != nil {
+				return err
+			}
+		}
+		// Either Telegram field being set means the user is configuring it;
+		// Validate then surfaces "the other field is required".
+		if cfg.Telegram.BotToken != "" || cfg.Telegram.ChatID != "" {
+			if err := cfg.Telegram.Validate(); err != nil {
+				return err
+			}
+		}
+		if cfg.Slack.WebhookURL != "" {
+			if err := cfg.Slack.Validate(); err != nil {
+				return err
+			}
 		}
 	}
 	if err := store.Save(appDataBaseDir(), cfg); err != nil {
