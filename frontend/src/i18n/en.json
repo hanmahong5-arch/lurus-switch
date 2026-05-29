@@ -642,6 +642,12 @@
         "httpsRequired": "Webhook URL must start with https://"
       }
     },
+    "observability": {
+      "title": "Observability (OpenTelemetry)",
+      "desc": "Export gateway GenAI traffic (gen_ai.* traces + token/latency metrics) to an OTLP/HTTP endpoint. Off by default.",
+      "endpoint": "OTLP Endpoint",
+      "endpointHint": "OTLP/HTTP endpoint, e.g. a local collector / Grafana Tempo. Takes effect after saving and restarting the app."
+    },
     "proxy": {
       "movedNotice": "Relay API config (key / endpoint) has been moved to Account > Connection.",
       "hint": "Tip: Go to Account page to configure relay API settings."

@@ -65,6 +65,12 @@ const NEW_KEYS = [
   'settings.notify.slack.webhookUrl',
   'settings.notify.slack.webhookUrlHint',
   'settings.notify.slack.httpsRequired',
+
+  // Settings — OpenTelemetry observability toggle (PR-C)
+  'settings.observability.title',
+  'settings.observability.desc',
+  'settings.observability.endpoint',
+  'settings.observability.endpointHint',
 ] as const
 
 describe('i18n parity — newly added keys', () => {

@@ -884,17 +884,35 @@ export namespace analytics {
 }
 
 export namespace appconfig {
-	
+
+	export class ObservabilityConfig {
+	    enabled: boolean;
+	    endpoint?: string;
+	    protocol?: string;
+	    headers?: {[key: string]: string};
+
+	    static createFrom(source: any = {}) {
+	        return new ObservabilityConfig(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.enabled = source["enabled"];
+	        this.endpoint = source["endpoint"];
+	        this.protocol = source["protocol"];
+	        this.headers = source["headers"];
+	    }
+	}
 	export class ResellerConfig {
 	    hubUrl?: string;
 	    adminToken?: string;
 	    tenantSlug?: string;
 	    displayName?: string;
-	
+
 	    static createFrom(source: any = {}) {
 	        return new ResellerConfig(source);
 	    }
-	
+
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.hubUrl = source["hubUrl"];
@@ -922,7 +940,8 @@ export namespace appconfig {
 	    authClientId?: string;
 	    authIssuer?: string;
 	    authPlatformUrl?: string;
-	
+	    observability?: ObservabilityConfig;
+
 	    static createFrom(source: any = {}) {
 	        return new AppSettings(source);
 	    }
@@ -947,6 +966,7 @@ export namespace appconfig {
 	        this.authClientId = source["authClientId"];
 	        this.authIssuer = source["authIssuer"];
 	        this.authPlatformUrl = source["authPlatformUrl"];
+	        this.observability = this.convertValues(source["observability"], ObservabilityConfig);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

@@ -10,6 +10,7 @@ import (
 
 	"lurus-switch/internal/budget"
 	"lurus-switch/internal/metering"
+	"lurus-switch/internal/obs"
 	"lurus-switch/internal/translator"
 )
 
@@ -184,7 +185,7 @@ func (s *Server) bufferedAnthropic(
 	w.Write(out)
 
 	// Account.
-	s.recordAnthropicUsage(meta, model, openAIResp.Usage, resp.StatusCode)
+	s.recordAnthropicUsage(meta, model, openAIResp.Usage, resp.StatusCode, false)
 	if guard != nil {
 		guard.RecordUsage(int64(openAIResp.Usage.PromptTokens), int64(openAIResp.Usage.CompletionTokens))
 	}
@@ -231,7 +232,7 @@ func (s *Server) streamAnthropic(
 		PromptTokens:     inTok,
 		CompletionTokens: outTok,
 		TotalTokens:      inTok + outTok,
-	}, http.StatusOK)
+	}, http.StatusOK, true)
 	if guard != nil {
 		guard.RecordUsage(int64(inTok), int64(outTok))
 	}
@@ -240,7 +241,7 @@ func (s *Server) streamAnthropic(
 // recordAnthropicUsage mirrors recordUsage in proxy.go but takes the
 // pre-translated OpenAI usage struct (since the upstream is OpenAI-
 // shaped even for the Anthropic-input path).
-func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u translator.OpenAIUsage, statusCode int) {
+func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u translator.OpenAIUsage, statusCode int, streaming bool) {
 	if s.meter == nil || meta == nil {
 		return
 	}
@@ -258,6 +259,21 @@ func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u transla
 		MatchedBy: meta.MatchedBy,
 	}
 	s.meter.Record(rec)
+
+	// Mirror into the optional OTel recorder. Operation "messages" marks the
+	// Anthropic-input path so dashboards can split it from the OpenAI path.
+	s.observe(obs.RequestObservation{
+		Operation:  "messages",
+		Model:      model,
+		ServedBy:   meta.ServedBy,
+		MatchedBy:  meta.MatchedBy,
+		TokensIn:   int64(u.PromptTokens),
+		TokensOut:  int64(u.CompletionTokens),
+		StartTime:  meta.StartTime,
+		LatencyMs:  rec.LatencyMs,
+		StatusCode: statusCode,
+		Streaming:  streaming,
+	})
 }
 
 // writeAnthropicError emits an error envelope in the shape Claude Code

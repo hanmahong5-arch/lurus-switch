@@ -644,6 +644,12 @@
         "httpsRequired": "Webhook URL 必须是 https://"
       }
     },
+    "observability": {
+      "title": "可观测性 (OpenTelemetry)",
+      "desc": "将网关 GenAI 流量(gen_ai.* 追踪 + token/延迟指标)导出到 OTLP/HTTP 端点。默认关闭。",
+      "endpoint": "OTLP 端点",
+      "endpointHint": "OTLP/HTTP 端点,如本地 collector / Grafana Tempo。保存并重启应用后生效。"
+    },
     "proxy": {
       "movedNotice": "中转 API 配置（API Key / 端点）已移至「账户 > 连接与配置」页面。",
       "hint": "提示：前往「账户」页面配置 API 中转设置。"

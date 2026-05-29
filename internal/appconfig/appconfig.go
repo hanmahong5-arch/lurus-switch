@@ -48,6 +48,22 @@ type AppSettings struct {
 	// AuthIssuer (which points at Zitadel). Empty = use built-in default
 	// (auth.DefaultPlatformBaseURL = https://identity.lurus.cn).
 	AuthPlatformURL string `json:"authPlatformUrl,omitempty"`
+
+	// Observability configures optional OpenTelemetry export of gateway
+	// GenAI traffic (gen_ai.* traces + token/latency metrics). Default off;
+	// when Enabled the gateway records one span + metric set per request to
+	// the configured OTLP/HTTP endpoint via internal/obs.
+	Observability ObservabilityConfig `json:"observability,omitempty"`
+}
+
+// ObservabilityConfig is the OpenTelemetry export setup. Off by default;
+// only the OTLP/HTTP transport is supported for now (Protocol reserved for
+// a future gRPC option).
+type ObservabilityConfig struct {
+	Enabled  bool              `json:"enabled"`
+	Endpoint string            `json:"endpoint,omitempty"` // OTLP/HTTP, e.g. "http://localhost:4318" or "host:4318"
+	Protocol string            `json:"protocol,omitempty"` // "http" (default); "grpc" reserved
+	Headers  map[string]string `json:"headers,omitempty"`  // optional OTLP headers (e.g. auth)
 }
 
 // ResellerConfig holds the per-Reseller Hub deployment context.

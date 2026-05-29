@@ -38,6 +38,13 @@ interface AppSettings {
   startupPage: string
   onboardingCompleted: boolean
   appMode: string
+  // Optional — omitted by the backend (json omitempty) until configured.
+  observability?: {
+    enabled: boolean
+    endpoint?: string
+    protocol?: string
+    headers?: Record<string, string>
+  }
 }
 
 const DEFAULT: AppSettings = {
@@ -398,6 +405,49 @@ export function SettingsPage() {
                   ))}
                 </div>
               </SettingRow>
+            </div>
+
+            <div className="border-t border-border pt-4 space-y-3">
+              <SettingRow
+                label={t('settings.observability.title', '可观测性 (OpenTelemetry)')}
+                description={t('settings.observability.desc', '将网关 GenAI 流量(gen_ai.* 追踪 + token/延迟指标)导出到 OTLP/HTTP 端点。默认关闭。')}
+              >
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-primary"
+                    checked={settings.observability?.enabled ?? false}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        observability: { ...(settings.observability ?? {}), enabled: e.target.checked },
+                      })
+                    }
+                  />
+                </label>
+              </SettingRow>
+              {(settings.observability?.enabled ?? false) && (
+                <div>
+                  <label className="text-xs font-medium block mb-1">
+                    {t('settings.observability.endpoint', 'OTLP 端点')}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.observability?.endpoint ?? ''}
+                    placeholder="http://localhost:4318"
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        observability: { ...(settings.observability ?? { enabled: true }), endpoint: e.target.value },
+                      })
+                    }
+                    className="w-full px-2 py-1.5 text-xs font-mono bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {t('settings.observability.endpointHint', 'OTLP/HTTP 端点,如本地 collector / Grafana Tempo。保存并重启应用后生效。')}
+                  </p>
+                </div>
+              )}
             </div>
 
             <StartupPerformanceCard />

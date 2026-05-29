@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"lurus-switch/internal/metering"
+	"lurus-switch/internal/obs"
 )
 
 const (
@@ -200,7 +201,7 @@ func (s *Server) proxyBuffered(w http.ResponseWriter, resp *http.Response, meta 
 
 	// Extract usage for metering.
 	usage := extractUsageFromBody(respBody)
-	s.recordUsage(meta, model, usage, resp.StatusCode)
+	s.recordUsage(meta, model, usage, resp.StatusCode, false)
 }
 
 // proxyStreaming pipes SSE chunks from upstream to client in real-time.
@@ -232,12 +233,12 @@ func (s *Server) proxyStreaming(w http.ResponseWriter, resp *http.Response, meta
 		}
 	}
 
-	s.recordUsage(meta, model, scanner.finish(), resp.StatusCode)
+	s.recordUsage(meta, model, scanner.finish(), resp.StatusCode, true)
 }
 
 // --- metering helpers ---
 
-func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromResponse, statusCode int) {
+func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromResponse, statusCode int, streaming bool) {
 	if s.meter == nil || meta == nil {
 		return
 	}
@@ -260,6 +261,21 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 		MatchedBy: meta.MatchedBy,
 	}
 	s.meter.Record(rec)
+
+	// Mirror the same facts into the optional OTel recorder (no-op unless
+	// observability is enabled). Built from rec so the two stay consistent.
+	s.observe(obs.RequestObservation{
+		Operation:  "chat",
+		Model:      model,
+		ServedBy:   meta.ServedBy,
+		MatchedBy:  meta.MatchedBy,
+		TokensIn:   usage.PromptTokens,
+		TokensOut:  usage.CompletionTokens,
+		StartTime:  meta.StartTime,
+		LatencyMs:  rec.LatencyMs,
+		StatusCode: statusCode,
+		Streaming:  streaming,
+	})
 
 	// Feed the budget guard so its session counter stays in sync. The
 	// daily counter delegates to the metering store, so no double-counting.
@@ -286,6 +302,17 @@ func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {
 		MatchedBy:    meta.MatchedBy,
 	}
 	s.meter.Record(rec)
+
+	s.observe(obs.RequestObservation{
+		Operation:  "chat",
+		Model:      model,
+		ServedBy:   meta.ServedBy,
+		MatchedBy:  meta.MatchedBy,
+		StartTime:  meta.StartTime,
+		LatencyMs:  rec.LatencyMs,
+		StatusCode: rec.StatusCode,
+		Err:        errMsg,
+	})
 }
 
 // --- request/response helpers ---

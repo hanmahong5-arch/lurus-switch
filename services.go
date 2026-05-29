@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"lurus-switch/internal/agent"
 	"lurus-switch/internal/analytics"
+	"lurus-switch/internal/appconfig"
 	"lurus-switch/internal/appreg"
 	"lurus-switch/internal/audit"
 	"lurus-switch/internal/auth"
@@ -23,6 +25,7 @@ import (
 	"lurus-switch/internal/metering"
 	"lurus-switch/internal/modelcatalog"
 	"lurus-switch/internal/netproxy"
+	"lurus-switch/internal/obs"
 	"lurus-switch/internal/orgsync"
 	"lurus-switch/internal/process"
 	"lurus-switch/internal/promoter"
@@ -82,6 +85,10 @@ type services struct {
 	meterStore  *metering.Store
 	gatewaySrv  *gateway.Server
 	budgetGuard *budget.Guard // active spend wall, wired into gateway
+
+	// obsShutdown flushes + tears down the OpenTelemetry exporters when
+	// observability is enabled. nil when disabled; called from App.shutdown.
+	obsShutdown func(context.Context) error
 
 	// Relay router with per-endpoint circuit breaker. Driven by user
 	// rules in relay-rules.yaml; updated on every upstream attempt by
@@ -361,6 +368,27 @@ func newServices(appDataDir, version string) (*services, []string) {
 					journal.AttachMetadata(entry.ID, metadata)
 				}
 			})
+		}
+
+		// Optional OpenTelemetry export of gateway GenAI traffic. Default
+		// off — only wired when the user enables it and gives an OTLP
+		// endpoint. The gateway depends on the obs.Recorder interface, not
+		// otel; obs.New connects lazily so an unreachable collector never
+		// blocks startup. The shutdown func is held for App.shutdown.
+		if settings, sErr := appconfig.LoadAppSettings(); sErr == nil &&
+			settings.Observability.Enabled && settings.Observability.Endpoint != "" {
+			rec, shutdown, oErr := obs.New(obs.Config{
+				ServiceName:    "lurus-switch",
+				ServiceVersion: version,
+				Endpoint:       settings.Observability.Endpoint,
+				Headers:        settings.Observability.Headers,
+			})
+			if oErr != nil {
+				warnings = append(warnings, fmt.Sprintf("observability init failed: %v", oErr))
+			} else {
+				svc.gatewaySrv.SetObserver(rec)
+				svc.obsShutdown = shutdown
+			}
 		}
 	}
 	svc.promoterSvc = promoter.NewService(svc.ensureBillingClient)

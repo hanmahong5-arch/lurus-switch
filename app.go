@@ -219,6 +219,15 @@ func (a *App) shutdown(ctx context.Context) {
 		}
 	}
 
+	// Flush + tear down OpenTelemetry exporters (nil/no-op when
+	// observability is disabled). Done after the gateway stops so any
+	// final in-flight observation is exported before the providers close.
+	if a.obsShutdown != nil {
+		if err := a.obsShutdown(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "shutdown: observability flush failed: %v\n", err)
+		}
+	}
+
 	// Stop legacy gateway server.
 	if a.serverMgr != nil {
 		if err := a.serverMgr.Stop(); err != nil {

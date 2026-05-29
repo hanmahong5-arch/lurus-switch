@@ -16,6 +16,7 @@ import (
 	"lurus-switch/internal/budget"
 	"lurus-switch/internal/dlp"
 	"lurus-switch/internal/metering"
+	"lurus-switch/internal/obs"
 	"lurus-switch/internal/relay"
 )
 
@@ -64,6 +65,13 @@ type Server struct {
 	// Crash recovery callback (optional, set via SetCrashCallback).
 	onCrash CrashCallback
 
+	// Optional OpenTelemetry recorder. Defaults to obs.Noop() so the
+	// proxy path can call it unconditionally; SetObserver swaps in a real
+	// OTLP-backed recorder when the user enables observability. The
+	// gateway depends only on the obs.Recorder interface — never otel
+	// directly — so this stays unit-testable with a fake recorder.
+	obs obs.Recorder
+
 	// Runtime counters.
 	totalReqs  atomic.Int64
 	activeReqs atomic.Int32
@@ -83,6 +91,7 @@ func NewServer(appDataDir string, registry *appreg.Registry, meter *metering.Sto
 		registry: registry,
 		meter:    meter,
 		fallback: NewFallbackChain(nil),
+		obs:      obs.Noop(),
 	}
 	s.cfg = s.loadConfig()
 	return s
@@ -171,6 +180,33 @@ func (s *Server) SetBudgetGuard(g *budget.Guard) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.guard = g
+}
+
+// SetObserver wires the optional OpenTelemetry recorder. Pass nil to reset
+// to the no-op recorder. Safe to call after Start; the next request picks
+// up the change.
+func (s *Server) SetObserver(o obs.Recorder) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if o == nil {
+		o = obs.Noop()
+	}
+	s.obs = o
+}
+
+// observe emits one RequestObservation to the configured recorder. Spans
+// are retrospective (built from the observation's StartTime + LatencyMs),
+// so a background context is correct here — there is no live parent span to
+// inherit, and threading r.Context() through every record call site would
+// be churn for no signal.
+func (s *Server) observe(o obs.RequestObservation) {
+	s.mu.Lock()
+	rec := s.obs
+	s.mu.Unlock()
+	if rec == nil {
+		return
+	}
+	rec.RecordRequest(context.Background(), o)
 }
 
 // SetCrashCallback registers a callback invoked when the gateway crashes and auto-restarts.
