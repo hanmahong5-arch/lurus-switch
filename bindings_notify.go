@@ -146,10 +146,10 @@ func (a *App) TestNotify() error {
 	notifyRebuildMu.Unlock()
 
 	if bus == nil {
-		return fmt.Errorf("notify 子系统未启用 — 请先在设置中开启并填写 Webhook URL")
+		return fmt.Errorf("notify 子系统未启用 — 请先在设置中开启并填写至少一个渠道的凭证")
 	}
 	if len(bus.TransportNames()) == 0 {
-		return fmt.Errorf("没有已注册的推送渠道 — 请填写 Feishu Webhook URL 后再试")
+		return fmt.Errorf("没有已注册的推送渠道 — 请填写至少一个渠道(Feishu / Telegram / Slack)的凭证后再试")
 	}
 
 	// Tracer captures the first delivery error so we can surface it as the

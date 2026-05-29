@@ -248,15 +248,22 @@ func (r *otelRecorder) baseMetricAttributes(o RequestObservation) []attribute.Ke
 
 func (r *otelRecorder) recordMetrics(ctx context.Context, o RequestObservation) {
 	base := r.baseMetricAttributes(o)
+	// withExtra allocates a fresh slice per call so the multiple appends
+	// below never share base's backing array. metric.WithAttributes copies
+	// before sorting today, so reusing base would be safe — but a fresh
+	// slice removes the dependency on that copy and the aliasing footgun.
+	withExtra := func(extra ...attribute.KeyValue) metric.MeasurementOption {
+		out := make([]attribute.KeyValue, 0, len(base)+len(extra))
+		out = append(out, base...)
+		out = append(out, extra...)
+		return metric.WithAttributes(out...)
+	}
 	if o.TokensIn > 0 {
-		r.tokenUsage.Record(ctx, o.TokensIn,
-			metric.WithAttributes(append(base, attribute.String("gen_ai.token.type", "input"))...))
+		r.tokenUsage.Record(ctx, o.TokensIn, withExtra(attribute.String("gen_ai.token.type", "input")))
 	}
 	if o.TokensOut > 0 {
-		r.tokenUsage.Record(ctx, o.TokensOut,
-			metric.WithAttributes(append(base, attribute.String("gen_ai.token.type", "output"))...))
+		r.tokenUsage.Record(ctx, o.TokensOut, withExtra(attribute.String("gen_ai.token.type", "output")))
 	}
-	r.requestDur.Record(ctx, float64(o.LatencyMs), metric.WithAttributes(base...))
-	r.requestCount.Add(ctx, 1,
-		metric.WithAttributes(append(base, attribute.Int("http.response.status_code", o.StatusCode))...))
+	r.requestDur.Record(ctx, float64(o.LatencyMs), withExtra())
+	r.requestCount.Add(ctx, 1, withExtra(attribute.Int("http.response.status_code", o.StatusCode)))
 }

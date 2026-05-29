@@ -278,10 +278,13 @@ func flattenToolResultContent(raw json.RawMessage) string {
 // stubNoteForBlock returns a human-readable placeholder for a content
 // block Switch can't forward to an OpenAI-compatible upstream (image,
 // document, or any unknown type). Returns "" for blocks handled
-// elsewhere (text / tool_use / tool_result) or with no type.
+// elsewhere (text / tool_use / tool_result) and for model-reasoning
+// artifacts (thinking / redacted_thinking) which are NOT user content —
+// they're silently dropped just like the assistant path does, so we never
+// leak a "[thinking block …]" note into the prompt.
 func stubNoteForBlock(b ContentBlock) string {
 	switch b.Type {
-	case "", "text", "tool_use", "tool_result":
+	case "", "text", "tool_use", "tool_result", "thinking", "redacted_thinking":
 		return ""
 	case "image":
 		return fmt.Sprintf("[image attached: %s — not forwarded to this upstream]", mediaTypeOrUnknown(b.Source))

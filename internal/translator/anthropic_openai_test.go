@@ -176,6 +176,38 @@ func TestRequestToOpenAI_ToolResultWithImage(t *testing.T) {
 	}
 }
 
+func TestRequestToOpenAI_ThinkingBlockNotStubNoted(t *testing.T) {
+	// thinking / redacted_thinking are model-reasoning artifacts, not user
+	// content — they must be dropped silently (like the assistant path),
+	// never wrapped in a "[thinking block …]" stub note that would leak
+	// into the prompt sent to a text-only upstream.
+	req := mustReq(t, `{
+		"model": "deepseek-chat",
+		"max_tokens": 1024,
+		"messages": [
+			{"role": "user", "content": [
+				{"type": "text", "text": "Continue."},
+				{"type": "thinking", "thinking": "internal reasoning"},
+				{"type": "redacted_thinking", "data": "abc"}
+			]}
+		]
+	}`)
+	out, err := RequestToOpenAI(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Messages) != 1 {
+		t.Fatalf("expected 1 user message, got %d", len(out.Messages))
+	}
+	body := string(out.Messages[0].Content)
+	if !strings.Contains(body, "Continue.") {
+		t.Errorf("user text lost: %s", body)
+	}
+	if strings.Contains(body, "thinking") || strings.Contains(body, "not forwarded") {
+		t.Errorf("thinking block must not produce a stub note: %s", body)
+	}
+}
+
 func TestRequestToOpenAI_ToolChoiceVariants(t *testing.T) {
 	// Compare JSON semantically since Go's encoding/json doesn't
 	// guarantee map key order — `{"type":"function","function":{...}}`

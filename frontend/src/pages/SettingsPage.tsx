@@ -438,7 +438,7 @@ export function SettingsPage() {
                     onChange={(e) =>
                       setSettings({
                         ...settings,
-                        observability: { ...(settings.observability ?? { enabled: true }), endpoint: e.target.value },
+                        observability: { ...(settings.observability ?? {}), enabled: true, endpoint: e.target.value },
                       })
                     }
                     className="w-full px-2 py-1.5 text-xs font-mono bg-muted border border-border rounded focus:outline-none focus:ring-1 focus:ring-primary"
