@@ -99,6 +99,83 @@ func TestRequestToOpenAI_UserToolResultBecomesToolMessage(t *testing.T) {
 	}
 }
 
+func TestRequestToOpenAI_ImageBlockEmitsStubNote(t *testing.T) {
+	req := mustReq(t, `{
+		"model": "deepseek-chat",
+		"max_tokens": 1024,
+		"messages": [
+			{"role": "user", "content": [
+				{"type": "text", "text": "What's in this screenshot?"},
+				{"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "iVBORw0KGgo="}}
+			]}
+		]
+	}`)
+	out, err := RequestToOpenAI(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The user message must survive (not be swallowed) and carry both the
+	// original text and a stub note naming the dropped image's media type.
+	if len(out.Messages) != 1 {
+		t.Fatalf("expected 1 user message, got %d", len(out.Messages))
+	}
+	body := string(out.Messages[0].Content)
+	if !strings.Contains(body, "What's in this screenshot?") {
+		t.Errorf("original text lost: %s", body)
+	}
+	if !strings.Contains(body, "image attached: image/png") {
+		t.Errorf("stub note missing media type: %s", body)
+	}
+}
+
+func TestRequestToOpenAI_DocumentBlock(t *testing.T) {
+	req := mustReq(t, `{
+		"model": "deepseek-chat",
+		"max_tokens": 1024,
+		"messages": [
+			{"role": "user", "content": [
+				{"type": "document", "source": {"type": "base64", "media_type": "application/pdf", "data": "JVBERi0="}}
+			]}
+		]
+	}`)
+	out, err := RequestToOpenAI(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Messages) != 1 {
+		t.Fatalf("expected 1 user message even with only a document block, got %d", len(out.Messages))
+	}
+	if body := string(out.Messages[0].Content); !strings.Contains(body, "document attached: application/pdf") {
+		t.Errorf("document stub note missing: %s", body)
+	}
+}
+
+func TestRequestToOpenAI_ToolResultWithImage(t *testing.T) {
+	req := mustReq(t, `{
+		"model": "claude-sonnet-4",
+		"max_tokens": 1024,
+		"messages": [
+			{"role": "user", "content": [
+				{"type": "tool_result", "tool_use_id": "toolu_1", "content": [
+					{"type": "text", "text": "Page loaded."},
+					{"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": "/9j/4AAQ"}}
+				]}
+			]}
+		]
+	}`)
+	out, _ := RequestToOpenAI(req)
+	if len(out.Messages) != 1 {
+		t.Fatalf("got %d messages", len(out.Messages))
+	}
+	body := string(out.Messages[0].Content)
+	if !strings.Contains(body, "Page loaded.") {
+		t.Errorf("tool_result text lost: %s", body)
+	}
+	if !strings.Contains(body, "image attached: image/jpeg") {
+		t.Errorf("embedded image stub note missing from flattened tool_result: %s", body)
+	}
+}
+
 func TestRequestToOpenAI_ToolChoiceVariants(t *testing.T) {
 	// Compare JSON semantically since Go's encoding/json doesn't
 	// guarantee map key order — `{"type":"function","function":{...}}`

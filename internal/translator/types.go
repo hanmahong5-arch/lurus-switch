@@ -13,8 +13,10 @@
 //
 // Out of scope (fall through unmodified or rejected with a clear
 // error so we don't pretend we handled them):
-//   - Image / document content blocks (multimodal) — Anthropic-only
-//     until OpenAI adds parity in the same payload shape.
+//   - Image / document content blocks (multimodal) — the bytes aren't
+//     forwarded (the upstream may be text-only), but we no longer drop
+//     them silently: a stub text note marks where non-text content was
+//     so the model isn't left answering as if nothing was attached.
 //   - Prompt caching cache_control hints — we strip them; upstream
 //     is unlikely to honor Anthropic-specific hints anyway.
 //   - Server tools (web_search, computer_use, code_execution).
@@ -71,6 +73,19 @@ type ContentBlock struct {
 	// Content of tool_result can itself be a string or array of blocks;
 	// we keep it raw and let the consumer flatten.
 	Content json.RawMessage `json:"content,omitempty"`
+
+	// type=image | document. We don't forward the bytes (the upstream may
+	// not be vision-capable), but we read media_type so we can emit a
+	// human-readable stub note instead of silently dropping the block.
+	Source *ContentBlockSource `json:"source,omitempty"`
+}
+
+// ContentBlockSource is the `source` object of an image / document block.
+// Only the fields needed for a stub note are typed; the base64 payload
+// (data / url) is intentionally ignored — see userBlocksToOpenAI.
+type ContentBlockSource struct {
+	Type      string `json:"type"`                 // "base64" | "url"
+	MediaType string `json:"media_type,omitempty"` // e.g. "image/png"
 }
 
 type AnthropicTool struct {

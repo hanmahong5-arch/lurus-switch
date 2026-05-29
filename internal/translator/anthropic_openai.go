@@ -224,9 +224,18 @@ func userBlocksToOpenAI(blocks []ContentBlock) []OpenAIMessage {
 				ToolCallID: b.ToolUseID,
 				Content:    c,
 			})
+		default:
+			// image / document / unknown: emit a stub text note so the
+			// model at least knows non-text content was present, rather
+			// than silently dropping it (the old behaviour, which left
+			// the upstream answering as if no screenshot was attached).
+			// Actually forwarding the bytes as OpenAI image_url parts is
+			// gated on a per-channel "vision capable" bit — a separate
+			// feature; blind base64 to a text-only model 400s.
+			if note := stubNoteForBlock(b); note != "" {
+				textParts = append(textParts, note)
+			}
 		}
-		// Image / document blocks: TODO — emit a stub text note so the
-		// model at least knows there was non-text content.
 	}
 	if len(textParts) > 0 {
 		c, _ := json.Marshal(strings.Join(textParts, "\n\n"))
@@ -249,14 +258,45 @@ func flattenToolResultContent(raw json.RawMessage) string {
 	}
 	var b strings.Builder
 	for _, blk := range blocks {
-		if blk.Type == "text" {
-			if b.Len() > 0 {
-				b.WriteString("\n")
-			}
-			b.WriteString(blk.Text)
+		line := blk.Text
+		if blk.Type != "text" {
+			// Tool results sometimes embed image blocks (e.g. a screenshot
+			// from a browser tool). Note their presence instead of dropping.
+			line = stubNoteForBlock(blk)
 		}
+		if line == "" {
+			continue
+		}
+		if b.Len() > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(line)
 	}
 	return b.String()
+}
+
+// stubNoteForBlock returns a human-readable placeholder for a content
+// block Switch can't forward to an OpenAI-compatible upstream (image,
+// document, or any unknown type). Returns "" for blocks handled
+// elsewhere (text / tool_use / tool_result) or with no type.
+func stubNoteForBlock(b ContentBlock) string {
+	switch b.Type {
+	case "", "text", "tool_use", "tool_result":
+		return ""
+	case "image":
+		return fmt.Sprintf("[image attached: %s — not forwarded to this upstream]", mediaTypeOrUnknown(b.Source))
+	case "document":
+		return fmt.Sprintf("[document attached: %s — not forwarded to this upstream]", mediaTypeOrUnknown(b.Source))
+	default:
+		return fmt.Sprintf("[%s block — not forwarded to this upstream]", b.Type)
+	}
+}
+
+func mediaTypeOrUnknown(s *ContentBlockSource) string {
+	if s != nil && s.MediaType != "" {
+		return s.MediaType
+	}
+	return "unknown type"
 }
 
 // ─── Response (non-stream) ─────────────────────────────────────────
