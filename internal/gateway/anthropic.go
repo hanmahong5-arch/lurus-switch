@@ -119,13 +119,13 @@ func (s *Server) handleAnthropicMessages(w http.ResponseWriter, r *http.Request)
 			meta.MatchedBy = matchedBy
 		}
 		resp, servedBy, err = s.fallback.TryUpstreamChain(
-			"POST", "/v1/chat/completions", "",
+			r.Context(), "POST", "/v1/chat/completions", "",
 			openAIBody, outHeaders,
 			chain,
 		)
 	} else {
 		resp, servedBy, err = s.fallback.TryUpstream(
-			"POST", "/v1/chat/completions", "",
+			r.Context(), "POST", "/v1/chat/completions", "",
 			openAIBody, outHeaders,
 			normalizedURL, userToken,
 		)

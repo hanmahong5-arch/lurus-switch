@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -94,6 +95,7 @@ func shouldFallback(resp *http.Response, err error) bool {
 // entries. Use TryUpstreamChain when the caller (e.g. relay router)
 // already knows the full ordered chain.
 func (fc *FallbackChain) TryUpstream(
+	ctx context.Context,
 	method, path, query string,
 	body []byte,
 	headers http.Header,
@@ -109,7 +111,7 @@ func (fc *FallbackChain) TryUpstream(
 		entries = append(entries, e)
 	}
 	fc.mu.RUnlock()
-	return fc.TryUpstreamChain(method, path, query, body, headers, entries)
+	return fc.TryUpstreamChain(ctx, method, path, query, body, headers, entries)
 }
 
 // TryUpstreamChain attempts the request against the provided ordered
@@ -121,6 +123,7 @@ func (fc *FallbackChain) TryUpstream(
 // The chain is provided by the caller (router-driven), so this method
 // does NOT consult fc.entries — that path is exclusively TryUpstream's.
 func (fc *FallbackChain) TryUpstreamChain(
+	ctx context.Context,
 	method, path, query string,
 	body []byte,
 	headers http.Header,
@@ -128,6 +131,9 @@ func (fc *FallbackChain) TryUpstreamChain(
 ) (resp *http.Response, servedBy string, err error) {
 	if len(chain) == 0 {
 		return nil, "", fmt.Errorf("upstream chain is empty")
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 
 	client := &http.Client{Timeout: upstreamTimeout}
@@ -140,7 +146,7 @@ func (fc *FallbackChain) TryUpstreamChain(
 			continue
 		}
 		var latencyMs int64
-		resp, latencyMs, err = fc.doRequest(client, method, entry.URL, path, query, body, headers, entry.Token)
+		resp, latencyMs, err = fc.doRequest(ctx, client, method, entry.URL, path, query, body, headers, entry.Token)
 		if !shouldFallback(resp, err) {
 			if observer != nil {
 				observer(entry.Name, true, "", latencyMs)
@@ -174,6 +180,7 @@ func (fc *FallbackChain) TryUpstreamChain(
 // doRequest performs one upstream HTTP call and returns the response
 // plus the measured wall-clock latency in milliseconds.
 func (fc *FallbackChain) doRequest(
+	ctx context.Context,
 	client *http.Client,
 	method, baseURL, path, query string,
 	body []byte,
@@ -185,7 +192,12 @@ func (fc *FallbackChain) doRequest(
 		targetURL += "?" + query
 	}
 
-	req, err := http.NewRequest(method, targetURL, bytes.NewReader(body))
+	// Carry the caller's context so an upstream call is cancelled when the
+	// client disconnects or the request deadline fires — a bare
+	// http.NewRequest leaks the goroutine + upstream connection until the
+	// 5-minute client timeout, which on a streaming hot path means the
+	// gateway keeps paying for tokens nobody is reading.
+	req, err := http.NewRequestWithContext(ctx, method, targetURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, 0, err
 	}
