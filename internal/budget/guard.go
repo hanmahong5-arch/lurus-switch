@@ -54,19 +54,19 @@ type Verdict struct {
 
 // Status is what the UI consumes to render gauges.
 type Status struct {
-	Enabled        bool      `json:"enabled"`
-	DailyTokens    int64     `json:"dailyTokens"`    // configured limit
-	SessionTokens  int64     `json:"sessionTokens"`  // configured limit
-	DailyUsed      int64     `json:"dailyUsed"`      // current total
-	SessionUsed    int64     `json:"sessionUsed"`    // current total
-	DailyPct       int       `json:"dailyPct"`       // 0..100, 0 if no limit
-	SessionPct     int       `json:"sessionPct"`     // 0..100
-	SessionStart   time.Time `json:"sessionStart"`
-	SoftWarnPct    int       `json:"softWarnPct"`
-	HitDaily       bool      `json:"hitDaily"`
-	HitSession     bool      `json:"hitSession"`
-	WarnDaily      bool      `json:"warnDaily"`
-	WarnSession    bool      `json:"warnSession"`
+	Enabled       bool      `json:"enabled"`
+	DailyTokens   int64     `json:"dailyTokens"`   // configured limit
+	SessionTokens int64     `json:"sessionTokens"` // configured limit
+	DailyUsed     int64     `json:"dailyUsed"`     // current total
+	SessionUsed   int64     `json:"sessionUsed"`   // current total
+	DailyPct      int       `json:"dailyPct"`      // 0..100, 0 if no limit
+	SessionPct    int       `json:"sessionPct"`    // 0..100
+	SessionStart  time.Time `json:"sessionStart"`
+	SoftWarnPct   int       `json:"softWarnPct"`
+	HitDaily      bool      `json:"hitDaily"`
+	HitSession    bool      `json:"hitSession"`
+	WarnDaily     bool      `json:"warnDaily"`
+	WarnSession   bool      `json:"warnSession"`
 }
 
 // Guard is the live in-process budget enforcer. The session counter is
@@ -138,9 +138,12 @@ func (g *Guard) SetConfig(c Config) error {
 }
 
 // ResetSession zeroes the session counter and re-stamps the start time.
+// The counter is mutated under g.mu so Check() observes the reset and the
+// start-time restamp as one atomic step (no window where the counter is
+// zeroed but Check still sees the old value).
 func (g *Guard) ResetSession() {
-	g.sessionUsed.Store(0)
 	g.mu.Lock()
+	g.sessionUsed.Store(0)
 	g.sessionStart = time.Now()
 	g.mu.Unlock()
 }
@@ -154,20 +157,38 @@ func (g *Guard) RecordUsage(in, out int64) {
 	if out < 0 {
 		out = 0
 	}
+	// Mutate the session counter under g.mu so a concurrent Check() sees
+	// either the pre- or post-increment value as a consistent snapshot,
+	// never a torn read. The counter stays atomic.Int64 so Status() (which
+	// only reads) needs no lock.
+	g.mu.Lock()
 	g.sessionUsed.Add(in + out)
+	g.mu.Unlock()
 }
 
 // Check is called BEFORE forwarding. Returns Allowed=false when either
-// limit is already exceeded. We don't predict the size of the upcoming
-// request; the cap is post-hoc, which means one final request may
-// graze past the limit before subsequent ones are blocked. Acceptable
-// trade-off for not having to count tokens twice.
+// limit is already exceeded.
+//
+// Concurrency contract (the session axis is now atomic, the daily axis is
+// not): the session counter read + threshold comparison happen under a
+// single critical section, so N concurrent callers observe a consistent
+// snapshot rather than racing a half-applied RecordUsage. We still do not
+// predict the size of the upcoming request, so a request whose body lands
+// while usage sits just under the cap may graze it by one — but two
+// concurrent callers can no longer BOTH see "under limit" against a counter
+// one of them is mid-incrementing. The daily axis delegates to the metering
+// store (an external source we cannot atomically reserve against), so it
+// stays advisory; that is documented at the call site below.
 func (g *Guard) Check() Verdict {
 	cfg := g.GetConfig()
 	if !cfg.Enabled {
 		return Verdict{Allowed: true}
 	}
 	if cfg.DailyTokens > 0 && g.today != nil {
+		// Daily axis is advisory: g.today() reads the metering store, an
+		// independent owner of "tokens today". We cannot reserve against it
+		// atomically, so concurrent requests may each pass this gate before
+		// the store reflects their usage.
 		s := g.today()
 		used := s.TokensIn + s.TokensOut
 		if used >= cfg.DailyTokens {
@@ -178,8 +199,14 @@ func (g *Guard) Check() Verdict {
 		}
 	}
 	if cfg.SessionTokens > 0 {
+		// Session axis is atomic: take the guard lock so the read and the
+		// comparison are a single snapshot consistent with RecordUsage /
+		// ResetSession (both of which mutate under this same discipline).
+		g.mu.Lock()
 		used := g.sessionUsed.Load()
-		if used >= cfg.SessionTokens {
+		hit := used >= cfg.SessionTokens
+		g.mu.Unlock()
+		if hit {
 			return Verdict{
 				Allowed: false, LimitKind: "session", Used: used, Limit: cfg.SessionTokens,
 				Reason: fmt.Sprintf("session token cap reached: %d / %d", used, cfg.SessionTokens),
