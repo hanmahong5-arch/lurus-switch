@@ -263,6 +263,40 @@ func TestStore_AppendToDayFile_WriteError(t *testing.T) {
 	}
 }
 
+// TestStore_AppendToDayFile_AtomicRename verifies the crash-atomic write
+// contract: appendToDayFile writes via a sibling .tmp file then renames it
+// over the day file, leaving no .tmp residue behind on success and producing
+// a complete, re-loadable ledger after appending across multiple calls.
+func TestStore_AppendToDayFile_AtomicRename(t *testing.T) {
+	dir := t.TempDir()
+	store := &Store{
+		baseDir:   dir,
+		buffer:    make([]Record, 0, bufferFlushSize),
+		recent:    make([]Record, 0, recentActivityN),
+		daily:     make(map[string][]Record),
+		lastFlush: time.Now(),
+	}
+	day := "2026-05-30"
+
+	store.appendToDayFile(day, []Record{{AppID: "a", Model: "m", TokensIn: 1, TokensOut: 2}})
+	store.appendToDayFile(day, []Record{{AppID: "b", Model: "m", TokensIn: 3, TokensOut: 4}})
+
+	// No temp residue must remain after a successful write.
+	if _, err := os.Stat(store.dayFilePath(day) + ".tmp"); !os.IsNotExist(err) {
+		t.Errorf("expected no .tmp residue, stat err = %v", err)
+	}
+
+	// The day file must hold the complete (appended) ledger and parse cleanly,
+	// proving the rename swapped in a whole file, not a torn one.
+	got := store.loadDayFile(day)
+	if len(got) != 2 {
+		t.Fatalf("day file records = %d, want 2 (%+v)", len(got), got)
+	}
+	if got[0].AppID != "a" || got[1].AppID != "b" {
+		t.Errorf("append order lost: %+v", got)
+	}
+}
+
 func TestStore_DaySummaries(t *testing.T) {
 	dir := t.TempDir()
 	store, err := NewStore(dir)

@@ -17,21 +17,21 @@ import (
 
 const (
 	meteringDir      = "metering"
-	bufferFlushSize  = 100           // flush to disk after this many records
+	bufferFlushSize  = 100 // flush to disk after this many records
 	bufferFlushAge   = 30 * time.Second
-	maxMemoryRecords = 5000          // keep recent records in memory
-	recentActivityN  = 50            // max entries in activity feed
+	maxMemoryRecords = 5000 // keep recent records in memory
+	recentActivityN  = 50   // max entries in activity feed
 )
 
 // Store records and queries API usage metrics.
 // Data is kept in memory for fast access and periodically flushed to
 // daily JSON files for persistence.
 type Store struct {
-	mu       sync.RWMutex
-	baseDir  string
-	buffer   []Record            // unflushed records
-	recent   []Record            // recent records (circular, capped)
-	daily    map[string][]Record // date → records (loaded on demand)
+	mu        sync.RWMutex
+	baseDir   string
+	buffer    []Record            // unflushed records
+	recent    []Record            // recent records (circular, capped)
+	daily     map[string][]Record // date → records (loaded on demand)
 	lastFlush time.Time
 }
 
@@ -407,7 +407,21 @@ func (s *Store) appendToDayFile(day string, newRecords []Record) {
 		log.Printf("metering: appendToDayFile failed for %s: %v", fp, err)
 		return
 	}
-	if err := os.WriteFile(fp, data, 0o600); err != nil {
+	// Crash-atomic write: serialize to a sibling temp file, then rename over
+	// the day file. os.WriteFile would truncate-then-write in place, so a
+	// crash mid-write leaves a half-written (corrupt) ledger for the whole
+	// day. Rename is atomic within the same directory, so a reader/recovery
+	// either sees the old complete file or the new complete file — never a
+	// torn one. The temp file shares the day file's directory to guarantee
+	// the rename stays on one filesystem.
+	tmp := fp + ".tmp"
+	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+		log.Printf("metering: appendToDayFile failed for %s: %v", fp, err)
+		return
+	}
+	if err := os.Rename(tmp, fp); err != nil {
+		// Rename failed — drop the temp file so a stale partial doesn't linger.
+		_ = os.Remove(tmp)
 		log.Printf("metering: appendToDayFile failed for %s: %v", fp, err)
 	}
 }
