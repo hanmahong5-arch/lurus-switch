@@ -233,6 +233,13 @@ func TestRedeem_HubFailure_ClassifiesByMessage(t *testing.T) {
 		{"used-en", "code already redeemed", ErrCodeUsed},
 		{"expired", "兑换码已过期", ErrCodeExpired},
 		{"disabled", "兑换码已禁用", ErrCodeDisabled},
+		// S6 regression: a suspended reseller ACCOUNT must NOT be reported as
+		// code_not_found. These messages contain neither "禁用" nor "disabled"
+		// and previously fell through to the not-found default.
+		{"reseller-account-suspended", "经销商账户已停用", ErrCodeDisabled},
+		{"account-disabled-zh", "该账户已停用", ErrCodeDisabled},
+		{"account-disabled-trad", "帐户已停用", ErrCodeDisabled},
+		{"account-suspended-en", "reseller account suspended", ErrCodeDisabled},
 		{"not_found", "兑换码不存在", ErrCodeNotFound},
 		{"invalid", "invalid code", ErrCodeNotFound},
 	}

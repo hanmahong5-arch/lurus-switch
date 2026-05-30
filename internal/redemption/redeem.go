@@ -218,8 +218,18 @@ func classifyRedeemFailure(httpStatus int, message string) error {
 		return &RedeemError{Kind: ErrCodeUsed, Message: defaultMessage(message, "激活码已被使用")}
 	case strings.Contains(low, "过期") || strings.Contains(low, "expire"):
 		return &RedeemError{Kind: ErrCodeExpired, Message: defaultMessage(message, "激活码已过期")}
-	case strings.Contains(low, "禁用") || strings.Contains(low, "disabled") || strings.Contains(low, "revoked"):
-		return &RedeemError{Kind: ErrCodeDisabled, Message: defaultMessage(message, "激活码已被禁用")}
+	// "停用" must be checked before "不存在/not found" below: newhub returns
+	// "经销商账户已停用" (reseller ACCOUNT suspended) for a disabled reseller.
+	// That contains neither "禁用" nor "disabled", so it used to fall through
+	// to the default → mis-reported as code_not_found, telling the EndUser
+	// their code is invalid when the real cause is the reseller's account.
+	// "停用"/"suspend"/"账户" map to ErrCodeDisabled (the redemption cannot
+	// proceed because the issuing side is disabled), not code_not_found.
+	case strings.Contains(low, "禁用") || strings.Contains(low, "停用") ||
+		strings.Contains(low, "账户") || strings.Contains(low, "帐户") ||
+		strings.Contains(low, "disabled") || strings.Contains(low, "suspend") ||
+		strings.Contains(low, "revoked"):
+		return &RedeemError{Kind: ErrCodeDisabled, Message: defaultMessage(message, "激活码已被禁用或账户已停用")}
 	case strings.Contains(low, "不存在") || strings.Contains(low, "not found") || strings.Contains(low, "invalid"):
 		return &RedeemError{Kind: ErrCodeNotFound, Message: defaultMessage(message, "激活码不存在或无效")}
 	case httpStatus >= 500:
