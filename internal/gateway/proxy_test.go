@@ -259,3 +259,75 @@ func TestSSEUsageScanner_NoUsage(t *testing.T) {
 		t.Fatalf("expected zero usage, got %+v", u)
 	}
 }
+
+// TestEnsureStreamUsage covers the OpenAI streaming budget-wall fix: only
+// streaming requests get stream_options.include_usage injected, and the
+// rewrite is idempotent + non-destructive of other fields.
+func TestEnsureStreamUsage(t *testing.T) {
+	includeUsage := func(t *testing.T, body []byte) bool {
+		t.Helper()
+		var obj struct {
+			StreamOptions *struct {
+				IncludeUsage bool `json:"include_usage"`
+			} `json:"stream_options"`
+		}
+		if err := json.Unmarshal(body, &obj); err != nil {
+			t.Fatalf("result not valid JSON: %v (%s)", err, body)
+		}
+		return obj.StreamOptions != nil && obj.StreamOptions.IncludeUsage
+	}
+
+	t.Run("streaming request gets include_usage", func(t *testing.T) {
+		in := []byte(`{"model":"gpt-4o","stream":true,"messages":[]}`)
+		out := ensureStreamUsage(in)
+		if !includeUsage(t, out) {
+			t.Errorf("include_usage not injected: %s", out)
+		}
+	})
+
+	t.Run("non-streaming request untouched", func(t *testing.T) {
+		in := []byte(`{"model":"gpt-4o","messages":[]}`)
+		out := ensureStreamUsage(in)
+		if includeUsage(t, out) {
+			t.Errorf("include_usage must not be added to non-streaming request: %s", out)
+		}
+	})
+
+	t.Run("idempotent when already true", func(t *testing.T) {
+		in := []byte(`{"model":"gpt-4o","stream":true,"stream_options":{"include_usage":true}}`)
+		out := ensureStreamUsage(in)
+		if string(out) != string(in) {
+			t.Errorf("expected no-op when include_usage already true; got %s", out)
+		}
+	})
+
+	t.Run("preserves sibling stream_options keys and other fields", func(t *testing.T) {
+		in := []byte(`{"model":"gpt-4o","stream":true,"temperature":0.5,"stream_options":{"continuous_usage_stats":true}}`)
+		out := ensureStreamUsage(in)
+		if !includeUsage(t, out) {
+			t.Errorf("include_usage not injected: %s", out)
+		}
+		var obj struct {
+			Temperature   float64 `json:"temperature"`
+			StreamOptions struct {
+				ContinuousUsageStats bool `json:"continuous_usage_stats"`
+			} `json:"stream_options"`
+		}
+		if err := json.Unmarshal(out, &obj); err != nil {
+			t.Fatalf("result not valid JSON: %v", err)
+		}
+		if obj.Temperature != 0.5 {
+			t.Errorf("temperature lost: %s", out)
+		}
+		if !obj.StreamOptions.ContinuousUsageStats {
+			t.Errorf("sibling stream_options key lost: %s", out)
+		}
+	})
+
+	t.Run("non-JSON body returned as-is", func(t *testing.T) {
+		in := []byte(`not json`)
+		if out := ensureStreamUsage(in); string(out) != string(in) {
+			t.Errorf("non-JSON body must pass through unchanged; got %s", out)
+		}
+	})
+}

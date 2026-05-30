@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	maxRequestBodySize  = 10 << 20 // 10 MB
-	upstreamTimeout     = 5 * time.Minute
+	maxRequestBodySize = 10 << 20 // 10 MB
+	upstreamTimeout    = 5 * time.Minute
 )
 
 // handleProxy forwards the request to the upstream LLM provider,
@@ -45,6 +45,16 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		s.recordError(meta, "", dlpReason)
 		return
 	}
+
+	// Streaming budget-wall fix: OpenAI-protocol streaming responses only
+	// emit a usage chunk when the request asks for it via
+	// stream_options.include_usage. Without it the sseUsageScanner finds no
+	// usage line, books 0 tokens, and the budget guard never increments —
+	// i.e. OpenAI streaming silently bypasses the spend wall. (The Anthropic
+	// path requests usage during translation, so only Anthropic was covered
+	// before.) Inject include_usage for streaming requests so the existing
+	// scanner has a usage line to read.
+	body = ensureStreamUsage(body)
 
 	// Extract model from request body for metering.
 	model := extractModelFromBody(body)
@@ -110,13 +120,13 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 			meta.MatchedBy = matchedBy
 		}
 		resp, servedBy, err = s.fallback.TryUpstreamChain(
-			r.Method, r.URL.Path, r.URL.RawQuery,
+			r.Context(), r.Method, r.URL.Path, r.URL.RawQuery,
 			body, outHeaders,
 			chain,
 		)
 	} else {
 		resp, servedBy, err = s.fallback.TryUpstream(
-			r.Method, r.URL.Path, r.URL.RawQuery,
+			r.Context(), r.Method, r.URL.Path, r.URL.RawQuery,
 			body, outHeaders,
 			normalizedURL, userToken,
 		)
@@ -146,13 +156,13 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 				// Retry via the same chain we used the first time.
 				if routerOK {
 					retryResp, _, retryErr = s.fallback.TryUpstreamChain(
-						r.Method, r.URL.Path, r.URL.RawQuery,
+						r.Context(), r.Method, r.URL.Path, r.URL.RawQuery,
 						rectifiedBody, outHeaders,
 						chain,
 					)
 				} else {
 					retryResp, _, retryErr = s.fallback.TryUpstream(
-						r.Method, r.URL.Path, r.URL.RawQuery,
+						r.Context(), r.Method, r.URL.Path, r.URL.RawQuery,
 						rectifiedBody, outHeaders,
 						normalizedURL, userToken,
 					)
@@ -369,6 +379,64 @@ func extractModelFromBody(body []byte) string {
 		return req.Model
 	}
 	return ""
+}
+
+// ensureStreamUsage rewrites an OpenAI-protocol request body so that a
+// streaming request (stream:true) carries stream_options.include_usage=true.
+// This is what makes the upstream emit the trailing usage chunk that
+// sseUsageScanner reads to feed metering + the budget guard.
+//
+// It is a careful no-op in every case where it shouldn't touch the body:
+//   - body isn't a JSON object (e.g. a non-chat passthrough) → returned as-is
+//   - the request is not streaming (no "stream":true) → returned as-is
+//   - include_usage is already true → returned as-is (idempotent; re-runs are
+//     equivalent, and a caller that explicitly set it keeps its value)
+//
+// Other fields are preserved verbatim by round-tripping through a generic
+// map, so we don't drop unknown OpenAI parameters.
+func ensureStreamUsage(body []byte) []byte {
+	if len(body) == 0 {
+		return body
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(body, &obj); err != nil {
+		return body // not a JSON object — leave untouched
+	}
+	// Only act on streaming requests.
+	var streaming bool
+	if raw, ok := obj["stream"]; ok {
+		_ = json.Unmarshal(raw, &streaming)
+	}
+	if !streaming {
+		return body
+	}
+	// Merge include_usage:true into any existing stream_options, preserving
+	// other keys the caller set (e.g. stream_options.continuous_usage_stats).
+	opts := map[string]json.RawMessage{}
+	if raw, ok := obj["stream_options"]; ok {
+		// If stream_options is present but not an object, replace it.
+		_ = json.Unmarshal(raw, &opts)
+		if opts == nil {
+			opts = map[string]json.RawMessage{}
+		}
+	}
+	if cur, ok := opts["include_usage"]; ok {
+		var iu bool
+		if json.Unmarshal(cur, &iu) == nil && iu {
+			return body // already requesting usage — idempotent no-op
+		}
+	}
+	opts["include_usage"] = json.RawMessage("true")
+	optsRaw, err := json.Marshal(opts)
+	if err != nil {
+		return body
+	}
+	obj["stream_options"] = optsRaw
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 func extractUsageFromBody(body []byte) UsageFromResponse {
