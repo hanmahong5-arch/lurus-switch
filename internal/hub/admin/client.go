@@ -109,6 +109,18 @@ func IsUnauthorized(err error) bool {
 	return false
 }
 
+// IsNotFound reports whether err is a HubError with HTTP 404 — typically a
+// route that doesn't exist on the target Hub (e.g. an endpoint not yet
+// deployed). Callers use it to render an "endpoint unavailable" next step
+// instead of a raw error.
+func IsNotFound(err error) bool {
+	var hubErr *HubError
+	if errors.As(err, &hubErr) && hubErr.HTTPStatus == http.StatusNotFound {
+		return true
+	}
+	return false
+}
+
 // envelope is the standard Hub response shape produced by common.ApiSuccess
 // / common.ApiError in newhub.
 type envelope struct {
