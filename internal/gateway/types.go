@@ -58,6 +58,14 @@ type RequestMeta struct {
 	AppID     string
 	StartTime time.Time
 	Model     string
+
+	// RequestID is the stable correlation key for this logical request. It is
+	// the client's Idempotency-Key or X-Request-Id when present (so SDK
+	// retries of the same request dedup against one booking), otherwise a
+	// gateway-generated id. Carried onto metering.Record.ID so every charge
+	// has a stable identifier for three-way reconciliation.
+	RequestID string
+
 	ServedBy  string // which upstream actually served this request ("primary" or fallback name)
 	MatchedBy string // relay rule name that selected the primary upstream; empty for cfg / mapping defaults
 

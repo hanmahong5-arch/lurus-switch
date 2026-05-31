@@ -260,6 +260,7 @@ func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u transla
 	}
 
 	rec := metering.Record{
+		ID:              meta.RequestID,
 		AppID:           meta.AppID,
 		Model:           model,
 		TokensIn:        tokensIn,

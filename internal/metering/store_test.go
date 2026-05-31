@@ -2,6 +2,7 @@ package metering
 
 import (
 	"bytes"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -330,6 +331,85 @@ func TestStore_AppendToDayFile_AtomicRename(t *testing.T) {
 	}
 	if got[0].AppID != "a" || got[1].AppID != "b" {
 		t.Errorf("append order lost: %+v", got)
+	}
+}
+
+// TestStore_DedupesSameCorrelationID verifies that two records sharing a
+// stable ID (a client retry) bill once, while a distinct ID bills separately.
+func TestStore_DedupesSameCorrelationID(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Date(2026, 5, 31, 12, 0, 0, 0, time.UTC)
+	store.now = func() time.Time { return base }
+
+	store.Record(Record{ID: "req-1", AppID: "x", Model: "m", TokensIn: 10, TokensOut: 20})
+	store.Record(Record{ID: "req-1", AppID: "x", Model: "m", TokensIn: 10, TokensOut: 20}) // dup → dropped
+	store.Record(Record{ID: "req-2", AppID: "x", Model: "m", TokensIn: 5, TokensOut: 7})
+
+	sum := store.TodaySummary()
+	if sum.TotalCalls != 2 {
+		t.Fatalf("TotalCalls = %d, want 2 (req-1 retry deduped)", sum.TotalCalls)
+	}
+	if sum.TokensIn != 15 {
+		t.Fatalf("TokensIn = %d, want 15 (10 + 5, not 25)", sum.TokensIn)
+	}
+	if sum.TokensOut != 27 {
+		t.Fatalf("TokensOut = %d, want 27 (20 + 7)", sum.TokensOut)
+	}
+}
+
+// TestStore_DedupTTLExpiry verifies a repeat of the same ID is deduped within
+// the TTL window but counted again once the window lapses.
+func TestStore_DedupTTLExpiry(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Date(2026, 5, 31, 12, 0, 0, 0, time.UTC)
+	store.now = func() time.Time { return now }
+
+	store.Record(Record{ID: "req-1", AppID: "x", Model: "m", TokensIn: 10})
+	// Just inside the TTL → deduped.
+	now = now.Add(dedupTTL - time.Second)
+	store.Record(Record{ID: "req-1", AppID: "x", Model: "m", TokensIn: 10})
+	// Just past the TTL (relative to the original sighting) → counted again.
+	now = now.Add(2 * time.Second)
+	store.Record(Record{ID: "req-1", AppID: "x", Model: "m", TokensIn: 10})
+
+	sum := store.TodaySummary()
+	if sum.TotalCalls != 2 {
+		t.Fatalf("TotalCalls = %d, want 2 (within-TTL deduped, post-TTL counted)", sum.TotalCalls)
+	}
+}
+
+// TestStore_DedupEvictsOldestWhenFull verifies the seen-set stays bounded:
+// inserting past dedupMaxIDs evicts the oldest entries and never grows the map
+// beyond the cap.
+func TestStore_DedupEvictsOldestWhenFull(t *testing.T) {
+	store := &Store{seenIDs: make(map[string]int64)}
+	tick := int64(0)
+	store.now = func() time.Time { return time.UnixMilli(tick) }
+
+	total := dedupMaxIDs + 50
+	for i := 0; i < total; i++ {
+		tick++ // strictly increasing so eviction order is deterministic
+		if store.isDuplicateLocked(fmt.Sprintf("id-%d", i)) {
+			t.Fatalf("id-%d should be fresh, not a duplicate", i)
+		}
+	}
+
+	if len(store.seenIDs) > dedupMaxIDs {
+		t.Fatalf("seenIDs grew to %d, want <= %d (eviction failed)", len(store.seenIDs), dedupMaxIDs)
+	}
+	if _, ok := store.seenIDs[fmt.Sprintf("id-%d", total-1)]; !ok {
+		t.Fatalf("newest id should still be present")
+	}
+	if _, ok := store.seenIDs["id-0"]; ok {
+		t.Fatalf("oldest id-0 should have been evicted")
 	}
 }
 

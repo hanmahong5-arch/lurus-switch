@@ -2,6 +2,8 @@ package gateway
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -39,16 +41,52 @@ func (s *Server) withAuth(next http.HandlerFunc) http.HandlerFunc {
 		// "unattributed" bucket.
 		empID, cc := s.registry.LookupOwnership(appID)
 
+		// Stable correlation key. Prefer the client's idempotency header so an
+		// SDK retry of the SAME request dedups against one booking; fall back
+		// to a vendor request id, then to a generated id. Priority matters:
+		// Idempotency-Key is the explicit "this is a retry of that" contract,
+		// while X-Request-Id is best-effort. (A client that reuses one fixed
+		// key across DIFFERENT requests would under-count — that is a client
+		// contract violation, documented here so the behavior is intentional.)
+		reqID := firstNonEmpty(
+			strings.TrimSpace(r.Header.Get("Idempotency-Key")),
+			strings.TrimSpace(r.Header.Get("X-Request-Id")),
+		)
+		if reqID == "" {
+			reqID = generateRequestID()
+		}
+
 		// Inject metadata for downstream handlers.
 		meta := &RequestMeta{
 			AppID:           appID,
 			StartTime:       time.Now(),
+			RequestID:       reqID,
 			OwnerEmployeeID: empID,
 			CostCenter:      cc,
 		}
 		ctx := context.WithValue(r.Context(), metaKey, meta)
 		next(w, r.WithContext(ctx))
 	}
+}
+
+// firstNonEmpty returns the first argument that is not the empty string, or ""
+// when every argument is empty.
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// generateRequestID mints a random correlation id for requests that arrive
+// without a client idempotency / request header. Same 8-byte hex shape as
+// metering.generateRecordID so ids are visually consistent across the codebase.
+func generateRequestID() string {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // getMeta extracts RequestMeta from context. Returns nil if not present.

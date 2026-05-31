@@ -269,6 +269,7 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 	}
 
 	rec := metering.Record{
+		ID:                meta.RequestID,
 		AppID:             meta.AppID,
 		Model:             model,
 		TokensIn:          tokensIn,
@@ -318,6 +319,13 @@ func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {
 	if s.meter == nil || meta == nil {
 		return
 	}
+	// NB: error records intentionally do NOT carry meta.RequestID. The dedup
+	// guard exists to collapse a client's retry-after-failure into ONE billing
+	// record; the canonical sequence is "attempt fails → client retries with
+	// the same Idempotency-Key → attempt succeeds". If the failed attempt
+	// claimed the key, the successful retry would be deduped away and the real
+	// charge lost. Error attempts are distinct observable events, so they take
+	// a fresh (store-generated) id and never suppress a later success.
 	rec := metering.Record{
 		AppID:        meta.AppID,
 		Model:        model,

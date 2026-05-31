@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -21,6 +22,13 @@ const (
 	bufferFlushAge   = 30 * time.Second
 	maxMemoryRecords = 5000 // keep recent records in memory
 	recentActivityN  = 50   // max entries in activity feed
+
+	// Dedup guard bounds. A record whose stable correlation ID was already
+	// seen within dedupTTL is dropped as a client retry; the seen-set is
+	// capped at dedupMaxIDs and evicts its oldest entry when full so it can't
+	// grow without bound on a long-running gateway.
+	dedupTTL    = 10 * time.Minute
+	dedupMaxIDs = 4096
 )
 
 // Store records and queries API usage metrics.
@@ -33,6 +41,22 @@ type Store struct {
 	recent    []Record            // recent records (circular, capped)
 	daily     map[string][]Record // date → records (loaded on demand)
 	lastFlush time.Time
+
+	// Idempotency guard: record ID → first-seen unix-millis. Bounded by
+	// dedupMaxIDs with oldest-first eviction. Guarded by mu.
+	seenIDs map[string]int64
+	// now is the clock used for dedup TTL comparisons; injectable so tests are
+	// deterministic. Defaults to time.Now via NewStore (nil falls back to
+	// time.Now in clock(), so literal-constructed Stores in tests stay safe).
+	now func() time.Time
+}
+
+// clock returns the store's current time, defaulting to time.Now when unset.
+func (s *Store) clock() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
 }
 
 // NewStore creates a metering store rooted at appDataDir/metering/.
@@ -47,6 +71,8 @@ func NewStore(appDataDir string) (*Store, error) {
 		recent:    make([]Record, 0, recentActivityN),
 		daily:     make(map[string][]Record),
 		lastFlush: time.Now(),
+		seenIDs:   make(map[string]int64),
+		now:       time.Now,
 	}
 	// Pre-load today's records so aggregation is instant.
 	today := time.Now().Format("2006-01-02")
@@ -55,6 +81,12 @@ func NewStore(appDataDir string) (*Store, error) {
 }
 
 // Record writes a single API call record.
+//
+// Records carrying a stable correlation ID (set by the gateway from the
+// client's Idempotency-Key / X-Request-Id) are deduped: a repeat of the same
+// ID within dedupTTL is dropped as a client retry, so a retried request bills
+// once. A generated-id record (the no-header case) is effectively never a
+// duplicate since each id is unique.
 func (s *Store) Record(r Record) {
 	if r.ID == "" {
 		r.ID = generateRecordID()
@@ -65,6 +97,10 @@ func (s *Store) Record(r Record) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if s.isDuplicateLocked(r.ID) {
+		return // already booked this correlation id within the TTL window
+	}
 
 	s.buffer = append(s.buffer, r)
 
@@ -423,6 +459,51 @@ func (s *Store) appendToDayFile(day string, newRecords []Record) {
 		// Rename failed — drop the temp file so a stale partial doesn't linger.
 		_ = os.Remove(tmp)
 		log.Printf("metering: appendToDayFile failed for %s: %v", fp, err)
+	}
+}
+
+// isDuplicateLocked reports whether id was already recorded within dedupTTL
+// and, as a side effect, registers id with the current timestamp. Must be
+// called with s.mu held. Enforces the dedupMaxIDs bound by evicting the oldest
+// entry before inserting a new one.
+func (s *Store) isDuplicateLocked(id string) bool {
+	if id == "" {
+		return false
+	}
+	if s.seenIDs == nil {
+		s.seenIDs = make(map[string]int64)
+	}
+	nowMs := s.clock().UnixMilli()
+	if firstSeen, ok := s.seenIDs[id]; ok {
+		if nowMs-firstSeen < dedupTTL.Milliseconds() {
+			return true // within the window → a duplicate booking
+		}
+		// Stale: the TTL lapsed, so treat this as a fresh request and refresh
+		// the timestamp rather than dropping it.
+		s.seenIDs[id] = nowMs
+		return false
+	}
+	if len(s.seenIDs) >= dedupMaxIDs {
+		s.evictOldestLocked()
+	}
+	s.seenIDs[id] = nowMs
+	return false
+}
+
+// evictOldestLocked removes the single oldest entry from seenIDs. Must be
+// called with s.mu held. O(n) over the bounded map — fine at dedupMaxIDs and
+// only runs when the cap is hit.
+func (s *Store) evictOldestLocked() {
+	var oldestID string
+	var oldestTs int64 = math.MaxInt64
+	for id, ts := range s.seenIDs {
+		if ts < oldestTs {
+			oldestTs = ts
+			oldestID = id
+		}
+	}
+	if oldestID != "" {
+		delete(s.seenIDs, oldestID)
 	}
 }
 
