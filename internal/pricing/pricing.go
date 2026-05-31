@@ -13,10 +13,10 @@ package pricing
 
 import "strings"
 
-// Price captures the four-stream rate card for one model. Cache rates
-// are derived from Anthropic's published 1.25× / 0.10× multipliers
-// off the base input rate; centralising the derivation keeps the
-// table readable and the cache rates internally consistent.
+// Price captures the four-stream rate card for one model. Cache rates are
+// derived from the model family's published cache multipliers off the base
+// input rate; centralising the derivation keeps the table readable and the
+// cache rates internally consistent.
 type Price struct {
 	InputPerMTok       float64
 	OutputPerMTok      float64
@@ -24,13 +24,63 @@ type Price struct {
 	CacheReadPerMTok   float64
 }
 
-// rate builds a Price from input/output base rates.
+// Cache-stream multipliers off the base input rate, by model family.
+//
+// Anthropic & DeepSeek: cache-create at 1.25× (Anthropic's published write
+// surcharge) and cache-read at 0.10× (DeepSeek's cache-hit discount is
+// comparable, ~0.1×).
+//
+// OpenAI & Gemini: cached input bills at 0.50× and there is no separate
+// cache-create token stream — the OpenAI-compat gateway path never emits
+// cacheCreate tokens (see internal/metering/types.go), so the create
+// multiplier stays at 1.0× (plain input rate) purely as a safe fallback.
+//
+// Pinning these to named constants keeps the static table (rate/rateOpenAI)
+// and the Hub-sync derivation (cacheMults) reading from one source of truth.
+const (
+	anthropicCacheCreateMult = 1.25
+	anthropicCacheReadMult   = 0.10
+	openaiCacheCreateMult    = 1.00
+	openaiCacheReadMult      = 0.50
+)
+
+// rate builds an Anthropic/DeepSeek-style Price from input/output base rates.
 func rate(input, output float64) Price {
+	return rateWithCache(input, output, anthropicCacheCreateMult, anthropicCacheReadMult)
+}
+
+// rateOpenAI builds an OpenAI/Gemini-style Price: cached input at 0.50×, no
+// cache-create surcharge. Used for the gpt-/o1/o3/gemini- table rows so an
+// OpenAI cache-read bills at its real ~0.5× rate instead of Anthropic's 0.10×.
+func rateOpenAI(input, output float64) Price {
+	return rateWithCache(input, output, openaiCacheCreateMult, openaiCacheReadMult)
+}
+
+// rateWithCache builds a Price from base input/output rates plus explicit
+// cache-create / cache-read multipliers applied to the input rate.
+func rateWithCache(input, output, cacheCreateMult, cacheReadMult float64) Price {
 	return Price{
 		InputPerMTok:       input,
 		OutputPerMTok:      output,
-		CacheCreatePerMTok: input * 1.25,
-		CacheReadPerMTok:   input * 0.10,
+		CacheCreatePerMTok: input * cacheCreateMult,
+		CacheReadPerMTok:   input * cacheReadMult,
+	}
+}
+
+// cacheMults returns the (create, read) cache multipliers for a model family,
+// matched by lowercase id prefix. Used by the Hub-sync mapper, which only
+// receives input/output rates from the rate card and must reconstruct the
+// cache streams the same way the static table does.
+func cacheMults(model string) (createMult, readMult float64) {
+	m := strings.ToLower(strings.TrimSpace(model))
+	switch {
+	case strings.HasPrefix(m, "gpt-"),
+		strings.HasPrefix(m, "o1"),
+		strings.HasPrefix(m, "o3"),
+		strings.HasPrefix(m, "gemini-"):
+		return openaiCacheCreateMult, openaiCacheReadMult
+	default:
+		return anthropicCacheCreateMult, anthropicCacheReadMult
 	}
 }
 
@@ -55,13 +105,15 @@ var table = []struct {
 	{"claude-3-haiku", rate(0.25, 1.25)},
 
 	// OpenAI Codex models — coarse fallback prices for o-series / gpt-4o.
-	{"gpt-4o", rate(2.50, 10.00)},
-	{"o1", rate(15.00, 60.00)},
-	{"o3", rate(15.00, 60.00)},
+	// rateOpenAI: cache-read bills at 0.50× (OpenAI's real cached-input rate),
+	// not Anthropic's 0.10×.
+	{"gpt-4o", rateOpenAI(2.50, 10.00)},
+	{"o1", rateOpenAI(15.00, 60.00)},
+	{"o3", rateOpenAI(15.00, 60.00)},
 
 	// Gemini
-	{"gemini-2", rate(1.25, 5.00)},
-	{"gemini-1.5", rate(1.25, 5.00)},
+	{"gemini-2", rateOpenAI(1.25, 5.00)},
+	{"gemini-1.5", rateOpenAI(1.25, 5.00)},
 
 	// DeepSeek — published USD prices as of May 2026.
 	{"deepseek-chat", rate(0.27, 1.10)},
@@ -73,13 +125,17 @@ var table = []struct {
 // id doesn't match any known prefix.
 var fallback = rate(3.00, 15.00)
 
-// PriceFor looks up the rate card for a model id. Returns the fallback
-// price when the model is unknown — callers don't need to handle a
-// "not found" path.
+// PriceFor looks up the rate card for a model id. A runtime override synced
+// from the Hub (see source.go / sync.go) wins when present; otherwise the
+// static table applies. Returns the fallback price when the model is unknown —
+// callers don't need to handle a "not found" path.
 func PriceFor(model string) Price {
 	m := strings.ToLower(strings.TrimSpace(model))
 	if m == "" {
 		return fallback
+	}
+	if p, ok := overrides.lookup(m); ok {
+		return p
 	}
 	for _, e := range table {
 		if strings.HasPrefix(m, e.Prefix) {

@@ -498,20 +498,35 @@ func (a *App) HubListWalletTransactions(q admin.WalletQuery) (*admin.WalletTrans
 
 // ── Switch presets (public, no auth) ──────────────────────────────────────
 
+// publicHubBaseURL resolves the Hub root for unauthenticated endpoints
+// (presets, pricing). Reseller mode uses the configured Hub; Personal mode
+// falls back to the gateway's upstream endpoint; EndUser white-label builds
+// use the locked Hub URL.
+func (a *App) publicHubBaseURL() (string, error) {
+	s, err := appconfig.LoadAppSettings()
+	if err != nil {
+		return "", fmt.Errorf("load app settings: %w", err)
+	}
+	if s.Reseller.HubURL != "" {
+		return s.Reseller.HubURL, nil
+	}
+	if a.proxyMgr != nil {
+		if ep := a.proxyMgr.GetSettings().APIEndpoint; ep != "" {
+			return ep, nil
+		}
+	}
+	if s.LockedHubURL != "" {
+		return s.LockedHubURL, nil
+	}
+	return "", errors.New("Hub URL 未配置")
+}
+
 // HubListSwitchPresets pulls the public preset catalog. Works in any mode
 // (no admin token required).
 func (a *App) HubListSwitchPresets() ([]admin.SwitchPreset, error) {
-	// Public endpoint — fall back to base URL only.
-	s, err := appconfig.LoadAppSettings()
+	hubURL, err := a.publicHubBaseURL()
 	if err != nil {
-		return nil, fmt.Errorf("load app settings: %w", err)
-	}
-	hubURL := s.Reseller.HubURL
-	if hubURL == "" {
-		hubURL = s.LockedHubURL // EndUser white-label fallback
-	}
-	if hubURL == "" {
-		return nil, errors.New("Hub URL 未配置")
+		return nil, err
 	}
 	c, err := admin.New(admin.Config{BaseURL: hubURL})
 	if err != nil {

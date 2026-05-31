@@ -143,6 +143,18 @@ func (a *App) startup(ctx context.Context) {
 	// user reaches the install step. Does not block startup.
 	go safeGo("refresh-manifest", func() { a.refreshManifest() })
 
+	// Best-effort pricing sync: overlay the Hub's live rate card so cost
+	// dashboards reflect the operator's real ratios. Non-fatal — a failure
+	// (no Hub configured, offline, endpoint not deployed) leaves the static
+	// fallback table authoritative.
+	go safeGo("pricing-sync", func() {
+		if res, err := a.SyncPricing(); err != nil {
+			log.Printf("pricing: startup sync skipped: %v", err)
+		} else {
+			log.Printf("pricing: synced %d models from %s", res.ModelsSynced, res.Source)
+		}
+	})
+
 	// Conversation index: walk the CLI session directories so the
 	// Conversations page is populated by the time the user navigates
 	// there. mtime-driven incremental — cheap on subsequent boots.
