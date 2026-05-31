@@ -34,6 +34,12 @@ type StreamTranslator struct {
 	nextBlockIdx     int
 	finalStopReason  string
 	finalOutputTokens int
+
+	// Token-stream breakdowns captured from the upstream's final usage chunk.
+	// Both are subsets already inside the prompt / completion totals; the
+	// gateway normalizes (subtract cached out of billed input) when metering.
+	finalCachedTokens    int
+	finalReasoningTokens int
 }
 
 type toolBlockState struct {
@@ -59,6 +65,16 @@ func NewStreamTranslator(msgID, model string, inputTokens int) *StreamTranslator
 // returns; the caller meters and feeds the budget guard from these values.
 func (s *StreamTranslator) Usage() (inputTokens, outputTokens int) {
 	return s.inputTokens, s.finalOutputTokens
+}
+
+// CacheUsage returns the token-stream breakdowns captured during Run: the
+// prompt-cache read count (a subset of the input total) and the reasoning /
+// "thinking" count (a subset of the output total). Both are 0 when the
+// upstream's usage chunk omitted the details. Call after Run; the gateway
+// passes these through so cache-read bills at the discounted rate and
+// reasoning shows up on the dashboard without being billed twice.
+func (s *StreamTranslator) CacheUsage() (cachedTokens, reasoningTokens int) {
+	return s.finalCachedTokens, s.finalReasoningTokens
 }
 
 // Run consumes the upstream stream and writes Anthropic SSE events to
@@ -119,6 +135,10 @@ func (s *StreamTranslator) processChunk(chunk *OpenAIStreamChunk, out io.Writer,
 		if chunk.Usage.PromptTokens > 0 {
 			s.inputTokens = chunk.Usage.PromptTokens
 		}
+		// Capture the cache-read / reasoning subsets so the gateway can bill
+		// the cache stream at its discounted rate (see CacheUsage).
+		s.finalCachedTokens = chunk.Usage.PromptTokensDetails.CachedTokens
+		s.finalReasoningTokens = chunk.Usage.CompletionTokensDetails.ReasoningTokens
 	}
 	if len(chunk.Choices) == 0 {
 		return nil

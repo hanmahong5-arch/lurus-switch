@@ -38,11 +38,19 @@ type Status struct {
 }
 
 // UsageFromResponse captures token usage parsed from an upstream API response.
+//
+// PromptTokens / CompletionTokens are the raw OpenAI-shape counts. CachedTokens
+// is the prompt-cache subset already inside PromptTokens; ReasoningTokens is the
+// "thinking" subset already inside CompletionTokens. The normalization into
+// billable (TokensIn, CacheReadTokens) lives in recordUsage — see the comment
+// there — so this struct stays a faithful mirror of the upstream payload.
 type UsageFromResponse struct {
-	Model        string
-	PromptTokens int64
+	Model            string
+	PromptTokens     int64
 	CompletionTokens int64
-	TotalTokens  int64
+	TotalTokens      int64
+	CachedTokens     int64 // prompt_tokens_details.cached_tokens (subset of PromptTokens)
+	ReasoningTokens  int64 // completion_tokens_details.reasoning_tokens (subset of CompletionTokens)
 }
 
 // RequestMeta holds per-request context passed through middleware.

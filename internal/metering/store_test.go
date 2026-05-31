@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"lurus-switch/internal/pricing"
 )
 
 func TestStore_RecordAndSummary(t *testing.T) {
@@ -206,6 +208,40 @@ func TestStore_FlushAndReload(t *testing.T) {
 	}
 	if summary.TokensIn != 42 {
 		t.Fatalf("expected 42 tokens in, got %d", summary.TokensIn)
+	}
+}
+
+// TestStore_CacheTokensBilledAtDiscount verifies the cost aggregation honors
+// the cache-read stream: a record that splits part of its input into
+// CacheReadTokens must cost less than billing every input token at full price,
+// and must match pricing.Cost's four-stream figure exactly.
+func TestStore_CacheTokensBilledAtDiscount(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// fresh: 1000 fresh input. cached: 200 fresh + 800 cache-read.
+	store.Record(Record{ID: "fresh", AppID: "x", Model: "claude-sonnet-4-6", TokensIn: 1000})
+	store.Record(Record{ID: "cached", AppID: "y", Model: "claude-sonnet-4-6", TokensIn: 200, CacheReadTokens: 800})
+
+	now := time.Now()
+	models := store.ModelSummaries(now.Add(-time.Hour), now.Add(time.Hour))
+	if len(models) != 1 {
+		t.Fatalf("got %d model summaries, want 1", len(models))
+	}
+	got := models[0].CostUSD
+
+	// If cache-read were (wrongly) billed as full input, all 2000 tokens would
+	// land on the input rate. The discount must make the real figure smaller.
+	full := pricing.Cost("claude-sonnet-4-6", 2000, 0, 0, 0)
+	if got >= full {
+		t.Errorf("CostUSD %.9f should be below all-full-price %.9f — cache discount lost", got, full)
+	}
+	// Exact: 1200 fresh input + 800 cache-read.
+	want := pricing.Cost("claude-sonnet-4-6", 1200, 0, 0, 800)
+	if diff := got - want; diff > 1e-9 || diff < -1e-9 {
+		t.Errorf("CostUSD = %.9f, want %.9f", got, want)
 	}
 }
 

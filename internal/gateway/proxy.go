@@ -255,14 +255,29 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 	if usage.Model != "" {
 		model = usage.Model
 	}
+
+	// Normalize the OpenAI-shape usage into billable streams. OpenAI reports
+	// cached_tokens as a SUBSET already inside prompt_tokens, so billing
+	// prompt_tokens as fresh input AND cached_tokens as cache-read would
+	// double-count the cached portion. Subtract it out: fresh input is
+	// (prompt − cached), and cached lands on the discounted cache-read stream.
+	// CacheCreate is 0 — OpenAI doesn't bill a separate cache-write. Reasoning
+	// is display-only (already inside completion_tokens), never billed twice.
+	tokensIn := usage.PromptTokens - usage.CachedTokens
+	if tokensIn < 0 {
+		tokensIn = 0 // defensive: a malformed upstream can't drive billing negative
+	}
+
 	rec := metering.Record{
-		AppID:      meta.AppID,
-		Model:      model,
-		TokensIn:   usage.PromptTokens,
-		TokensOut:  usage.CompletionTokens,
-		LatencyMs:  time.Since(meta.StartTime).Milliseconds(),
-		StatusCode: statusCode,
-		Timestamp:  time.Now(),
+		AppID:             meta.AppID,
+		Model:             model,
+		TokensIn:          tokensIn,
+		TokensOut:         usage.CompletionTokens,
+		CacheReadTokens:   usage.CachedTokens,
+		ReasoningTokens:   usage.ReasoningTokens,
+		LatencyMs:         time.Since(meta.StartTime).Milliseconds(),
+		StatusCode:        statusCode,
+		Timestamp:         time.Now(),
 		// Enterprise dimensions — empty in Personal/Reseller installs.
 		EmployeeID: meta.OwnerEmployeeID,
 		CostCenter: meta.CostCenter,
@@ -279,8 +294,8 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 		Model:      model,
 		ServedBy:   meta.ServedBy,
 		MatchedBy:  meta.MatchedBy,
-		TokensIn:   usage.PromptTokens,
-		TokensOut:  usage.CompletionTokens,
+		TokensIn:   rec.TokensIn,
+		TokensOut:  rec.TokensOut,
 		StartTime:  meta.StartTime,
 		LatencyMs:  rec.LatencyMs,
 		StatusCode: statusCode,
@@ -289,6 +304,8 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 
 	// Feed the budget guard so its session counter stays in sync. The
 	// daily counter delegates to the metering store, so no double-counting.
+	// The wall counts the full prompt (cached included) so a cache-heavy
+	// session still trips the cap on real upstream volume.
 	s.mu.Lock()
 	guard := s.guard
 	s.mu.Unlock()
@@ -443,9 +460,15 @@ func extractUsageFromBody(body []byte) UsageFromResponse {
 	var resp struct {
 		Model string `json:"model"`
 		Usage struct {
-			PromptTokens     int64 `json:"prompt_tokens"`
-			CompletionTokens int64 `json:"completion_tokens"`
-			TotalTokens      int64 `json:"total_tokens"`
+			PromptTokens        int64 `json:"prompt_tokens"`
+			CompletionTokens    int64 `json:"completion_tokens"`
+			TotalTokens         int64 `json:"total_tokens"`
+			PromptTokensDetails struct {
+				CachedTokens int64 `json:"cached_tokens"`
+			} `json:"prompt_tokens_details"`
+			CompletionTokensDetails struct {
+				ReasoningTokens int64 `json:"reasoning_tokens"`
+			} `json:"completion_tokens_details"`
 		} `json:"usage"`
 	}
 	if json.Unmarshal(body, &resp) == nil {
@@ -454,6 +477,8 @@ func extractUsageFromBody(body []byte) UsageFromResponse {
 			PromptTokens:     resp.Usage.PromptTokens,
 			CompletionTokens: resp.Usage.CompletionTokens,
 			TotalTokens:      resp.Usage.TotalTokens,
+			CachedTokens:     resp.Usage.PromptTokensDetails.CachedTokens,
+			ReasoningTokens:  resp.Usage.CompletionTokensDetails.ReasoningTokens,
 		}
 	}
 	return UsageFromResponse{}
@@ -578,9 +603,15 @@ func extractUsageFromSSEChunk(chunk []byte) UsageFromResponse {
 		var msg struct {
 			Model string `json:"model"`
 			Usage *struct {
-				PromptTokens     int64 `json:"prompt_tokens"`
-				CompletionTokens int64 `json:"completion_tokens"`
-				TotalTokens      int64 `json:"total_tokens"`
+				PromptTokens        int64 `json:"prompt_tokens"`
+				CompletionTokens    int64 `json:"completion_tokens"`
+				TotalTokens         int64 `json:"total_tokens"`
+				PromptTokensDetails struct {
+					CachedTokens int64 `json:"cached_tokens"`
+				} `json:"prompt_tokens_details"`
+				CompletionTokensDetails struct {
+					ReasoningTokens int64 `json:"reasoning_tokens"`
+				} `json:"completion_tokens_details"`
 			} `json:"usage"`
 		}
 		if json.Unmarshal(data, &msg) == nil && msg.Usage != nil {
@@ -589,6 +620,8 @@ func extractUsageFromSSEChunk(chunk []byte) UsageFromResponse {
 				PromptTokens:     msg.Usage.PromptTokens,
 				CompletionTokens: msg.Usage.CompletionTokens,
 				TotalTokens:      msg.Usage.TotalTokens,
+				CachedTokens:     msg.Usage.PromptTokensDetails.CachedTokens,
+				ReasoningTokens:  msg.Usage.CompletionTokensDetails.ReasoningTokens,
 			}
 		}
 	}

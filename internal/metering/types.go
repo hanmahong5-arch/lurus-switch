@@ -19,6 +19,21 @@ type Record struct {
 	ErrorMessage string    `json:"errorMessage,omitempty"`
 	Timestamp    time.Time `json:"timestamp"`
 
+	// Cache-stream token counts, billed at the cache rates by pricing.Cost.
+	// Anthropic reports cache-create / cache-read independently of
+	// input_tokens (so they ADD to TokensIn). The OpenAI-compat path reports
+	// a cached_tokens subset that is already inside prompt_tokens — the
+	// gateway subtracts it out of TokensIn and lands it here so the cache-read
+	// stream bills at the discounted rate instead of full input price. Both
+	// default 0 for tools / sessions that don't cache.
+	CacheCreateTokens int64 `json:"cacheCreateTokens"`
+	CacheReadTokens   int64 `json:"cacheReadTokens"`
+
+	// ReasoningTokens is a display-only breakdown of the output stream. It is
+	// ALREADY counted in TokensOut (OpenAI completion_tokens) and is never
+	// billed a second time — kept so dashboards can show "thinking" volume.
+	ReasoningTokens int64 `json:"reasoningTokens,omitempty"`
+
 	// Enterprise dimensions (optional).
 	CostCenter string `json:"costCenter,omitempty"` // e.g. "ENG-PLATFORM-001"
 	EmployeeID string `json:"employeeId,omitempty"` // SSO sub claim

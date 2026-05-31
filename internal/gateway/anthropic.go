@@ -228,10 +228,13 @@ func (s *Server) streamAnthropic(
 	// primary client — Claude Code on /v1/messages with stream:true — would
 	// go entirely unmetered and silently bypass the budget wall.
 	inTok, outTok := tr.Usage()
+	cachedTok, reasoningTok := tr.CacheUsage()
 	s.recordAnthropicUsage(meta, model, translator.OpenAIUsage{
-		PromptTokens:     inTok,
-		CompletionTokens: outTok,
-		TotalTokens:      inTok + outTok,
+		PromptTokens:            inTok,
+		CompletionTokens:        outTok,
+		TotalTokens:             inTok + outTok,
+		PromptTokensDetails:     translator.OpenAIPromptTokensDetails{CachedTokens: cachedTok},
+		CompletionTokensDetails: translator.OpenAICompletionTokensDetails{ReasoningTokens: reasoningTok},
 	}, http.StatusOK, true)
 	if guard != nil {
 		guard.RecordUsage(int64(inTok), int64(outTok))
@@ -245,14 +248,27 @@ func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u transla
 	if s.meter == nil || meta == nil {
 		return
 	}
+
+	// Same normalization as recordUsage: the upstream is OpenAI-shaped even on
+	// the Anthropic-input path, so cached_tokens is a SUBSET of prompt_tokens.
+	// Subtract it out of fresh input and bill it on the cache-read stream;
+	// reasoning is display-only (already inside completion_tokens).
+	cached := int64(u.PromptTokensDetails.CachedTokens)
+	tokensIn := int64(u.PromptTokens) - cached
+	if tokensIn < 0 {
+		tokensIn = 0
+	}
+
 	rec := metering.Record{
-		AppID:      meta.AppID,
-		Model:      model,
-		TokensIn:   int64(u.PromptTokens),
-		TokensOut:  int64(u.CompletionTokens),
-		LatencyMs:  time.Since(meta.StartTime).Milliseconds(),
-		StatusCode: statusCode,
-		Timestamp:  time.Now(),
+		AppID:           meta.AppID,
+		Model:           model,
+		TokensIn:        tokensIn,
+		TokensOut:       int64(u.CompletionTokens),
+		CacheReadTokens: cached,
+		ReasoningTokens: int64(u.CompletionTokensDetails.ReasoningTokens),
+		LatencyMs:       time.Since(meta.StartTime).Milliseconds(),
+		StatusCode:      statusCode,
+		Timestamp:       time.Now(),
 		// Routing attribution — same dimensions the OpenAI-protocol path
 		// records, so dashboards bucket Claude Code traffic by upstream too.
 		ServedBy:  meta.ServedBy,
@@ -267,8 +283,8 @@ func (s *Server) recordAnthropicUsage(meta *RequestMeta, model string, u transla
 		Model:      model,
 		ServedBy:   meta.ServedBy,
 		MatchedBy:  meta.MatchedBy,
-		TokensIn:   int64(u.PromptTokens),
-		TokensOut:  int64(u.CompletionTokens),
+		TokensIn:   rec.TokensIn,
+		TokensOut:  rec.TokensOut,
 		StartTime:  meta.StartTime,
 		LatencyMs:  rec.LatencyMs,
 		StatusCode: statusCode,

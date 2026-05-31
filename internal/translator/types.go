@@ -120,8 +120,15 @@ type AnthropicResponse struct {
 type AnthropicUsage struct {
 	InputTokens  int `json:"input_tokens"`
 	OutputTokens int `json:"output_tokens"`
-	// CacheCreation/Read are Anthropic-only; we leave them at 0 since
-	// no OpenAI-compat server reports cache reads in the same shape.
+	// CacheCreation/Read are Anthropic-only; we leave them at 0 since the
+	// current upstreams are all OpenAI-compat (which reports cache as a
+	// cached_tokens SUBSET of prompt_tokens — see OpenAIPromptTokensDetails).
+	//
+	// Semantics note for any future native-Anthropic passthrough: here
+	// input_tokens does NOT include cache, so cache_creation / cache_read ADD
+	// to billed input (the additive pricing.Cost model). That is the opposite
+	// of the OpenAI shape, where cached_tokens is SUBTRACTED out of
+	// prompt_tokens. Do not mix the two when wiring a passthrough path.
 	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
 	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
 }
@@ -208,6 +215,28 @@ type OpenAIUsage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
 	TotalTokens      int `json:"total_tokens"`
+
+	// Token-stream breakdowns. Both inner counts are SUBSETS already included
+	// in PromptTokens / CompletionTokens respectively — never add them on top.
+	PromptTokensDetails     OpenAIPromptTokensDetails     `json:"prompt_tokens_details,omitempty"`
+	CompletionTokensDetails OpenAICompletionTokensDetails `json:"completion_tokens_details,omitempty"`
+}
+
+// OpenAIPromptTokensDetails breaks down prompt_tokens. CachedTokens is the
+// portion served from the upstream's prompt cache; it is already counted in
+// prompt_tokens, so the gateway subtracts it out of billed input and bills it
+// at the discounted cache-read rate instead. If a native Anthropic passthrough
+// is ever added, its cache tokens ADD to input (see AnthropicUsage) rather
+// than being subtracted — these two shapes must not be conflated.
+type OpenAIPromptTokensDetails struct {
+	CachedTokens int `json:"cached_tokens,omitempty"`
+}
+
+// OpenAICompletionTokensDetails breaks down completion_tokens. ReasoningTokens
+// is the "thinking" portion, already counted in completion_tokens — surfaced
+// for display only and never billed twice.
+type OpenAICompletionTokensDetails struct {
+	ReasoningTokens int `json:"reasoning_tokens,omitempty"`
 }
 
 // OpenAIStreamChunk is what we read from upstream's SSE stream. Each
