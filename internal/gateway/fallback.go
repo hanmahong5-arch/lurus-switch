@@ -66,8 +66,24 @@ func (fc *FallbackChain) Entries() []FallbackEntry {
 	return out
 }
 
-// shouldFallback returns true if the error or HTTP status warrants trying the next entry.
-// Only server-side failures trigger fallback — client errors (4xx) do not.
+// shouldFallback returns true if the error or HTTP status warrants trying
+// the next entry in the chain.
+//
+// Two failure classes roll over to the backup upstream:
+//   - server-side faults: 5xx, 429 rate-limit, and transport errors
+//     (connection refused, timeout, DNS failure);
+//   - upstream auth / quota rejections: 401 (key revoked or banned), 403
+//     (key forbidden or region block), 402 (upstream out of credit).
+//
+// The auth/quota class is the one resellers care about: a banned or drained
+// key on the primary endpoint must fail over to a backup instead of being
+// handed straight back to the caller. Because these attempts return ok=false
+// to the observer, the circuit breaker also trips the dead endpoint open
+// after the failure threshold instead of hammering it with every request.
+//
+// Genuine *client* 4xx (400 malformed, 404 unknown route, 422 …) are NOT
+// retried — the next endpoint would reject them identically, so cascading
+// only wastes a round trip.
 func shouldFallback(resp *http.Response, err error) bool {
 	if err != nil {
 		return true // connection refused, timeout, DNS failure
@@ -79,8 +95,11 @@ func shouldFallback(resp *http.Response, err error) bool {
 	if resp.StatusCode >= 500 {
 		return true
 	}
-	// 429 = rate limited → try next
-	if resp.StatusCode == http.StatusTooManyRequests {
+	switch resp.StatusCode {
+	case http.StatusTooManyRequests, // 429 rate limited
+		http.StatusUnauthorized,    // 401 upstream key revoked / banned
+		http.StatusForbidden,       // 403 upstream key forbidden / region block
+		http.StatusPaymentRequired: // 402 upstream out of credit
 		return true
 	}
 	return false

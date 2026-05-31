@@ -222,3 +222,82 @@ rules:
 		t.Fatalf("backup endpoint hit count = %d, want 1", got)
 	}
 }
+
+// TestProxy_RouterChainCascadesOn401 mirrors the 500 cascade test for the
+// upstream-ban case: the preferred endpoint returns 401 (key revoked /
+// banned), and the gateway must roll over to the backup instead of handing
+// the 401 back to the caller. This is the reseller-critical path the
+// shouldFallback 401/403/402 change unlocks.
+func TestProxy_RouterChainCascadesOn401(t *testing.T) {
+	banned := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":"key banned"}`))
+	}))
+	defer banned.Close()
+
+	hitBackup := int32(0)
+	backup := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&hitBackup, 1)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":    "ok",
+			"model": "x",
+			"usage": map[string]int{"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+		})
+	}))
+	defer backup.Close()
+
+	dir := t.TempDir()
+	reg, _ := appreg.NewRegistry(dir)
+	meter, _ := metering.NewStore(dir)
+
+	store, err := relay.NewStore(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveEndpoint(relay.RelayEndpoint{
+		ID: "primary", Name: "primary", URL: banned.URL, APIKey: "k1", Healthy: true, LatencyMs: 10,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.SaveEndpoint(relay.RelayEndpoint{
+		ID: "backup", Name: "backup", URL: backup.URL, APIKey: "k2", Healthy: true, LatencyMs: 20,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	router, err := relay.NewRouter(dir, store, relay.NewCircuitBreaker())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := router.LoadRulesYAML(`
+rules:
+  - name: pin-primary
+    match_model_prefix: x
+    prefer_endpoint_id: primary
+`); err != nil {
+		t.Fatal(err)
+	}
+
+	srv := NewServer(dir, reg, meter)
+	srv.cfg.UpstreamURL = "http://ignored.invalid"
+	srv.cfg.UserToken = "user-token"
+	srv.SetRelayRouter(router)
+	app, _ := reg.Register("X", "", "")
+
+	body := `{"model":"x","messages":[{"role":"user","content":"hi"}]}`
+	req := httptest.NewRequest("POST", "/v1/chat/completions", strings.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+app.Token)
+	req.Header.Set("Content-Type", "application/json")
+	mux := http.NewServeMux()
+	srv.registerRoutes(mux)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	if w.Result().StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(w.Result().Body)
+		t.Fatalf("status=%d body=%s", w.Result().StatusCode, respBody)
+	}
+	if got := atomic.LoadInt32(&hitBackup); got != 1 {
+		t.Fatalf("backup endpoint hit count = %d, want 1 (401 primary should cascade)", got)
+	}
+}
