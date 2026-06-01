@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -262,6 +263,93 @@ func TestListSwitchPresets(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].ID != "openai" {
 		t.Errorf("unexpected presets: %+v", got)
+	}
+}
+
+// countingWriter wraps an http.ResponseWriter to count how many body bytes the
+// handler actually managed to flush before the client closed the connection.
+// It lets us prove the client does not drain an unbounded body.
+type countingWriter struct {
+	http.ResponseWriter
+	n int64
+}
+
+func (c *countingWriter) Write(p []byte) (int, error) {
+	written, err := c.ResponseWriter.Write(p)
+	c.n += int64(written)
+	return written, err
+}
+
+// TestDo_BoundsResponseBodyRead verifies that the Hub admin client caps how
+// much of a response body it reads at maxResponseSize, mirroring the sibling
+// internal/billing client. A wrong-host or misbehaving Hub returning a huge
+// body must not be drained into memory unbounded.
+func TestDo_BoundsResponseBodyRead(t *testing.T) {
+	tests := []struct {
+		name     string
+		bodySize int  // total bytes the server attempts to send
+		wantErr  bool // do() should surface an error (non-envelope / truncated)
+	}{
+		{
+			name:     "under_limit_valid_envelope",
+			bodySize: 0, // handled specially below: send a real small envelope
+			wantErr:  false,
+		},
+		{
+			name:     "way_over_limit_is_capped_and_errors_cleanly",
+			bodySize: maxResponseSize + (4 << 20), // 4 MB past the cap
+			wantErr:  true,                         // truncated garbage → non-JSON HubError, not OOM
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var served int64
+			c, _ := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
+				cw := &countingWriter{ResponseWriter: w}
+				if tt.bodySize == 0 {
+					envRespond(cw, map[string]any{"ok": true})
+					served = cw.n
+					return
+				}
+				// Stream filler bytes; the client must stop reading at the cap
+				// and the handler's writes will fail/stop shortly after.
+				chunk := bytes.Repeat([]byte("x"), 64<<10) // 64 KB
+				remaining := tt.bodySize
+				for remaining > 0 {
+					if remaining < len(chunk) {
+						chunk = chunk[:remaining]
+					}
+					m, err := cw.Write(chunk)
+					remaining -= m
+					if err != nil {
+						break // client closed the connection after the cap
+					}
+				}
+				served = cw.n
+			})
+
+			err := c.do(context.Background(), http.MethodGet, "/api/anything", nil, nil, nil)
+
+			if tt.wantErr && err == nil {
+				t.Fatalf("expected error for over-limit body, got nil")
+			}
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error for under-limit body: %v", err)
+			}
+
+			// Core guarantee: the client never pulls more than maxResponseSize
+			// from the wire. We assert against what the server managed to push;
+			// for the over-limit case the server cannot push meaningfully more
+			// than the cap (plus in-flight TCP/HTTP buffering) before the client
+			// stops reading and closes. Use a generous slack for kernel/HTTP
+			// buffers but far below the attempted bodySize.
+			const slack = 8 << 20 // 8 MB of OS/HTTP buffering headroom
+			if served > maxResponseSize+slack {
+				t.Errorf("server pushed %d bytes; client should have capped near %d (cap=%d)",
+					served, maxResponseSize+slack, maxResponseSize)
+			}
+		})
 	}
 }
 

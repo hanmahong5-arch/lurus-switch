@@ -31,6 +31,10 @@ import (
 const (
 	defaultTimeout = 20 * time.Second
 	envelopeData   = "data"
+	// maxResponseSize bounds how much of a Hub response body is read, mirroring
+	// internal/billing/client.go. A wrong-host or misbehaving Hub returning a
+	// huge body must not OOM the desktop app.
+	maxResponseSize = 10 << 20 // 10 MB
 )
 
 // Config configures the Hub admin client.
@@ -171,7 +175,7 @@ func (c *Client) do(ctx context.Context, method, path string, query url.Values, 
 	}
 	defer resp.Body.Close()
 
-	rawBody, err := io.ReadAll(resp.Body)
+	rawBody, err := io.ReadAll(io.LimitReader(resp.Body, maxResponseSize))
 	if err != nil {
 		return &HubError{HTTPStatus: resp.StatusCode, Message: "read response body: " + err.Error()}
 	}
