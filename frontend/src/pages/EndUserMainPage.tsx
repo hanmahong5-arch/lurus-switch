@@ -109,10 +109,12 @@ export function EndUserMainPage({ onDeactivated }: Props) {
   }, [daysUntilExpiry, status?.activated, status?.state])
 
   // Quota severity uses absolute thresholds — there's no "used vs total"
-  // signal from the Hub yet (heartbeat returns a quota but the store does
-  // not persist it), so we colour the remaining number rather than render
-  // a fake progress bar. Numbers chosen to align with typical reseller
-  // grants (10K = bottom of the cheapest tier, 100K = comfortable).
+  // signal from the Hub yet, so we colour the remaining number rather than
+  // render a fake progress bar. The number itself is kept fresh by the
+  // heartbeat (the store persists the Hub-reported quota), so this reflects
+  // the live grant, not the activation-time snapshot. Numbers chosen to
+  // align with typical reseller grants (10K = bottom of the cheapest tier,
+  // 100K = comfortable).
   const quotaSeverity: 'critical' | 'warning' | 'ok' | null = useMemo(() => {
     const q = status?.quota
     if (q === undefined || q === null) return null

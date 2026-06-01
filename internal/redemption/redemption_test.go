@@ -324,6 +324,147 @@ func TestHeartbeat_Tick_UpdatesStore(t *testing.T) {
 	}
 }
 
+// TestStore_UpdateHeartbeatQuota_RefreshesGrant proves the heartbeat-aware
+// store method folds the Hub-reported quota / expires_at into the persisted
+// activation, with the conservative merge rules that keep the on-disk format
+// backward-compatible and never clobber a valid grant with an absent field.
+//
+// The clock is injected (fixed base) so the expires_at "strictly newer"
+// comparison is deterministic and independent of wall time.
+func TestStore_UpdateHeartbeatQuota_RefreshesGrant(t *testing.T) {
+	base := time.Date(2026, 6, 1, 12, 0, 0, 0, time.UTC)
+	initialQuota := int64(500_000)
+	initialExpiry := base.Add(30 * 24 * time.Hour)
+
+	cases := []struct {
+		name        string
+		hbQuota     int64
+		hbExpiresAt time.Time
+		wantQuota   int64
+		wantExpiry  time.Time
+	}{
+		{
+			name:        "topup raises quota",
+			hbQuota:     900_000,
+			hbExpiresAt: time.Time{},
+			wantQuota:   900_000,
+			wantExpiry:  initialExpiry, // unchanged: heartbeat omitted expires_at
+		},
+		{
+			name:        "burndown lowers quota",
+			hbQuota:     120_000,
+			hbExpiresAt: time.Time{},
+			wantQuota:   120_000,
+			wantExpiry:  initialExpiry,
+		},
+		{
+			name:        "absent quota keeps last known grant",
+			hbQuota:     0, // omitempty: Hub only echoed status
+			hbExpiresAt: time.Time{},
+			wantQuota:   initialQuota, // not clobbered to 0
+			wantExpiry:  initialExpiry,
+		},
+		{
+			name:        "renewal extends expiry",
+			hbQuota:     700_000,
+			hbExpiresAt: initialExpiry.Add(15 * 24 * time.Hour),
+			wantQuota:   700_000,
+			wantExpiry:  initialExpiry.Add(15 * 24 * time.Hour),
+		},
+		{
+			name:        "older expiry never shortens window",
+			hbQuota:     700_000,
+			hbExpiresAt: initialExpiry.Add(-10 * 24 * time.Hour),
+			wantQuota:   700_000,
+			wantExpiry:  initialExpiry, // not moved backwards
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			s := NewStoreAt(dir)
+			if err := s.Save(&Activation{
+				HubURL:      "https://hub.example",
+				UserToken:   "tok",
+				Fingerprint: DeviceFingerprint(),
+				ActivatedAt: base.Add(-time.Hour),
+				Quota:       initialQuota,
+				ExpiresAt:   initialExpiry,
+			}); err != nil {
+				t.Fatalf("Save: %v", err)
+			}
+
+			if err := s.UpdateHeartbeatQuota(base, "active", tc.hbQuota, tc.hbExpiresAt); err != nil {
+				t.Fatalf("UpdateHeartbeatQuota: %v", err)
+			}
+
+			// Force a fresh Store to prove the value round-tripped through the
+			// AES-256-GCM file, not just the in-memory cache.
+			got, err := NewStoreAt(dir).Load()
+			if err != nil {
+				t.Fatalf("Load: %v", err)
+			}
+			if got.Quota != tc.wantQuota {
+				t.Errorf("quota = %d, want %d", got.Quota, tc.wantQuota)
+			}
+			if !got.ExpiresAt.Equal(tc.wantExpiry) {
+				t.Errorf("expiresAt = %v, want %v", got.ExpiresAt, tc.wantExpiry)
+			}
+			if !got.LastHeartbeat.Equal(base) {
+				t.Errorf("lastHeartbeat = %v, want %v", got.LastHeartbeat, base)
+			}
+			if got.HeartbeatStatus != "active" {
+				t.Errorf("status = %q, want active", got.HeartbeatStatus)
+			}
+		})
+	}
+}
+
+// TestHeartbeat_Tick_RefreshesQuota proves the full heartbeat path — stub Hub
+// returns a fresh quota + expires_at, and after a single Tick the persisted
+// activation reflects them (the EndUser dashboard reads these via Status()).
+func TestHeartbeat_Tick_RefreshesQuota(t *testing.T) {
+	newExpiry := time.Now().UTC().Add(90 * 24 * time.Hour).Truncate(time.Second)
+	hub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true,
+			"data": map[string]any{
+				"status":     "active",
+				"quota":      int64(888_000),
+				"expires_at": newExpiry.Unix(),
+			},
+		})
+	}))
+	defer hub.Close()
+
+	store := NewStoreAt(t.TempDir())
+	if err := store.Save(&Activation{
+		HubURL:      hub.URL,
+		UserToken:   "tok",
+		Fingerprint: DeviceFingerprint(),
+		ActivatedAt: time.Now().UTC().Add(-time.Hour),
+		Quota:       100_000,
+		ExpiresAt:   time.Now().UTC().Add(24 * time.Hour),
+	}); err != nil {
+		t.Fatalf("Save: %v", err)
+	}
+
+	hb := NewHeartbeat(store, "test", nil)
+	if err := hb.Tick(context.Background()); err != nil {
+		t.Fatalf("Tick: %v", err)
+	}
+
+	loaded, _ := store.Load()
+	if loaded.Quota != 888_000 {
+		t.Errorf("quota after heartbeat = %d, want 888000", loaded.Quota)
+	}
+	if !loaded.ExpiresAt.Equal(newExpiry) {
+		t.Errorf("expiresAt after heartbeat = %v, want %v", loaded.ExpiresAt, newExpiry)
+	}
+}
+
 // TestHeartbeat_401_Revokes locks in the contract that an unauthorized
 // heartbeat permanently flags the activation as revoked — the EndUser
 // must be bounced to the activation page on the next status query.

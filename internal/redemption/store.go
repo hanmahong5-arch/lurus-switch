@@ -253,6 +253,29 @@ func (s *Store) Clear() error {
 // metadata. Loads first if not yet cached; returns an error if no
 // activation is present (callers should not heartbeat before Save).
 func (s *Store) UpdateHeartbeat(at time.Time, status string) error {
+	return s.UpdateHeartbeatQuota(at, status, 0, time.Time{})
+}
+
+// UpdateHeartbeatQuota is the quota-aware sibling of UpdateHeartbeat. In
+// addition to the liveness timestamp + status, it refreshes the displayed
+// grant from the Hub's heartbeat reply so the EndUser dashboard never shows
+// a stale activation-time number after the reseller tops up or the balance
+// burns down.
+//
+// Conservative merge rules keep the file backward-compatible and avoid
+// clobbering a valid grant with an absent field:
+//
+//   - quota:     persisted only when > 0. The heartbeat envelope uses a
+//     non-pointer int with `omitempty`, so an absent quota arrives as 0 and
+//     is indistinguishable from a genuine zero balance — we prefer keeping
+//     the last known positive grant over zeroing it on a thin reply.
+//   - expiresAt: persisted only when strictly newer than the stored value.
+//     A renewal extends the window; a heartbeat that omits expires_at (zero)
+//     never shortens it.
+//
+// Passing quota<=0 and a zero expiresAt makes this behave exactly like
+// UpdateHeartbeat — the timestamp/status-only path callers relied on before.
+func (s *Store) UpdateHeartbeatQuota(at time.Time, status string, quota int64, expiresAt time.Time) error {
 	act, err := s.Load()
 	if err != nil {
 		return err
@@ -262,6 +285,12 @@ func (s *Store) UpdateHeartbeat(at time.Time, status string) error {
 	}
 	act.LastHeartbeat = at
 	act.HeartbeatStatus = status
+	if quota > 0 {
+		act.Quota = quota
+	}
+	if !expiresAt.IsZero() && expiresAt.After(act.ExpiresAt) {
+		act.ExpiresAt = expiresAt
+	}
 	return s.Save(act)
 }
 

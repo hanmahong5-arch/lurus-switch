@@ -173,8 +173,16 @@ func (h *Heartbeat) tickOnce(ctx context.Context) error {
 	}
 
 	// Persist the new heartbeat status so Status() reflects it after restart.
+	// Also fold in the Hub-reported quota / expires_at so the EndUser
+	// dashboard refreshes the grant instead of showing the stale
+	// activation-time number. expires_at arrives as a Unix second count;
+	// zero means the Hub didn't echo it, which UpdateHeartbeatQuota ignores.
 	now := time.Now().UTC()
-	if err := h.store.UpdateHeartbeat(now, resp.Status); err != nil {
+	var hbExpiresAt time.Time
+	if resp.ExpiresAt > 0 {
+		hbExpiresAt = time.Unix(resp.ExpiresAt, 0).UTC()
+	}
+	if err := h.store.UpdateHeartbeatQuota(now, resp.Status, resp.Quota, hbExpiresAt); err != nil {
 		return err
 	}
 
