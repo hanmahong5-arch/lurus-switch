@@ -263,3 +263,117 @@ func TestBuildMigrationPlan_LongProxy_MarkedForReview(t *testing.T) {
 	}
 	t.Error("proxy field not found in migration plan")
 }
+
+// === AntigravityConfig Extra round-trip Tests (R9) ===
+
+// TestAntigravityConfig_UnknownKeysSurviveRoundTrip proves that a pre-existing
+// unknown key in the on-disk antigravity config is preserved after a migration
+// write (option b: Extra map mirrors OpenCodeConfig pattern).
+func TestAntigravityConfig_UnknownKeysSurviveRoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("LOCALAPPDATA", tmp)
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	// Write a config that contains an unknown field "theme" that AntigravityConfig does not model.
+	existing := `{"apiKey":"old-key","theme":"dark","debugMode":true}`
+	configDir := antigravityConfigDir()
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	configPath := filepath.Join(configDir, AntigravityConfigFilename)
+	if err := os.WriteFile(configPath, []byte(existing), 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// Read, mutate a known field, write back.
+	cfg, err := ReadAntigravityConfig()
+	if err != nil {
+		t.Fatalf("ReadAntigravityConfig: %v", err)
+	}
+	cfg.APIKey = "new-key"
+	if err := WriteAntigravityConfig(cfg); err != nil {
+		t.Fatalf("WriteAntigravityConfig: %v", err)
+	}
+
+	// Verify: unknown keys must survive.
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal written file: %v", err)
+	}
+	if _, ok := raw["theme"]; !ok {
+		t.Error("unknown key 'theme' was silently dropped after WriteAntigravityConfig (Extra round-trip broken)")
+	}
+	if _, ok := raw["debugMode"]; !ok {
+		t.Error("unknown key 'debugMode' was silently dropped after WriteAntigravityConfig (Extra round-trip broken)")
+	}
+	// Known field must be updated.
+	cfg2, err := ReadAntigravityConfig()
+	if err != nil {
+		t.Fatalf("ReadAntigravityConfig after write: %v", err)
+	}
+	if cfg2.APIKey != "new-key" {
+		t.Errorf("APIKey = %q after write, want 'new-key'", cfg2.APIKey)
+	}
+}
+
+// TestApplyMigration_PreservesExtraKeys proves that BuildMigrationPlan produces
+// a Proposed config whose Extra contains unknown keys from the existing antigravity
+// config when MergeAntigravityExtra is used before writing.
+func TestMergeAntigravityExtra_PreservesUnknownKeys(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("LOCALAPPDATA", tmp)
+	t.Setenv("HOME", tmp)
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+
+	// Write an existing antigravity config with unknown keys.
+	configDir := antigravityConfigDir()
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	existing := `{"apiKey":"old-key","customPlugin":"my-plugin","legacyFlag":42}`
+	configPath := filepath.Join(configDir, AntigravityConfigFilename)
+	if err := os.WriteFile(configPath, []byte(existing), 0600); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// Simulate what ApplyGeminiMigration does: build plan, merge extra, write.
+	proposed := &AntigravityConfig{APIKey: "migrated-key"}
+	if err := MergeAntigravityExtra(proposed); err != nil {
+		t.Fatalf("MergeAntigravityExtra: %v", err)
+	}
+	if err := WriteAntigravityConfig(proposed); err != nil {
+		t.Fatalf("WriteAntigravityConfig: %v", err)
+	}
+
+	// Verify the written file still contains the unknown keys.
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		t.Fatalf("Unmarshal: %v", err)
+	}
+	if _, ok := raw["customPlugin"]; !ok {
+		t.Error("unknown key 'customPlugin' was lost after MergeAntigravityExtra + WriteAntigravityConfig")
+	}
+	if _, ok := raw["legacyFlag"]; !ok {
+		t.Error("unknown key 'legacyFlag' was lost after MergeAntigravityExtra + WriteAntigravityConfig")
+	}
+	// Known field from migration must win.
+	if _, ok := raw["apiKey"]; !ok {
+		t.Error("known key 'apiKey' missing after write")
+	}
+	cfg, err := ReadAntigravityConfig()
+	if err != nil {
+		t.Fatalf("ReadAntigravityConfig: %v", err)
+	}
+	if cfg.APIKey != "migrated-key" {
+		t.Errorf("APIKey = %q, want 'migrated-key'", cfg.APIKey)
+	}
+}

@@ -77,6 +77,93 @@ type AntigravityConfig struct {
 
 	// Proxy holds HTTP proxy configuration.
 	Proxy string `json:"proxy,omitempty"`
+
+	// Extra holds every top-level field not modelled above. It is populated on
+	// read and merged back on write so that a Read→mutate→Write round-trip never
+	// drops unmanaged configuration. Known fields always win on conflict.
+	Extra map[string]json.RawMessage `json:"-"`
+}
+
+// antigravityKnownFields lists the JSON keys handled by the structured fields
+// of AntigravityConfig. They are stripped from Extra to avoid double-emitting.
+var antigravityKnownFields = []string{"apiKey", "apiEndpoint", "model", "general", "proxy"}
+
+// UnmarshalJSON decodes the known fields and captures any remaining top-level
+// keys into Extra for verbatim round-tripping.
+func (c *AntigravityConfig) UnmarshalJSON(data []byte) error {
+	type alias AntigravityConfig // alias drops the custom methods to avoid recursion
+	var known alias
+	if err := json.Unmarshal(data, &known); err != nil {
+		return err
+	}
+	*c = AntigravityConfig(known)
+
+	var all map[string]json.RawMessage
+	if err := json.Unmarshal(data, &all); err != nil {
+		return err
+	}
+	for _, k := range antigravityKnownFields {
+		delete(all, k)
+	}
+	if len(all) > 0 {
+		c.Extra = all
+	} else {
+		c.Extra = nil
+	}
+	return nil
+}
+
+// MarshalJSON emits the known fields and overlays Extra, preserving unmanaged
+// configuration. Known fields take precedence if a key appears in both.
+func (c AntigravityConfig) MarshalJSON() ([]byte, error) {
+	type alias AntigravityConfig // alias drops the custom methods and Extra (json:"-")
+	knownData, err := json.Marshal(alias(c))
+	if err != nil {
+		return nil, err
+	}
+	if len(c.Extra) == 0 {
+		return knownData, nil
+	}
+
+	merged := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(knownData, &merged); err != nil {
+		return nil, err
+	}
+	for k, v := range c.Extra {
+		if _, exists := merged[k]; exists {
+			continue // known field wins
+		}
+		merged[k] = v
+	}
+	return json.Marshal(merged)
+}
+
+// MergeAntigravityExtra reads the existing on-disk Antigravity config (if any)
+// and copies unknown keys into dst.Extra so they survive the subsequent write.
+// Known fields in dst are never overwritten — the caller's values win.
+// This must be called before WriteAntigravityConfig when the write would otherwise
+// clobber pre-existing user configuration.
+func MergeAntigravityExtra(dst *AntigravityConfig) error {
+	if dst == nil {
+		return fmt.Errorf("dst must not be nil")
+	}
+	existing, err := ReadAntigravityConfig()
+	if err != nil {
+		// Non-fatal: if we cannot read the existing file, skip the merge.
+		return nil
+	}
+	if len(existing.Extra) == 0 {
+		return nil
+	}
+	if dst.Extra == nil {
+		dst.Extra = make(map[string]json.RawMessage)
+	}
+	for k, v := range existing.Extra {
+		if _, exists := dst.Extra[k]; !exists {
+			dst.Extra[k] = v
+		}
+	}
+	return nil
 }
 
 // AntigravityModelConfig holds model selection settings.

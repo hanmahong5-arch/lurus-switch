@@ -58,6 +58,9 @@ func (a *App) BuildGeminiMigrationPlan() (*toolconfig.MigrationPlan, error) {
 
 // ApplyGeminiMigration builds a migration plan and writes the resulting config
 // to the successor tool's config directory in a single step.
+// Before writing it (a) takes an auto-save snapshot of the existing antigravity
+// config so the user can revert, and (b) merges unknown keys from the existing
+// config into the proposed config so they are not silently erased.
 // Returns a ToolConfigResult so the frontend can check .success and display .message.
 func (a *App) ApplyGeminiMigration() *ToolConfigResult {
 	ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
@@ -69,6 +72,21 @@ func (a *App) ApplyGeminiMigration() *ToolConfigResult {
 	}
 	if plan.Proposed == nil {
 		return &ToolConfigResult{Tool: "gemini", Success: false, Message: "migration plan returned nil config"}
+	}
+
+	// (a) Auto-snapshot the existing antigravity config before overwriting so the
+	// user can revert — mirrors the same guard in SaveToolConfig.
+	if a.snapshotStr != nil {
+		if info, readErr := toolconfig.ReadConfig(toolconfig.ToolAntigravity); readErr == nil && info.Exists && info.Content != "" {
+			_ = a.snapshotStr.Take(toolconfig.ToolAntigravity, "pre-migration", info.Content)
+		}
+	}
+
+	// (b) Merge unknown keys from the existing on-disk config so they survive the
+	// write. Known fields in plan.Proposed always win on conflict.
+	if mergeErr := toolconfig.MergeAntigravityExtra(plan.Proposed); mergeErr != nil {
+		// Non-fatal: log and continue without the merge.
+		_ = mergeErr
 	}
 
 	if err := toolconfig.WriteAntigravityConfig(plan.Proposed); err != nil {
