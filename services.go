@@ -231,6 +231,13 @@ func newServices(appDataDir, version string) (*services, []string) {
 		warnings = append(warnings, fmt.Sprintf("custom provider store: %v", cpErr))
 	}
 
+	// Construct the single shared process monitor before the services struct so
+	// that both the Wails process-monitor bindings and the agent instance
+	// manager reference the same session map.  A second NewMonitor() inside
+	// the struct literal would create a disjoint map, causing StopAll on
+	// shutdown to miss sessions launched by the agent manager.
+	procMon := process.NewMonitor()
+
 	svc := &services{
 		store:          store,
 		validator:      validator.NewValidator(),
@@ -239,7 +246,7 @@ func newServices(appDataDir, version string) (*services, []string) {
 		authSession:    authSess,
 		selfUpdater:    updater.NewSelfUpdater(version),
 		npmChecker:     updater.NewNpmChecker(),
-		processMon:     process.NewMonitor(),
+		processMon:     procMon,
 		snapshotStr:    snapStr,
 		promptStr:      promptStr,
 		mcpStr:         mcpStr,
@@ -256,7 +263,7 @@ func newServices(appDataDir, version string) (*services, []string) {
 		agentConfigMgr: agentCfgMgr,
 		agentInstMgr: func() *agent.InstanceManager {
 			if agentStr != nil && agentCfgMgr != nil {
-				return agent.NewInstanceManager(agentStr, agentCfgMgr, process.NewMonitor())
+				return agent.NewInstanceManager(agentStr, agentCfgMgr, procMon)
 			}
 			return nil
 		}(),

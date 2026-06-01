@@ -1,6 +1,7 @@
 package process
 
 import (
+	"context"
 	"testing"
 )
 
@@ -124,4 +125,45 @@ func TestRingBuffer_AppendGet(t *testing.T) {
 	if again[0] == "MUT" {
 		t.Error("get returned aliased slice; buffer was corrupted")
 	}
+}
+
+// TestMonitor_StopAll_CancelsLaunchedSessions verifies that StopAll cancels
+// every active session. We inject sessions directly into the map (bypassing
+// LaunchTool which shells out to real binaries) so the test is hermetic.
+func TestMonitor_StopAll_CancelsLaunchedSessions(t *testing.T) {
+	m := NewMonitor()
+
+	// Inject two fake sessions, each with a real cancellable context.
+	ctx1, cancel1 := context.WithCancel(context.Background())
+	ctx2, cancel2 := context.WithCancel(context.Background())
+	defer cancel1() // safety: ensure no leak even if StopAll fails
+	defer cancel2()
+
+	m.mu.Lock()
+	m.sessions["sess-1"] = &session{cancel: cancel1, output: newRingBuffer(10)}
+	m.sessions["sess-2"] = &session{cancel: cancel2, output: newRingBuffer(10)}
+	m.mu.Unlock()
+
+	m.StopAll()
+
+	// Both contexts must be cancelled after StopAll.
+	select {
+	case <-ctx1.Done():
+		// good
+	default:
+		t.Error("StopAll did not cancel session sess-1")
+	}
+	select {
+	case <-ctx2.Done():
+		// good
+	default:
+		t.Error("StopAll did not cancel session sess-2")
+	}
+}
+
+// TestMonitor_StopAll_EmptyIsNoop verifies that StopAll on an empty Monitor
+// does not panic.
+func TestMonitor_StopAll_EmptyIsNoop(t *testing.T) {
+	m := NewMonitor()
+	m.StopAll() // must not panic
 }

@@ -290,6 +290,26 @@ func (m *Monitor) StopSession(sessionID string) error {
 	return nil
 }
 
+// StopAll cancels every active managed session. Called during application
+// shutdown to ensure CLI child processes are not orphaned when the parent
+// exits — on Windows, without a job-object binding, children survive beyond
+// the parent unless explicitly cancelled here.
+func (m *Monitor) StopAll() {
+	m.mu.Lock()
+	// Snapshot the cancel functions under the lock, then invoke them after
+	// releasing it. This avoids holding the mutex while session-exit goroutines
+	// (which also acquire m.mu to delete from the map) try to clean up.
+	cancels := make([]context.CancelFunc, 0, len(m.sessions))
+	for _, s := range m.sessions {
+		cancels = append(cancels, s.cancel)
+	}
+	m.mu.Unlock()
+
+	for _, cancel := range cancels {
+		cancel()
+	}
+}
+
 // resolveBinary finds the executable name for a tool ID
 func resolveBinary(tool string) (string, error) {
 	switch tool {

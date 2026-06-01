@@ -271,6 +271,15 @@ func (a *App) shutdown(ctx context.Context) {
 		}
 	}
 
+	// Cancel all remaining managed CLI child processes.  This is the
+	// safety-net that prevents orphaned child processes on Windows where
+	// there is no job-object binding: any session not yet cleaned up by
+	// the per-agent watchExit goroutine is cancelled here so that API
+	// keys held by child processes do not outlive the parent.
+	if a.processMon != nil {
+		a.processMon.StopAll()
+	}
+
 	// Close database connection.
 	if a.database != nil {
 		if err := a.database.Close(); err != nil {
