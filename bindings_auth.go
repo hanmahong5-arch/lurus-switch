@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -114,7 +115,27 @@ func (a *App) Logout() error {
 	return a.authSession.Clear()
 }
 
+// authRefreshBuffer is how far ahead of expiry the token is considered
+// stale. The background loop ticks at this cadence and EnsureFresh uses it
+// as the pre-expiry window, so a token is renewed well before any in-flight
+// request would hit a 401.
+const authRefreshBuffer = 5 * time.Minute
+
+// refreshFunc builds an auth.RefreshFunc bound to the current OIDC config.
+// Shared by the manual RefreshAuth binding and the automatic loop so both
+// exchange the refresh_token through the exact same path.
+func (a *App) refreshFunc() auth.RefreshFunc {
+	cfg := a.getAuthConfig()
+	return func(ctx context.Context, refreshToken string) (*auth.TokenResponse, error) {
+		return auth.RefreshAccessToken(ctx, cfg, refreshToken)
+	}
+}
+
 // RefreshAuth refreshes the access token using the stored refresh token.
+// Manual entry point (account popover). Unlike the automatic loop, a
+// refresh FAILURE here clears the session so the user is dropped to the
+// re-login screen — but only because the absence of a refresh token or a
+// hard refresh error means the session can no longer be kept alive.
 func (a *App) RefreshAuth() (auth.AuthState, error) {
 	if a.authSession == nil {
 		return auth.AuthState{}, fmt.Errorf("auth session not initialized")
@@ -141,6 +162,81 @@ func (a *App) RefreshAuth() (auth.AuthState, error) {
 	}
 
 	return a.authSession.GetAuthState(), nil
+}
+
+// startAuthRefresh performs a best-effort refresh on startup (when the
+// stored token is near/past expiry) and then launches a background timer
+// that keeps the session live without manual action. No-op when there is
+// no OIDC session (manual-proxy users have no refresh token, so EnsureFresh
+// returns ErrNoRefreshToken and we simply don't start the loop).
+func (a *App) startAuthRefresh(ctx context.Context) {
+	if a.authSession == nil {
+		return
+	}
+	if a.authSession.GetRefreshToken() == "" {
+		return // non-OIDC login: nothing to keep fresh.
+	}
+
+	a.stopAuthRefresh = make(chan struct{})
+
+	// Best-effort startup refresh, off the UI thread. A failure here is
+	// non-fatal: the existing token (if any) stays usable, and the loop
+	// will retry on its cadence. Never clears the session.
+	go safeGo("auth-refresh-startup", func() {
+		a.ensureAuthFresh(ctx)
+		a.runAuthRefreshLoop(ctx)
+	})
+}
+
+// ensureAuthFresh runs one pre-expiry refresh attempt through the session's
+// single-flight guard. On failure it logs and leaves the session intact —
+// the automatic path NEVER forces re-login (that decision belongs to the
+// manual RefreshAuth / actual API 401 handling). A missing refresh token is
+// treated as "nothing to do", not an error to surface.
+func (a *App) ensureAuthFresh(ctx context.Context) {
+	if a.authSession == nil {
+		return
+	}
+	refreshCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	err := a.authSession.EnsureFresh(refreshCtx, authRefreshBuffer, a.refreshFunc())
+	switch {
+	case err == nil:
+		return
+	case errors.Is(err, auth.ErrNoRefreshToken):
+		return // not an OIDC session — nothing to refresh.
+	default:
+		// Keep the session as-is; a transient network failure must not
+		// drop a valid login. The loop will retry next tick.
+		log.Printf("[auth] background token refresh failed (non-fatal): %v", err)
+	}
+}
+
+// runAuthRefreshLoop ticks at the refresh buffer cadence, renewing the
+// token before it expires. Exits on ctx cancellation or stopAuthRefresh.
+func (a *App) runAuthRefreshLoop(ctx context.Context) {
+	ticker := time.NewTicker(authRefreshBuffer)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-a.stopAuthRefresh:
+			return
+		case <-ticker.C:
+			a.ensureAuthFresh(ctx)
+		}
+	}
+}
+
+// stopAuthRefreshLoop signals the background refresh loop to exit. Safe to
+// call when the loop never started (nil channel) and idempotent.
+func (a *App) stopAuthRefreshLoop() {
+	if a.stopAuthRefresh == nil {
+		return
+	}
+	a.stopAuthRefreshOnce.Do(func() { close(a.stopAuthRefresh) })
 }
 
 // getAuthConfig builds an OIDCConfig from app settings with defaults.

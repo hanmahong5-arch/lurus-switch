@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -48,6 +49,25 @@ type Session struct {
 	platform      *PlatformAccount
 	filePath      string
 	encryptionKey []byte
+
+	// refreshMu serialises EnsureFresh so concurrent triggers (startup
+	// probe + background timer + a manual click) coalesce into a single
+	// in-flight refresh instead of racing the token-exchange endpoint.
+	// Distinct from mu: a network round-trip must not hold the token lock.
+	refreshMu sync.Mutex
+
+	// now is the clock used for expiry math; injectable so tests are
+	// deterministic. Nil falls back to time.Now in clock(), so
+	// literal-constructed Sessions (NewSession, tests) stay safe.
+	now func() time.Time
+}
+
+// clock returns the session's current time, defaulting to time.Now when unset.
+func (s *Session) clock() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
+	return time.Now()
 }
 
 type storedTokens struct {
@@ -91,6 +111,7 @@ func NewSession() (*Session, error) {
 	s := &Session{
 		filePath:      filepath.Join(authDir, "auth.enc"),
 		encryptionKey: key,
+		now:           time.Now,
 	}
 
 	_ = s.load()
@@ -118,7 +139,7 @@ func (s *Session) StoreTokens(resp *TokenResponse) error {
 		AccessToken:   resp.AccessToken,
 		RefreshToken:  resp.RefreshToken,
 		IDToken:       resp.IDToken,
-		ExpiresAt:     time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second),
+		ExpiresAt:     s.clock().Add(time.Duration(resp.ExpiresIn) * time.Second),
 		GatewayToken:  gwToken,
 		GatewayUserID: gwUserID,
 		CachedUser:    cachedUser,
@@ -207,7 +228,61 @@ func (s *Session) IsExpired(buffer time.Duration) bool {
 	if s.tokens == nil {
 		return true
 	}
-	return time.Now().Add(buffer).After(s.tokens.ExpiresAt)
+	return !s.clock().Add(buffer).Before(s.tokens.ExpiresAt)
+}
+
+// RefreshFunc exchanges a refresh_token for a new TokenResponse. It is
+// passed into EnsureFresh so the auth package stays decoupled from the
+// OIDCConfig the caller owns (and so tests can inject a stub).
+type RefreshFunc func(ctx context.Context, refreshToken string) (*TokenResponse, error)
+
+// ErrNoRefreshToken is returned by EnsureFresh when the session needs a
+// refresh but has no refresh_token to do it (e.g. a manual-proxy login or
+// a provider that didn't grant offline_access). The caller should surface
+// the re-login signal — but only because the token is actually expired,
+// never for a still-valid session.
+var ErrNoRefreshToken = fmt.Errorf("no refresh token available")
+
+// EnsureFresh keeps the access token live without manual action. If the
+// token is still valid beyond buffer, it is a no-op (nil). Otherwise it
+// exchanges the refresh_token via refresh and persists the result.
+//
+// Concurrency: a single-flight guard (refreshMu) coalesces concurrent
+// triggers; queued callers re-check expiry once they acquire the guard, so
+// only one network round-trip happens per expiry window.
+//
+// Failure contract: on refresh error EnsureFresh returns that error WITHOUT
+// touching the stored tokens. It NEVER clears a session — the caller owns
+// the decision to force re-login, and only ever for an expired session.
+func (s *Session) EnsureFresh(ctx context.Context, buffer time.Duration, refresh RefreshFunc) error {
+	if !s.IsExpired(buffer) {
+		return nil
+	}
+
+	s.refreshMu.Lock()
+	defer s.refreshMu.Unlock()
+
+	// Re-check under the guard: a racing caller may have already refreshed
+	// while we waited, in which case we skip the redundant round-trip.
+	if !s.IsExpired(buffer) {
+		return nil
+	}
+
+	refreshToken := s.GetRefreshToken()
+	if refreshToken == "" {
+		return ErrNoRefreshToken
+	}
+
+	resp, err := refresh(ctx, refreshToken)
+	if err != nil {
+		// Leave the session untouched so the caller can decide; never
+		// drop a session here.
+		return fmt.Errorf("refresh access token: %w", err)
+	}
+	if resp == nil {
+		return fmt.Errorf("refresh access token: empty response")
+	}
+	return s.StoreTokens(resp)
 }
 
 // GetGatewayToken returns the provisioned gateway API token.

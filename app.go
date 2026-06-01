@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync"
 	"sync/atomic"
 
 	"lurus-switch/internal/activity"
@@ -57,6 +58,12 @@ type App struct {
 	// while disabled in user prefs; bindings_notify.go gates access.
 	notifyBus    *notify.Bus
 	notifyEngine *rules.Engine
+
+	// stopAuthRefresh signals the background OIDC token-refresh loop to
+	// exit at shutdown. Closed once via stopAuthRefreshOnce. Nil-safe:
+	// the loop only starts when an OIDC session is present.
+	stopAuthRefresh     chan struct{}
+	stopAuthRefreshOnce sync.Once
 }
 
 // NewApp creates a new App application struct
@@ -162,6 +169,13 @@ func (a *App) startup(ctx context.Context) {
 		go safeGo("conversation-reindex", func() { a.conversationIndex.Rebuild() })
 	}
 
+	// OIDC auto-refresh: best-effort refresh on startup when the stored
+	// token is near/past expiry, then a background timer keeps it live so
+	// the session no longer silently expires until the user opens the
+	// account popover. No-op for non-OIDC (manual-proxy) logins.
+	a.startAuthRefresh(ctx)
+	diagnostics.Default.Mark("auth-refresh-init")
+
 	// EndUser heartbeat: probe Hub liveness so revoked tokens evict within
 	// minutes. No-op when no activation file is on disk; safe to start in
 	// any mode (Personal/Reseller users have no activation, so the loop
@@ -223,6 +237,7 @@ func (a *App) shutdown(ctx context.Context) {
 	if a.heartbeat != nil {
 		a.heartbeat.Stop()
 	}
+	a.stopAuthRefreshLoop()
 
 	// Stop local API gateway (flushes metering buffer).
 	if a.gatewaySrv != nil {
