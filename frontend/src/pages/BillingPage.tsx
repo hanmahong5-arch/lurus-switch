@@ -142,8 +142,10 @@ export function BillingPage() {
 
   const handleRedeem = async (code: string): Promise<number> => {
     const amount = await BillingRedeemCode(code)
-    // Refresh user info after redeem
-    await loadBillingData()
+    // Refresh user info after redeem; swallow errors so a network blip on the
+    // follow-up fetch doesn't make a successful redeem appear as a failure.
+    // loadBillingData already shows its own error toast, so nothing is lost.
+    await loadBillingData().catch(() => {})
     return amount
   }
 
