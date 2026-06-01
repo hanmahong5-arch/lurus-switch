@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"lurus-switch/internal/configapply"
 )
 
 const (
@@ -253,7 +255,7 @@ func WriteOpenCodeConfig(cfg *OpenCodeConfig) error {
 	}
 
 	configPath := filepath.Join(configDir, OpenCodeConfigFilename)
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
+	if err := configapply.WriteAtomic(configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write opencode config %s: %w", configPath, err)
 	}
 	return nil

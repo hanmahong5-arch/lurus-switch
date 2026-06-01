@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"lurus-switch/internal/configapply"
 	"lurus-switch/internal/mcp"
 )
 
@@ -356,7 +357,7 @@ func patchMCPConfig(path string, server mcp.MCPServer) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("mcpmarket: mkdir %s: %w", filepath.Dir(path), err)
 	}
-	if err := os.WriteFile(path, out, 0644); err != nil {
+	if err := configapply.WriteAtomic(path, out, 0644); err != nil {
 		return fmt.Errorf("mcpmarket: write %s: %w", path, err)
 	}
 	return nil

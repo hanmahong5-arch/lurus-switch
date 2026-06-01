@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 
+	"lurus-switch/internal/configapply"
 	"lurus-switch/internal/installer"
 )
 
@@ -276,7 +277,7 @@ func WriteConfig(tool, content string) error {
 	}
 
 	configPath := filepath.Join(configDir, def.filename)
-	if err := os.WriteFile(configPath, []byte(content), 0600); err != nil {
+	if err := configapply.WriteAtomic(configPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write config %s: %w", configPath, err)
 	}
 

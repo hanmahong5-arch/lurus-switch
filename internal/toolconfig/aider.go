@@ -16,6 +16,8 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"lurus-switch/internal/configapply"
 )
 
 const (
@@ -134,7 +136,7 @@ func WriteAiderConfig(cfg map[string]any) error {
 		return fmt.Errorf("aider: marshal config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := configapply.WriteAtomic(path, data, 0o600); err != nil {
 		return fmt.Errorf("aider: write config %s: %w", path, err)
 	}
 	return nil
@@ -273,7 +275,7 @@ func injectAiderEnvKeys(creds CredSet) error {
 		sb.WriteByte('\n')
 	}
 
-	if err := os.WriteFile(envPath, []byte(sb.String()), 0o600); err != nil {
+	if err := configapply.WriteAtomic(envPath, []byte(sb.String()), 0o600); err != nil {
 		return fmt.Errorf("aider: write .env %s: %w", envPath, err)
 	}
 	return nil

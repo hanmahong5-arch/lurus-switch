@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	goruntime "runtime"
 
+	"lurus-switch/internal/configapply"
 	"lurus-switch/internal/mcp"
 )
 
@@ -125,7 +126,7 @@ func writeJSONSection(path, dotKey string, value interface{}) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	return os.WriteFile(path, out, 0644)
+	return configapply.WriteAtomic(path, out, 0644)
 }
 
 // jsonDecodeAny unmarshals JSON bytes into a map

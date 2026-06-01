@@ -13,6 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"lurus-switch/internal/configapply"
 )
 
 const (
@@ -124,7 +126,7 @@ func WriteAntigravityConfig(cfg *AntigravityConfig) error {
 	}
 
 	configPath := filepath.Join(configDir, AntigravityConfigFilename)
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
+	if err := configapply.WriteAtomic(configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write antigravity config %s: %w", configPath, err)
 	}
 	return nil
