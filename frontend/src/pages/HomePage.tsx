@@ -305,7 +305,7 @@ export function HomePage() {
   const handleUpdate = async (toolName: string) => {
     setUpdating(toolName, true)
     try {
-      await UpdateTool(toolName)
+      ensureSuccess(await UpdateTool(toolName), t('home.updateFailed', '更新失败'))
       const statuses = await DetectAllTools()
       setTools(statuses)
       toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.updateSuccess')}`)
@@ -320,10 +320,16 @@ export function HomePage() {
   const handleUpdateAll = async () => {
     for (const name of TOOL_ORDER) setUpdating(name, true)
     try {
-      await UpdateAllTools()
+      const results = await UpdateAllTools()
       const statuses = await DetectAllTools()
       setTools(statuses)
-      toast('success', t('dashboard.updateAllSuccess'))
+      const failed = Array.isArray(results) ? results.filter(r => r && r.success === false) : []
+      if (failed.length > 0) {
+        const detail = failed.map(r => `${r.tool}: ${r.message || t('home.updateFailed', '更新失败')}`).join('; ')
+        toast('warning', detail)
+      } else {
+        toast('success', t('dashboard.updateAllSuccess'))
+      }
       loadHealthScore()
     } catch (err) {
       errorToast(toast, err, { navigate: (p: string) => setActiveTool(p as any), currentPage: 'home', retry: () => handleUpdateAll(), t })
@@ -345,7 +351,7 @@ export function HomePage() {
     setConfirmUninstall(null)
     setUninstalling((prev) => ({ ...prev, [toolName]: true }))
     try {
-      await UninstallTool(toolName)
+      ensureSuccess(await UninstallTool(toolName), t('home.uninstallFailed', '卸载失败'))
       const statuses = await DetectAllTools()
       setTools(statuses)
       toast('success', `${TOOL_DISPLAY[toolName] || toolName} ${t('dashboard.uninstallSuccess')}`)
