@@ -8,11 +8,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	"lurus-switch/internal/appconfig"
+	"lurus-switch/internal/whitelabel"
 )
 
 // ============================
@@ -263,7 +266,13 @@ func writeResellerSettings(t *testing.T, hubURL, slug, token string) {
 	}
 }
 
-func TestWhitelabelHMACKey_UsesRemoteWhenAvailable(t *testing.T) {
+// TestWhitelabelHMACKey_BakedSecretEvenWhenHubReachable documents the
+// intentional post-fix behavior: whitelabelHMACKey always returns the
+// baked secret, even when Hub credentials are present and the Hub
+// endpoint would return a valid remote key. This guarantees signing on
+// a Reseller machine and verification on an EndUser machine always use
+// the same key (the EndUser machine has no Hub credentials).
+func TestWhitelabelHMACKey_BakedSecretEvenWhenHubReachable(t *testing.T) {
 	_ = withIsolatedAppData(t)
 
 	hexKey := makeValidHexKey()
@@ -277,8 +286,9 @@ func TestWhitelabelHMACKey_UsesRemoteWhenAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("whitelabelHMACKey: %v", err)
 	}
-	if encodeHexHelper(got) != hexKey {
-		t.Errorf("expected remote key, got fallback or different bytes")
+	expected := sha256.Sum256([]byte(whitelabelBuildSecret))
+	if !bytesEqual(got, expected[:]) {
+		t.Errorf("expected baked secret, got remote key or different bytes")
 	}
 }
 
@@ -356,6 +366,117 @@ func TestWhitelabelHMACKey_FallsBackOnMalformedResponse(t *testing.T) {
 	if !bytesEqual(got, expected[:]) {
 		t.Errorf("expected fallback baked-secret on malformed response")
 	}
+}
+
+// ── build-sign → EndUser-verify round-trip ─────────────────────────
+
+// TestWhitelabelHMACKey_ResellerSignEndUserVerify_RoundTrip is the
+// critical E2E contract test: a sidecar signed with whitelabelHMACKey()
+// on a Reseller machine (full config present, Hub available) must be
+// verifiable by whitelabelHMACKey() on a fresh EndUser machine (no
+// Reseller config). Before the fix this failed because the two calls
+// returned different keys (Hub remote key vs baked secret).
+func TestWhitelabelHMACKey_ResellerSignEndUserVerify_RoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	base := filepath.Join(tmp, "switch-base.exe")
+	if err := os.WriteFile(base, []byte("STUB BINARY CONTENT"), 0o644); err != nil {
+		t.Fatalf("seed base: %v", err)
+	}
+
+	// — Reseller side: Hub is reachable and returns a remote key.
+	remoteHexKey := makeValidHexKey()
+	h := newHubHMACKeyServer(t)
+	h.body = fmt.Sprintf(`{"success":true,"data":{"hmac_key":%q}}`, remoteHexKey)
+	withHubHMACKeyClient(t, &http.Client{Timeout: 2 * time.Second})
+
+	resellerDir := t.TempDir()
+	t.Setenv("APPDATA", resellerDir)
+	t.Setenv("HOME", resellerDir)
+	t.Setenv("USERPROFILE", resellerDir)
+	t.Setenv("XDG_CONFIG_HOME", resellerDir)
+	writeResellerSettings(t, h.srv.URL, "acme", "admin-tok")
+
+	signingKey, err := whitelabelHMACKey()
+	if err != nil {
+		t.Fatalf("Reseller: whitelabelHMACKey: %v", err)
+	}
+
+	out := filepath.Join(tmp, "out")
+	res, err := whitelabel.Build(whitelabel.BuildOpts{
+		Profile: whitelabel.Profile{
+			BrandName:  "Acme Corp",
+			HubURL:     "https://hub.acme.example",
+			TenantSlug: "acme",
+		},
+		HMACKey:        signingKey,
+		BaseBinaryPath: base,
+		OutputDir:      out,
+	})
+	if err != nil {
+		t.Fatalf("whitelabel.Build: %v", err)
+	}
+
+	// — EndUser side: fresh machine, no Reseller config.
+	endUserDir := t.TempDir()
+	t.Setenv("APPDATA", endUserDir)
+	t.Setenv("HOME", endUserDir)
+	t.Setenv("USERPROFILE", endUserDir)
+	t.Setenv("XDG_CONFIG_HOME", endUserDir)
+
+	verifyKey, err := whitelabelHMACKey()
+	if err != nil {
+		t.Fatalf("EndUser: whitelabelHMACKey: %v", err)
+	}
+
+	loader := &whitelabel.Loader{HMACKey: verifyKey}
+	prof, err := loader.Load(res.SidecarPath)
+	if err != nil {
+		t.Fatalf("EndUser: Loader.Load: %v (signing key == remote: %v)",
+			err, encodeHexHelper(signingKey) == remoteHexKey)
+	}
+	if prof.HubURL != "https://hub.acme.example" {
+		t.Errorf("HubURL round-trip mismatch: %q", prof.HubURL)
+	}
+}
+
+// TestWhitelabelHMACKey_AlwaysBakedSecret ensures whitelabelHMACKey
+// returns the sha256(whitelabelBuildSecret) key in all cases — both
+// when Reseller config is absent AND when it is present (even if Hub
+// is reachable). This guarantees signing and verification always use
+// the same deterministic key regardless of machine state.
+func TestWhitelabelHMACKey_AlwaysBakedSecret(t *testing.T) {
+	bakedKey := sha256.Sum256([]byte(whitelabelBuildSecret))
+	expected := bakedKey[:]
+
+	t.Run("no_reseller_config", func(t *testing.T) {
+		_ = withIsolatedAppData(t)
+		got, err := whitelabelHMACKey()
+		if err != nil {
+			t.Fatalf("whitelabelHMACKey: %v", err)
+		}
+		if !bytesEqual(got, expected) {
+			t.Errorf("expected baked secret, got different bytes")
+		}
+	})
+
+	t.Run("reseller_config_present_hub_reachable", func(t *testing.T) {
+		_ = withIsolatedAppData(t)
+		// Hub is reachable and returns a valid remote key — but we still
+		// expect the baked secret after the fix.
+		hexKey := makeValidHexKey()
+		h := newHubHMACKeyServer(t)
+		h.body = fmt.Sprintf(`{"success":true,"data":{"hmac_key":%q}}`, hexKey)
+		withHubHMACKeyClient(t, &http.Client{Timeout: 2 * time.Second})
+		writeResellerSettings(t, h.srv.URL, "acme", "admin-tok")
+
+		got, err := whitelabelHMACKey()
+		if err != nil {
+			t.Fatalf("whitelabelHMACKey: %v", err)
+		}
+		if !bytesEqual(got, expected) {
+			t.Errorf("expected baked secret even when Hub reachable, got remote key")
+		}
+	})
 }
 
 // ── helpers ────────────────────────────────────────────────────────

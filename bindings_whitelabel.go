@@ -334,43 +334,29 @@ func fetchHubHMACKey(ctx context.Context, hubBaseURL, tenantSlug, adminToken str
 	return keyBytes, nil
 }
 
-// whitelabelHMACKey returns the HMAC key for sidecar sign/verify. It
-// tries the Hub-side per-tenant endpoint first and falls back to the
-// hardcoded build secret on any failure. Fallback is mandatory:
+// whitelabelHMACKey returns the HMAC key for sidecar sign/verify.
 //
-//   - Older Hub deployments (pre-Phase-D) lack the endpoint entirely.
-//   - Fresh EndUser machines have no Reseller config to authenticate
-//     with — but they still need to verify a sidecar signed elsewhere.
-//   - Network blips during a build must not bounce the Reseller back
-//     to the wizard.
+// The key is always derived from the baked whitelabelBuildSecret via
+// SHA-256. This ensures signing (BuildWhiteLabelPackage on the Reseller
+// machine) and verification (applyWhiteLabelSidecar on a fresh EndUser
+// machine) always use the same key regardless of which machine config
+// is present.
 //
-// As a consequence, this function never returns an error — the legacy
-// signature is preserved (and the error path is reserved for future
-// hard-fail policy if we ever want to honor a `--strict` build flag).
+// Why not the Hub per-tenant endpoint? The Hub endpoint approach
+// (fetchHubHMACKey) was previously tried as a "first preference" but
+// created an asymmetry: a Reseller with full Hub credentials signed with
+// the Hub-issued key, while the EndUser (no Hub credentials) always fell
+// back to the baked secret — so every white-label sidecar failed HMAC
+// verification on first EndUser launch. The HMAC threat model is tamper-
+// detection during distribution (CDN / archive manipulation), not defense
+// against a determined adversary who holds the binary. For that, use
+// Authenticode (Windows) or codesign (macOS) as documented in the
+// PackagerPage distribution checklist.
 //
-// TODO(track-2.5): plumb a real context.Context through callers
-// (`BuildWhiteLabelPackage`, `applyWhiteLabelSidecar`) once a refactor
-// of the Wails binding signatures is on the table. Today we use
-// context.Background() so the Hub call is bounded only by the
-// http.Client timeout.
+// The function signature is kept as ([]byte, error) for future
+// extensibility (e.g. a --strict build flag that hard-fails when the
+// baked secret is missing or zero-length); callers must still check err.
 func whitelabelHMACKey() ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	s, err := appconfig.LoadAppSettings()
-	if err == nil && s != nil &&
-		s.Reseller.HubURL != "" && s.Reseller.TenantSlug != "" && s.Reseller.AdminToken != "" {
-		key, fetchErr := fetchHubHMACKey(ctx, s.Reseller.HubURL, s.Reseller.TenantSlug, s.Reseller.AdminToken)
-		if fetchErr == nil {
-			return key, nil
-		}
-		// Fallback path. Endpoint-absent is the expected legacy branch
-		// and stays quiet; other classes of failure (malformed key,
-		// hub-error) get a one-line stderr so operators notice.
-		if !errors.Is(fetchErr, errHubHMACKeyEndpointAbsent) {
-			fmt.Fprintf(os.Stderr, "whitelabel: hub hmac-key fetch failed, falling back to baked secret: %v\n", fetchErr)
-		}
-	}
 	sum := sha256.Sum256([]byte(whitelabelBuildSecret))
 	return sum[:], nil
 }
