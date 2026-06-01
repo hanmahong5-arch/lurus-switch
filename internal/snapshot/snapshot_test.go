@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -127,5 +128,79 @@ func TestSanitizeLabel_RemovesSeparators(t *testing.T) {
 	}
 	if got := sanitizeLabel(""); got == "" {
 		t.Error("sanitizeLabel(\"\") returned empty, want fallback")
+	}
+}
+
+// TestStore_RapidTakes_DistinctIDs verifies that two Takes called in rapid
+// succession produce distinct IDs and both snapshots survive on disk.
+// This is the core regression test for the 1-second ID collision bug.
+func TestStore_RapidTakes_DistinctIDs(t *testing.T) {
+	snapshotEnv(t)
+	s, err := NewStore()
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+
+	const tool = "claude"
+	if err := s.Take(tool, "auto-save", "content-1"); err != nil {
+		t.Fatalf("Take 1: %v", err)
+	}
+	if err := s.Take(tool, "auto-save", "content-2"); err != nil {
+		t.Fatalf("Take 2: %v", err)
+	}
+
+	metas, err := s.List(tool)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(metas) < 2 {
+		t.Fatalf("expected ≥2 snapshots; got %d — earlier snapshot was overwritten", len(metas))
+	}
+	// IDs must be unique
+	ids := make(map[string]struct{}, len(metas))
+	for _, m := range metas {
+		if _, dup := ids[m.ID]; dup {
+			t.Errorf("duplicate snapshot ID %q", m.ID)
+		}
+		ids[m.ID] = struct{}{}
+	}
+}
+
+// TestStore_ConcurrentTakes_NoPanic exercises the mutex: multiple goroutines
+// taking snapshots simultaneously must not panic or corrupt the list.
+func TestStore_ConcurrentTakes_NoPanic(t *testing.T) {
+	snapshotEnv(t)
+	s, err := NewStore()
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+
+	const (
+		tool       = "codex"
+		goroutines = 8
+	)
+	done := make(chan error, goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func(n int) {
+			done <- s.Take(tool, "auto-save", fmt.Sprintf("content-%d", n))
+		}(i)
+	}
+	for i := 0; i < goroutines; i++ {
+		if err := <-done; err != nil {
+			t.Errorf("Take goroutine error: %v", err)
+		}
+	}
+
+	metas, err := s.List(tool)
+	if err != nil {
+		t.Fatalf("List after concurrent Takes: %v", err)
+	}
+	// All IDs must be unique
+	ids := make(map[string]struct{}, len(metas))
+	for _, m := range metas {
+		if _, dup := ids[m.ID]; dup {
+			t.Errorf("duplicate ID after concurrent Takes: %q", m.ID)
+		}
+		ids[m.ID] = struct{}{}
 	}
 }

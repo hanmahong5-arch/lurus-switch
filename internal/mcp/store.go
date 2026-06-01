@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 // Store manages MCP preset persistence
 type Store struct {
+	mu  sync.Mutex
 	dir string
 }
 
@@ -53,6 +55,9 @@ func presetsDir() (string, error) {
 
 // ListPresets returns all stored user presets (not including built-ins)
 func (s *Store) ListPresets() ([]MCPPreset, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -81,6 +86,9 @@ func (s *Store) ListPresets() ([]MCPPreset, error) {
 
 // SavePreset persists a preset to disk; generates an ID if empty
 func (s *Store) SavePreset(p MCPPreset) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if p.ID == "" {
 		buf := make([]byte, 8)
 		if _, err := rand.Read(buf); err != nil {
@@ -106,6 +114,9 @@ func (s *Store) SavePreset(p MCPPreset) error {
 
 // DeletePreset removes a preset by ID
 func (s *Store) DeletePreset(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if strings.ContainsAny(id, `/\`) || strings.Contains(id, "..") {
 		return fmt.Errorf("invalid preset ID: %q", id)
 	}

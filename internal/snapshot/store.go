@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -28,6 +30,7 @@ type snapshot struct {
 
 // Store manages configuration snapshots
 type Store struct {
+	mu      sync.Mutex
 	baseDir string
 }
 
@@ -75,8 +78,22 @@ func (s *Store) toolDir(tool string) (string, error) {
 	return filepath.Join(s.baseDir, tool), nil
 }
 
+// snapshotEntropy returns a short random hex suffix for snapshot IDs so that
+// two Takes within the same wall-clock second produce distinct filenames.
+func snapshotEntropy() string {
+	buf := make([]byte, 3)
+	if _, err := rand.Read(buf); err != nil {
+		// Fallback: use nanosecond remainder, good enough when crypto/rand fails.
+		return fmt.Sprintf("%06d", time.Now().Nanosecond()%1_000_000)
+	}
+	return fmt.Sprintf("%x", buf)
+}
+
 // Take creates a new snapshot for a tool
 func (s *Store) Take(tool, label, content string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	dir, err := s.toolDir(tool)
 	if err != nil {
 		return err
@@ -85,12 +102,13 @@ func (s *Store) Take(tool, label, content string) error {
 		return fmt.Errorf("failed to create snapshot dir: %w", err)
 	}
 
-	id := fmt.Sprintf("%s-%s", time.Now().Format("20060102-150405"), sanitizeLabel(label))
+	now := time.Now()
+	id := fmt.Sprintf("%s.%s-%s", now.Format("20060102-150405"), snapshotEntropy(), sanitizeLabel(label))
 	meta := SnapshotMeta{
 		ID:        id,
 		Tool:      tool,
 		Label:     label,
-		CreatedAt: time.Now().Format(time.RFC3339),
+		CreatedAt: now.Format(time.RFC3339),
 		Size:      len(content),
 	}
 	snap := snapshot{Meta: meta, Content: content}
@@ -104,9 +122,10 @@ func (s *Store) Take(tool, label, content string) error {
 		return err
 	}
 
-	// Keep auto-save snapshots bounded to avoid disk bloat
+	// Keep auto-save snapshots bounded to avoid disk bloat.
+	// Call lock-free inner form — we already hold the mutex.
 	if label == "auto-save" {
-		s.pruneOldest(tool)
+		s.pruneOldestLocked(tool)
 	}
 
 	return nil
@@ -114,6 +133,13 @@ func (s *Store) Take(tool, label, content string) error {
 
 // List returns all snapshot metadata for a tool, sorted newest first
 func (s *Store) List(tool string) ([]SnapshotMeta, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.listLocked(tool)
+}
+
+// listLocked is the lock-free body of List; callers must hold s.mu.
+func (s *Store) listLocked(tool string) ([]SnapshotMeta, error) {
 	dir, err := s.toolDir(tool)
 	if err != nil {
 		return nil, err
@@ -153,6 +179,13 @@ func (s *Store) List(tool string) ([]SnapshotMeta, error) {
 
 // Restore returns the content of a snapshot by ID
 func (s *Store) Restore(tool, id string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.restoreLocked(tool, id)
+}
+
+// restoreLocked is the lock-free body of Restore; callers must hold s.mu.
+func (s *Store) restoreLocked(tool, id string) (string, error) {
 	if err := validateToken(id); err != nil {
 		return "", err
 	}
@@ -179,6 +212,13 @@ func (s *Store) Restore(tool, id string) (string, error) {
 
 // Delete removes a snapshot
 func (s *Store) Delete(tool, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.deleteLocked(tool, id)
+}
+
+// deleteLocked is the lock-free body of Delete; callers must hold s.mu.
+func (s *Store) deleteLocked(tool, id string) error {
 	if err := validateToken(id); err != nil {
 		return err
 	}
@@ -201,19 +241,24 @@ func (s *Store) Delete(tool, id string) error {
 // the oldest snapshot for that tool is deleted first.
 const maxSnapshotsPerTool = 20
 
-// pruneOldest deletes the oldest snapshot for a tool if count exceeds limit.
-func (s *Store) pruneOldest(tool string) {
-	metas, err := s.List(tool)
+// pruneOldestLocked deletes the oldest snapshot for a tool if count exceeds
+// the limit. Callers must hold s.mu — uses lock-free inner forms to avoid
+// self-deadlock.
+func (s *Store) pruneOldestLocked(tool string) {
+	metas, err := s.listLocked(tool)
 	if err != nil || len(metas) <= maxSnapshotsPerTool {
 		return
 	}
-	// List is sorted newest-first; oldest is last
+	// listLocked sorts newest-first; oldest is last.
 	oldest := metas[len(metas)-1]
-	_ = s.Delete(tool, oldest.ID)
+	_ = s.deleteLocked(tool, oldest.ID)
 }
 
 // ClearTool removes all snapshot files for a specific tool
 func (s *Store) ClearTool(tool string) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	dir, err := s.toolDir(tool)
 	if err != nil {
 		return 0, err
@@ -238,6 +283,9 @@ func (s *Store) ClearTool(tool string) (int, error) {
 
 // ClearAll removes all snapshot files for all tools
 func (s *Store) ClearAll() (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	entries, err := os.ReadDir(s.baseDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -268,11 +316,14 @@ func (s *Store) ClearAll() (int, error) {
 
 // Diff returns a simple line-diff between two snapshots (unified diff format)
 func (s *Store) Diff(tool, id1, id2 string) (string, error) {
-	c1, err := s.Restore(tool, id1)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	c1, err := s.restoreLocked(tool, id1)
 	if err != nil {
 		return "", fmt.Errorf("snapshot 1: %w", err)
 	}
-	c2, err := s.Restore(tool, id2)
+	c2, err := s.restoreLocked(tool, id2)
 	if err != nil {
 		return "", fmt.Errorf("snapshot 2: %w", err)
 	}

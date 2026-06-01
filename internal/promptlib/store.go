@@ -1,17 +1,20 @@
 package promptlib
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
 // Store manages prompt persistence
 type Store struct {
+	mu  sync.Mutex
 	dir string
 }
 
@@ -53,6 +56,13 @@ func promptsDir() (string, error) {
 
 // ListPrompts returns all stored prompts, optionally filtered by category
 func (s *Store) ListPrompts(category string) ([]Prompt, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.listPromptsLocked(category)
+}
+
+// listPromptsLocked is the lock-free body of ListPrompts; callers must hold s.mu.
+func (s *Store) listPromptsLocked(category string) ([]Prompt, error) {
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -84,6 +94,9 @@ func (s *Store) ListPrompts(category string) ([]Prompt, error) {
 
 // GetPrompt returns a single prompt by ID
 func (s *Store) GetPrompt(id string) (*Prompt, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := validateID(id); err != nil {
 		return nil, err
 	}
@@ -103,6 +116,13 @@ func (s *Store) GetPrompt(id string) (*Prompt, error) {
 
 // SavePrompt persists a prompt; auto-generates ID and timestamps if missing
 func (s *Store) SavePrompt(p Prompt) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.savePromptLocked(p)
+}
+
+// savePromptLocked is the lock-free body; callers must hold s.mu.
+func (s *Store) savePromptLocked(p Prompt) error {
 	now := time.Now().Format(time.RFC3339)
 	if p.ID == "" {
 		p.ID = fmt.Sprintf("prompt-%d", time.Now().UnixMilli())
@@ -128,6 +148,9 @@ func (s *Store) SavePrompt(p Prompt) error {
 
 // DeletePrompt removes a prompt by ID
 func (s *Store) DeletePrompt(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if err := validateID(id); err != nil {
 		return err
 	}
@@ -143,6 +166,9 @@ func (s *Store) DeletePrompt(id string) error {
 
 // ClearAllUser removes all user-created prompt files (builtin prompts are not stored on disk)
 func (s *Store) ClearAllUser() (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	entries, err := os.ReadDir(s.dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -164,7 +190,10 @@ func (s *Store) ClearAllUser() (int, error) {
 
 // ExportAll returns all prompts serialized as a JSON array string
 func (s *Store) ExportAll() (string, error) {
-	prompts, err := s.ListPrompts("")
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	prompts, err := s.listPromptsLocked("")
 	if err != nil {
 		return "", err
 	}
@@ -175,17 +204,31 @@ func (s *Store) ExportAll() (string, error) {
 	return string(data), nil
 }
 
+// importEntropy returns a short random hex suffix so that same-millisecond
+// ImportFromJSON calls produce distinct IDs.
+func importEntropy() string {
+	buf := make([]byte, 3)
+	if _, err := rand.Read(buf); err != nil {
+		return fmt.Sprintf("%06d", time.Now().Nanosecond()%1_000_000)
+	}
+	return fmt.Sprintf("%x", buf)
+}
+
 // ImportFromJSON parses a JSON array of prompts and saves each one; returns count saved
 func (s *Store) ImportFromJSON(data string) (int, error) {
 	var prompts []Prompt
 	if err := json.Unmarshal([]byte(data), &prompts); err != nil {
 		return 0, fmt.Errorf("invalid JSON: %w", err)
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	count := 0
-	for _, p := range prompts {
-		// Reset ID so we don't collide with existing prompts
-		p.ID = fmt.Sprintf("import-%d-%d", time.Now().UnixMilli(), count)
-		if err := s.SavePrompt(p); err == nil {
+	for i, p := range prompts {
+		// Reset ID to avoid collision with existing prompts.
+		// Use millisecond + per-item index + random entropy so that
+		// same-millisecond imports within the same batch remain distinct.
+		p.ID = fmt.Sprintf("import-%d-%d-%s", time.Now().UnixMilli(), i, importEntropy())
+		if err := s.savePromptLocked(p); err == nil {
 			count++
 		}
 	}
