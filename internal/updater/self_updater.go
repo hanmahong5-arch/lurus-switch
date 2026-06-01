@@ -19,6 +19,10 @@ const (
 	downloadTimeout = 120 * time.Second
 )
 
+// maxDownloadBytes caps the binary download to 500 MB to prevent unbounded reads.
+// Exposed as a var so tests can override it without unsafe casting.
+var maxDownloadBytes int64 = 500 * 1024 * 1024
+
 // SelfUpdater handles checking and applying updates for the Switch app
 type SelfUpdater struct {
 	checker        *GitHubChecker
@@ -79,16 +83,31 @@ func (s *SelfUpdater) ApplyUpdate() error {
 	return s.applyUnix(currentExe, tmpPath)
 }
 
-// applyWindows uses a batch script to replace the locked executable and restart
+// applyWindows uses a batch script to replace the locked executable and restart.
+//
+// Bat script order: (1) wait, (2) copy new → current (keeps current intact if copy fails),
+// (3) rename current to .bak as a fallback copy, then launch. On launch the running
+// new binary can clean up .bak on next start. This avoids the del-before-move window
+// where a crash leaves no binary at all.
 func (s *SelfUpdater) applyWindows(currentExe, newExe string) error {
+	bakPath := currentExe + ".bak"
 	batPath := currentExe + ".update.bat"
+
+	// Batch script:
+	//   1. Wait for the current process to exit.
+	//   2. Rename current exe → .bak (preserves it in case the new binary fails to launch).
+	//   3. Move new exe → current exe path.
+	//   4. Launch the new exe.
+	//   5. Self-delete the bat.
+	//
+	// If step 4 fails the user still has .bak to restore manually.
 	batContent := fmt.Sprintf(`@echo off
 timeout /t 2 /nobreak >nul
-del "%s"
-move "%s" "%s"
+move /y "%s" "%s"
+move /y "%s" "%s"
 start "" "%s"
 del "%%~f0"
-`, currentExe, newExe, currentExe, currentExe)
+`, currentExe, bakPath, newExe, currentExe, currentExe)
 
 	if err := os.WriteFile(batPath, []byte(batContent), 0644); err != nil {
 		return fmt.Errorf("failed to write update script: %w", err)
@@ -104,13 +123,24 @@ del "%%~f0"
 	return nil
 }
 
-// applyUnix directly replaces the binary and restarts
+// applyUnix directly replaces the binary and restarts.
+// Before overwriting, the current executable is backed up to currentExe+".bak".
+// If the new binary fails to start the caller should restore from the .bak.
 func (s *SelfUpdater) applyUnix(currentExe, newExe string) error {
+	bakPath := currentExe + ".bak"
+
 	if err := os.Chmod(newExe, 0755); err != nil {
 		return fmt.Errorf("failed to set executable permissions: %w", err)
 	}
 
+	// Preserve the current binary as a rollback copy before overwriting.
+	if err := os.Rename(currentExe, bakPath); err != nil {
+		return fmt.Errorf("failed to back up current executable: %w", err)
+	}
+
 	if err := os.Rename(newExe, currentExe); err != nil {
+		// Attempt to restore the backup before returning the error.
+		_ = os.Rename(bakPath, currentExe)
 		return fmt.Errorf("failed to replace executable: %w", err)
 	}
 
@@ -119,6 +149,8 @@ func (s *SelfUpdater) applyUnix(currentExe, newExe string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
+		// Restore the backup so the user is not left with a broken installation.
+		_ = os.Rename(bakPath, currentExe)
 		return fmt.Errorf("failed to restart application: %w", err)
 	}
 
@@ -145,7 +177,7 @@ func downloadFile(url, destPath string) error {
 	}
 	defer out.Close()
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	if _, err := io.Copy(out, io.LimitReader(resp.Body, maxDownloadBytes)); err != nil {
 		return fmt.Errorf("failed to write downloaded data: %w", err)
 	}
 

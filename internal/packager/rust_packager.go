@@ -11,6 +11,9 @@ import (
 	"strings"
 )
 
+// maxDownloadBytes caps binary downloads to 500 MB to prevent unbounded reads.
+const maxDownloadBytes int64 = 500 * 1024 * 1024
+
 // RustPackager handles downloading and packaging Codex CLI binaries
 type RustPackager struct {
 	cacheDir string
@@ -204,7 +207,7 @@ func (p *RustPackager) downloadFile(url, destPath string) error {
 	}
 	defer out.Close()
 
-	if _, err := io.Copy(out, resp.Body); err != nil {
+	if _, err := io.Copy(out, io.LimitReader(resp.Body, maxDownloadBytes)); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

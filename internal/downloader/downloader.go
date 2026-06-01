@@ -12,7 +12,12 @@ import (
 	"runtime"
 )
 
-const downloadChunkSize = 64 * 1024 // 64 KB
+const (
+	downloadChunkSize = 64 * 1024 // 64 KB
+
+	// maxDownloadBytes caps all binary downloads to 500 MB to prevent unbounded reads.
+	maxDownloadBytes int64 = 500 * 1024 * 1024
+)
 
 // shortURL strips query strings and trims long URLs so error toasts don't
 // drown the user in 1KB pre-signed AWS signatures. The full URL stays in
@@ -66,9 +71,10 @@ func DownloadFile(ctx context.Context, url, destPath string, opts Options) error
 	total := resp.ContentLength // -1 if unknown
 	var downloaded int64
 	buf := make([]byte, downloadChunkSize)
+	limited := io.LimitReader(resp.Body, maxDownloadBytes)
 
 	for {
-		n, readErr := resp.Body.Read(buf)
+		n, readErr := limited.Read(buf)
 		if n > 0 {
 			if _, writeErr := out.Write(buf[:n]); writeErr != nil {
 				out.Close()
@@ -186,7 +192,7 @@ func (d *Downloader) Download(url, filename string) (*DownloadResult, error) {
 	}
 	defer out.Close()
 
-	size, err := io.Copy(out, resp.Body)
+	size, err := io.Copy(out, io.LimitReader(resp.Body, maxDownloadBytes))
 	if err != nil {
 		os.Remove(destPath)
 		return nil, fmt.Errorf("failed to write file: %w", err)

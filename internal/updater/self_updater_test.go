@@ -1,6 +1,7 @@
 package updater
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -143,5 +144,37 @@ func TestDownloadFile_InvalidDestDir(t *testing.T) {
 	err := downloadFile(srv.URL+"/file", "/nonexistent/deep/path/file.bin")
 	if err == nil {
 		t.Error("expected error for non-existent destination directory")
+	}
+}
+
+// TestDownloadFile_SizeCap verifies that downloadFile stops reading after maxDownloadBytes.
+// We temporarily lower the cap to 10 bytes to keep the test fast.
+func TestDownloadFile_SizeCap(t *testing.T) {
+	const capBytes = 10
+	orig := maxDownloadBytes
+	maxDownloadBytes = capBytes
+	defer func() { maxDownloadBytes = orig }()
+
+	// Server sends 100 bytes.
+	payload := bytes.Repeat([]byte("x"), 100)
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(payload)
+	}))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	dest := filepath.Join(tmp, "capped.bin")
+
+	if err := downloadFile(srv.URL+"/big", dest); err != nil {
+		t.Fatalf("downloadFile error: %v", err)
+	}
+
+	got, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if int64(len(got)) > capBytes {
+		t.Errorf("downloaded %d bytes, cap was %d — LimitReader not enforced", len(got), capBytes)
 	}
 }
