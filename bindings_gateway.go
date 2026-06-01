@@ -77,13 +77,17 @@ func (a *App) GetGatewayURL() string {
 	return st.URL
 }
 
-// syncGatewayUpstream reads proxy settings and pushes upstream URL/token to the gateway.
+// syncGatewayUpstream reads proxy settings and pushes the authoritative
+// upstream URL/token to the gateway data path. The token honors
+// "OIDC session gateway token > manual proxy UserToken" (gatewayUpstreamToken),
+// so real CLI traffic authenticates with the provisioned token after login and
+// falls back to the manual proxy key when there is no OIDC session.
 func (a *App) syncGatewayUpstream() {
 	if a.gatewaySrv == nil || a.proxyMgr == nil {
 		return
 	}
 	settings := a.proxyMgr.GetSettings()
-	a.gatewaySrv.UpdateUpstream(settings.APIEndpoint, settings.BuildToolAPIKey())
+	a.gatewaySrv.UpdateUpstream(settings.APIEndpoint, a.gatewayUpstreamToken(settings))
 }
 
 // UpstreamHealthResult holds the outcome of an upstream connectivity test.

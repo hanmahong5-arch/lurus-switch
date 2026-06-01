@@ -203,6 +203,13 @@ func (a *App) provisionGateway() {
 		}
 		// Reset billing client so it picks up the new gateway token.
 		a.resetBillingClient()
+		// If the gateway is already running when the user logs in, push the
+		// freshly provisioned OIDC token onto the live data path now instead
+		// of waiting for the next StartGateway/SaveProxySettings — syncGatewayUpstream
+		// honors "OIDC gateway token > manual proxy token".
+		if a.gatewaySrv != nil {
+			a.syncGatewayUpstream()
+		}
 		log.Printf("[auth] Gateway provisioned successfully (user_id=%d, status=%s)", resp.UserID, resp.Status)
 	}
 

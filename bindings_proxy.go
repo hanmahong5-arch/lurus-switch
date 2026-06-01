@@ -63,6 +63,14 @@ func (a *App) SaveProxySettings(s *proxy.ProxySettings) error {
 		a.billingClient = nil
 	}
 	a.billingMu.Unlock()
+
+	// Re-sync a RUNNING gateway so a mid-session endpoint/token edit takes
+	// effect immediately instead of leaving every proxied request on the
+	// stale upstream until a manual restart. UpdateUpstream locks + persists;
+	// the guard is a no-op when the gateway hasn't been built yet.
+	if a.gatewaySrv != nil {
+		a.syncGatewayUpstream()
+	}
 	return nil
 }
 

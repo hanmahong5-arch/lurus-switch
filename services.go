@@ -455,6 +455,22 @@ func (s *services) ensureBillingClient() (*billing.Client, error) {
 	return s.billingClient, nil
 }
 
+// gatewayUpstreamToken resolves the token the RUNNING gateway should present
+// to the upstream on the live data path. It mirrors ensureBillingClient's
+// authority order: the OIDC session's provisioned gateway token wins when
+// present, otherwise the manual proxy key (APIKey, then UserToken) via
+// BuildToolAPIKey. Users without an OIDC session see the unchanged manual-token
+// behaviour — this is the same fallback Reseller/EndUser installs rely on.
+func (s *services) gatewayUpstreamToken(settings *proxy.ProxySettings) string {
+	if s.authSession != nil && s.authSession.HasGatewayToken() {
+		return s.authSession.GetGatewayToken()
+	}
+	if settings == nil {
+		return ""
+	}
+	return settings.BuildToolAPIKey()
+}
+
 // resetBillingClient clears the cached billing client, forcing re-creation on next use.
 func (s *services) resetBillingClient() {
 	s.billingMu.Lock()
