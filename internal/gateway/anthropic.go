@@ -2,6 +2,7 @@ package gateway
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -67,7 +68,9 @@ func (s *Server) handleAnthropicMessages(w http.ResponseWriter, r *http.Request)
 		if v := guard.Check(); !v.Allowed {
 			writeAnthropicError(w, http.StatusTooManyRequests, "rate_limit_error",
 				fmt.Sprintf("Lurus Switch budget wall: %s. Raise the limit or click 'reset session' in the Budget panel.", v.Reason))
-			s.recordError(meta, model, v.Reason)
+			// Book 402 (self-imposed local wall) so this does NOT inflate the
+			// upstream RateLimitEvents metric (which keys on StatusCode==429).
+			s.recordError(meta, model, v.Reason, http.StatusPaymentRequired)
 			return
 		}
 	}
@@ -133,7 +136,14 @@ func (s *Server) handleAnthropicMessages(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		writeAnthropicError(w, http.StatusBadGateway, "api_error",
 			fmt.Sprintf("upstream error: %v", err))
-		s.recordError(meta, model, err.Error())
+		// Surface the real last upstream status for metering so a 429 storm
+		// books as RateLimitEvents instead of ErrorEvents.
+		var ue *UpstreamExhaustedError
+		errStatus := http.StatusBadGateway
+		if errors.As(err, &ue) && ue.LastStatus != 0 {
+			errStatus = ue.LastStatus
+		}
+		s.recordError(meta, model, err.Error(), errStatus)
 		return
 	}
 	defer resp.Body.Close()
@@ -147,7 +157,7 @@ func (s *Server) handleAnthropicMessages(w http.ResponseWriter, r *http.Request)
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
 		writeAnthropicError(w, resp.StatusCode, anthropicErrTypeForStatus(resp.StatusCode),
 			fmt.Sprintf("upstream %d: %s", resp.StatusCode, string(body)))
-		s.recordError(meta, model, string(body))
+		s.recordError(meta, model, string(body), resp.StatusCode)
 		return
 	}
 
@@ -216,8 +226,8 @@ func (s *Server) streamAnthropic(
 		model, 0,
 	)
 	if err := tr.Run(resp.Body, w, flusher.Flush); err != nil {
-		// Stream connection broken — best we can do is log via metering.
-		s.recordError(meta, model, "anthropic stream: "+err.Error())
+		// Stream connection broken — no upstream HTTP status available; book 502.
+		s.recordError(meta, model, "anthropic stream: "+err.Error(), http.StatusBadGateway)
 		return
 	}
 	_ = req

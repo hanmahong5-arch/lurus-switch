@@ -3,6 +3,7 @@ package gateway
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -42,7 +43,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	body, dlpBlocked, dlpReason := s.applyDLPRequest(body, r.URL.Path)
 	if dlpBlocked {
 		writeOpenAIError(w, http.StatusUnavailableForLegalReasons, "dlp_blocked", dlpReason)
-		s.recordError(meta, "", dlpReason)
+		s.recordError(meta, "", dlpReason, http.StatusUnavailableForLegalReasons)
 		return
 	}
 
@@ -88,7 +89,9 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		if v := guard.Check(); !v.Allowed {
 			writeOpenAIError(w, http.StatusTooManyRequests, "spend_cap_reached",
 				fmt.Sprintf("Lurus Switch budget wall: %s. Raise the limit or click 'reset session' in the Budget panel.", v.Reason))
-			s.recordError(meta, model, v.Reason)
+			// Book 402 (self-imposed local wall) so this does NOT inflate the
+			// upstream RateLimitEvents metric (which keys on StatusCode==429).
+			s.recordError(meta, model, v.Reason, http.StatusPaymentRequired)
 			return
 		}
 	}
@@ -134,7 +137,14 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		writeOpenAIError(w, http.StatusBadGateway, "upstream_error",
 			fmt.Sprintf("all upstreams failed: %v", err))
-		s.recordError(meta, model, err.Error())
+		// Surface the real last upstream status for metering so a 429 storm
+		// books as RateLimitEvents instead of ErrorEvents.
+		var ue *UpstreamExhaustedError
+		errStatus := http.StatusBadGateway
+		if errors.As(err, &ue) && ue.LastStatus != 0 {
+			errStatus = ue.LastStatus
+		}
+		s.recordError(meta, model, err.Error(), errStatus)
 		return
 	}
 	defer resp.Body.Close()
@@ -180,7 +190,7 @@ func (s *Server) handleProxy(w http.ResponseWriter, r *http.Request) {
 		copyResponseHeaders(w, resp)
 		w.WriteHeader(resp.StatusCode)
 		w.Write(errBody)
-		s.recordError(meta, model, string(errBody))
+		s.recordError(meta, model, string(errBody), resp.StatusCode)
 		return
 	}
 
@@ -315,7 +325,7 @@ func (s *Server) recordUsage(meta *RequestMeta, model string, usage UsageFromRes
 	}
 }
 
-func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {
+func (s *Server) recordError(meta *RequestMeta, model, errMsg string, statusCode int) {
 	if s.meter == nil || meta == nil {
 		return
 	}
@@ -330,7 +340,7 @@ func (s *Server) recordError(meta *RequestMeta, model, errMsg string) {
 		AppID:        meta.AppID,
 		Model:        model,
 		LatencyMs:    time.Since(meta.StartTime).Milliseconds(),
-		StatusCode:   502,
+		StatusCode:   statusCode,
 		ErrorMessage: errMsg,
 		Timestamp:    time.Now(),
 		ServedBy:     meta.ServedBy,

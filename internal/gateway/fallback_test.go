@@ -3,6 +3,7 @@ package gateway
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -87,5 +88,68 @@ func TestFallback_Upstream401TripsBreaker(t *testing.T) {
 
 	if breaker.Allow("dead") {
 		t.Fatalf("breaker should be open after 3 consecutive upstream 401s")
+	}
+}
+
+// TestTryUpstreamChain_LastStatusSurfaced verifies that when all chain entries
+// fail, the returned error wraps an *UpstreamExhaustedError whose LastStatus
+// carries the final HTTP status code. A transport-only failure (no HTTP
+// response ever arrived) must set LastStatus==0.
+func TestTryUpstreamChain_LastStatusSurfaced(t *testing.T) {
+	cases := []struct {
+		name           string
+		upstreamStatus int  // 0 = simulate transport failure (close immediately)
+		wantLastStatus int
+	}{
+		{name: "429 rate-limit", upstreamStatus: http.StatusTooManyRequests, wantLastStatus: 429},
+		{name: "401 unauthorized", upstreamStatus: http.StatusUnauthorized, wantLastStatus: 401},
+		{name: "402 payment required", upstreamStatus: http.StatusPaymentRequired, wantLastStatus: 402},
+		{name: "500 server error", upstreamStatus: http.StatusInternalServerError, wantLastStatus: 500},
+		{name: "transport failure (no response)", upstreamStatus: 0, wantLastStatus: 0},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var ts *httptest.Server
+			if c.upstreamStatus == 0 {
+				// Immediately close the connection to simulate a transport error.
+				ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					// Hijack and close without writing a response.
+					hj, ok := w.(http.Hijacker)
+					if !ok {
+						t.Error("ResponseWriter does not implement Hijacker")
+						return
+					}
+					conn, _, _ := hj.Hijack()
+					conn.Close()
+				}))
+			} else {
+				status := c.upstreamStatus
+				ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(status)
+					fmt.Fprintf(w, `{"error":"upstream %d"}`, status)
+				}))
+			}
+			defer ts.Close()
+
+			fc := NewFallbackChain(nil)
+			chain := []FallbackEntry{{Name: "only", URL: ts.URL, Token: "k"}}
+
+			_, _, err := fc.TryUpstreamChain(
+				context.Background(), "POST", "/v1/chat/completions", "",
+				[]byte(`{}`), http.Header{}, chain,
+			)
+			if err == nil {
+				t.Fatal("expected an error from an exhausted chain")
+			}
+
+			var ue *UpstreamExhaustedError
+			if !errors.As(err, &ue) {
+				t.Fatalf("expected *UpstreamExhaustedError, got %T: %v", err, err)
+			}
+			if ue.LastStatus != c.wantLastStatus {
+				t.Fatalf("LastStatus = %d, want %d", ue.LastStatus, c.wantLastStatus)
+			}
+		})
 	}
 }

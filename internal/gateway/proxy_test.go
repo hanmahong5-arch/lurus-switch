@@ -13,6 +13,79 @@ import (
 	"lurus-switch/internal/metering"
 )
 
+// TestRecordError_StatusBucketing verifies that recordError books the real
+// upstream status so metering buckets it correctly:
+//   - 429 → RateLimitEvents (upstream throttled us)
+//   - 402 (self-imposed local wall) → NOT in RateLimitEvents, NOT in ErrorEvents
+//   - 502 bad gateway → ErrorEvents (5xx)
+func TestRecordError_StatusBucketing(t *testing.T) {
+	type wantBuckets struct {
+		rateLimitEvents int64
+		errorEvents     int64
+	}
+	cases := []struct {
+		name       string
+		statusCode int
+		want       wantBuckets
+	}{
+		{
+			name:       "429 upstream rate-limit → RateLimitEvents",
+			statusCode: http.StatusTooManyRequests,
+			want:       wantBuckets{rateLimitEvents: 1, errorEvents: 0},
+		},
+		{
+			name:       "402 self-imposed local wall → neither bucket",
+			statusCode: http.StatusPaymentRequired,
+			want:       wantBuckets{rateLimitEvents: 0, errorEvents: 0},
+		},
+		{
+			name:       "502 bad gateway → ErrorEvents",
+			statusCode: http.StatusBadGateway,
+			want:       wantBuckets{rateLimitEvents: 0, errorEvents: 1},
+		},
+		{
+			name:       "500 server error → ErrorEvents",
+			statusCode: http.StatusInternalServerError,
+			want:       wantBuckets{rateLimitEvents: 0, errorEvents: 1},
+		},
+		{
+			name:       "451 DLP block → neither bucket",
+			statusCode: http.StatusUnavailableForLegalReasons,
+			want:       wantBuckets{rateLimitEvents: 0, errorEvents: 0},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			reg, err := appreg.NewRegistry(dir)
+			if err != nil {
+				t.Fatalf("NewRegistry: %v", err)
+			}
+			meter, err := metering.NewStore(dir)
+			if err != nil {
+				t.Fatalf("NewStore: %v", err)
+			}
+			srv := NewServer(dir, reg, meter)
+
+			meta := &RequestMeta{
+				AppID:     "test-app",
+				StartTime: time.Now(),
+			}
+			srv.recordError(meta, "test-model", "test error", c.statusCode)
+
+			now := time.Now()
+			ins := meter.Insights(now.Add(-time.Minute), now.Add(time.Minute))
+			if ins.RateLimitEvents != c.want.rateLimitEvents {
+				t.Errorf("RateLimitEvents = %d, want %d", ins.RateLimitEvents, c.want.rateLimitEvents)
+			}
+			if ins.ErrorEvents != c.want.errorEvents {
+				t.Errorf("ErrorEvents = %d, want %d", ins.ErrorEvents, c.want.errorEvents)
+			}
+		})
+	}
+}
+
 func setupTestServer(t *testing.T, upstreamHandler http.HandlerFunc) (*Server, *appreg.Registry, *metering.Store, *httptest.Server) {
 	t.Helper()
 

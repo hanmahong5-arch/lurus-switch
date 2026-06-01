@@ -11,6 +11,26 @@ import (
 	"time"
 )
 
+// UpstreamExhaustedError is returned by TryUpstreamChain when every entry in
+// the chain has been tried and all failed. LastStatus is the HTTP status code
+// of the final upstream response (e.g. 429, 401, 500). When the final attempt
+// failed at transport level with no HTTP response at all, LastStatus is 0.
+//
+// Callers that need to surface the real status for metering use errors.As:
+//
+//	var ue *UpstreamExhaustedError
+//	status := http.StatusBadGateway
+//	if errors.As(err, &ue) && ue.LastStatus != 0 {
+//	    status = ue.LastStatus
+//	}
+type UpstreamExhaustedError struct {
+	LastStatus int   // final upstream HTTP status; 0 = transport failure (no response)
+	Err        error // underlying wrapped error
+}
+
+func (e *UpstreamExhaustedError) Error() string { return e.Err.Error() }
+func (e *UpstreamExhaustedError) Unwrap() error { return e.Err }
+
 // FallbackChain holds an ordered list of upstream endpoints to try.
 // If the primary upstream fails (5xx, timeout, connection refused),
 // the gateway walks the chain until one succeeds or all are exhausted.
@@ -160,6 +180,7 @@ func (fc *FallbackChain) TryUpstreamChain(
 	observer := fc.observer
 	fc.mu.RUnlock()
 
+	var lastStatus int // 0 = transport failure; set to the HTTP status of the last response
 	for _, entry := range chain {
 		if entry.URL == "" {
 			continue
@@ -171,6 +192,11 @@ func (fc *FallbackChain) TryUpstreamChain(
 				observer(entry.Name, true, "", latencyMs)
 			}
 			return resp, entry.Name, nil
+		}
+		if resp != nil {
+			lastStatus = resp.StatusCode
+		} else {
+			lastStatus = 0 // transport-level failure
 		}
 		if observer != nil {
 			msg := ""
@@ -188,12 +214,21 @@ func (fc *FallbackChain) TryUpstreamChain(
 	}
 
 	if err != nil {
-		return nil, "", fmt.Errorf("all upstream endpoints failed, last error: %w", err)
+		return nil, "", &UpstreamExhaustedError{
+			LastStatus: lastStatus,
+			Err:        fmt.Errorf("all upstream endpoints failed, last error: %w", err),
+		}
 	}
 	if resp != nil {
-		return nil, "", fmt.Errorf("all upstream endpoints failed (last status: %d)", resp.StatusCode)
+		return nil, "", &UpstreamExhaustedError{
+			LastStatus: lastStatus,
+			Err:        fmt.Errorf("all upstream endpoints failed (last status: %d)", resp.StatusCode),
+		}
 	}
-	return nil, "", fmt.Errorf("all upstream endpoints had empty URLs")
+	return nil, "", &UpstreamExhaustedError{
+		LastStatus: 0,
+		Err:        fmt.Errorf("all upstream endpoints had empty URLs"),
+	}
 }
 
 // doRequest performs one upstream HTTP call and returns the response
