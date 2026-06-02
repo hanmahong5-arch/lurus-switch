@@ -1601,3 +1601,7 @@ export function DetectAider() {
 export function InjectAiderCredentials() {
   return window['go']['main']['App']['InjectAiderCredentials']();
 }
+
+export function GenerateImportLink(arg1, arg2) {
+  return window['go']['main']['App']['GenerateImportLink'](arg1, arg2);
+}

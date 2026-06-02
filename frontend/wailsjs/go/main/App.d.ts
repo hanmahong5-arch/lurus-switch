@@ -857,3 +857,5 @@ export function ApplyGeminiMigration():Promise<main.ToolConfigResult>;
 export function DetectAider():Promise<main.AiderDetectResult>;
 
 export function InjectAiderCredentials():Promise<main.ToolConfigResult>;
+
+export function GenerateImportLink(arg1:string,arg2:string):Promise<string>;

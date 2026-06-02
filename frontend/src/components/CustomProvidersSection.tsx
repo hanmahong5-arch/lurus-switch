@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Trash2, Pencil, Server, ExternalLink, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Pencil, Server, ExternalLink, Loader2, Share2 } from 'lucide-react'
 import { ListCustomProviders, DeleteCustomProvider } from '../../wailsjs/go/main/App'
 import { CustomProviderForm, type CustomProvider } from './CustomProviderForm'
+import { ShareConfigModal } from './ShareConfigModal'
 
 // Settings → Providers tab body. Lists user-defined providers with edit /
 // delete, and an "Add" flow backed by CustomProviderForm.
@@ -13,6 +14,7 @@ export function CustomProvidersSection() {
   const [editing, setEditing] = useState<CustomProvider | null>(null)
   const [adding, setAdding] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [sharingProvider, setSharingProvider] = useState<CustomProvider | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -43,6 +45,7 @@ export function CustomProvidersSection() {
   const showForm = adding || editing !== null
 
   return (
+    <>
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
@@ -116,6 +119,14 @@ export function CustomProvidersSection() {
                 </a>
               )}
               <button
+                onClick={() => setSharingProvider(p)}
+                className="p-1 rounded hover:bg-muted text-muted-foreground"
+                title={t('customProvider.share', '分享')}
+                data-testid={`share-btn-${p.id}`}
+              >
+                <Share2 className="h-3.5 w-3.5" />
+              </button>
+              <button
                 onClick={() => { setEditing(p); setAdding(false) }}
                 className="p-1 rounded hover:bg-muted text-muted-foreground"
                 title={t('common.edit', '编辑')}
@@ -137,5 +148,20 @@ export function CustomProvidersSection() {
         </div>
       )}
     </div>
+
+    {sharingProvider && (
+      <ShareConfigModal
+        type="provider"
+        data={{
+          name: sharingProvider.name,
+          baseUrl: sharingProvider.baseUrl,
+          models: (sharingProvider.defaultModels ?? []).join(', '),
+          description: sharingProvider.description ?? '',
+          docsUrl: sharingProvider.docsUrl ?? '',
+        }}
+        onClose={() => setSharingProvider(null)}
+      />
+    )}
+    </>
   )
 }
