@@ -6775,3 +6775,24 @@ export namespace mcpmarket {
 	}
 
 }
+
+export namespace deeplink {
+
+	export class Payload {
+	    type: string;
+	    data: any;
+	    raw: string;
+
+	    static createFrom(source: any = {}) {
+	        return new Payload(source);
+	    }
+
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.data = source["data"];
+	        this.raw = source["raw"];
+	    }
+	}
+
+}

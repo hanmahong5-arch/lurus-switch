@@ -56,6 +56,7 @@ import {promoter} from '../models';
 import {deploy} from '../models';
 import {toolconfig} from '../models';
 import {validator} from '../models';
+import {deeplink} from '../models';
 
 export function ActivateRedemption(arg1:string):Promise<main.ActivationStatus>;
 
@@ -66,6 +67,8 @@ export function AddToPath(arg1:string):Promise<void>;
 export function AnalyzeOptimizations():Promise<optimizer.AnalysisResult>;
 
 export function ApplyAllOptimizations():Promise<Array<optimizer.FixResult>>;
+
+export function ApplyDeepLinkImport(arg1:deeplink.Payload):Promise<string>;
 
 export function ApplyAllToolRelays():Promise<Record<string, string>>;
 

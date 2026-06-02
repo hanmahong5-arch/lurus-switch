@@ -22,6 +22,10 @@ export function ApplyAllOptimizations() {
   return window['go']['main']['App']['ApplyAllOptimizations']();
 }
 
+export function ApplyDeepLinkImport(arg1) {
+  return window['go']['main']['App']['ApplyDeepLinkImport'](arg1);
+}
+
 export function ApplyAllToolRelays() {
   return window['go']['main']['App']['ApplyAllToolRelays']();
 }

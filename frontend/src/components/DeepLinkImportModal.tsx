@@ -3,7 +3,7 @@ import { Download, X, ExternalLink } from 'lucide-react'
 import { useDeepLinkImportStore, type DeepLinkProviderData } from '../stores/deeplinkImportStore'
 import { useToastStore } from '../stores/toastStore'
 import { useConfigStore } from '../stores/configStore'
-import { GetProxySettings, SaveProxySettings } from '../../wailsjs/go/main/App'
+import { GetProxySettings, SaveProxySettings, ApplyDeepLinkImport } from '../../wailsjs/go/main/App'
 
 export function DeepLinkImportModal() {
   const { i18n } = useTranslation()
@@ -15,43 +15,69 @@ export function DeepLinkImportModal() {
   if (!open || !payload) return null
 
   const isProvider = payload.type === 'provider'
+  const isMCP = payload.type === 'mcp'
+  const isPrompt = payload.type === 'prompt'
   const data = (payload.data ?? {}) as DeepLinkProviderData
   const firstModel = (data.models ?? '').split(',').map((m) => m.trim()).filter(Boolean)[0] ?? ''
 
+  const isApplicable = isProvider || isMCP || isPrompt
+
   const handleApply = async () => {
-    if (!isProvider) {
-      addToast('error', isZh ? `暂不支持导入类型：${payload.type}` : `Unsupported type: ${payload.type}`)
-      close()
-      return
-    }
-    if (!data.baseUrl) {
-      addToast('error', isZh ? '导入数据缺少 baseUrl' : 'Missing baseUrl in payload')
-      return
-    }
-    try {
-      const current = await GetProxySettings()
-      const merged = {
-        ...current,
-        apiEndpoint: data.baseUrl,
-        model: firstModel || current?.model || '',
+    if (isProvider) {
+      if (!data.baseUrl) {
+        addToast('error', isZh ? '导入数据缺少 baseUrl' : 'Missing baseUrl in payload')
+        return
       }
-      await SaveProxySettings(merged as unknown as Parameters<typeof SaveProxySettings>[0])
-      addToast(
-        'success',
-        isZh
-          ? `已导入 ${data.name ?? '配置'} · 请在网关页粘贴 API Key`
-          : `Imported ${data.name ?? 'preset'} · paste your API key on Gateway page`,
-      )
-      setActiveTool('gateway')
-      close()
-    } catch (err) {
-      addToast(
-        'error',
-        isZh
-          ? `导入失败：${(err as Error)?.message ?? String(err)}`
-          : `Import failed: ${(err as Error)?.message ?? String(err)}`,
-      )
+      try {
+        const current = await GetProxySettings()
+        const merged = {
+          ...current,
+          apiEndpoint: data.baseUrl,
+          model: firstModel || current?.model || '',
+        }
+        await SaveProxySettings(merged as unknown as Parameters<typeof SaveProxySettings>[0])
+        addToast(
+          'success',
+          isZh
+            ? `已导入 ${data.name ?? '配置'} · 请在网关页粘贴 API Key`
+            : `Imported ${data.name ?? 'preset'} · paste your API key on Gateway page`,
+        )
+        setActiveTool('gateway')
+        close()
+      } catch (err) {
+        addToast(
+          'error',
+          isZh
+            ? `导入失败：${(err as Error)?.message ?? String(err)}`
+            : `Import failed: ${(err as Error)?.message ?? String(err)}`,
+        )
+      }
+      return
     }
+
+    if (isMCP || isPrompt) {
+      try {
+        const summary = await ApplyDeepLinkImport({ type: payload.type, data: payload.data, raw: payload.raw ?? '' })
+        if (!summary) {
+          addToast('error', isZh ? '导入返回空结果' : 'Import returned empty result')
+          return
+        }
+        addToast('success', isZh ? `已导入：${summary}` : `Imported: ${summary}`)
+        close()
+      } catch (err) {
+        addToast(
+          'error',
+          isZh
+            ? `导入失败：${(err as Error)?.message ?? String(err)}`
+            : `Import failed: ${(err as Error)?.message ?? String(err)}`,
+        )
+      }
+      return
+    }
+
+    // Unknown type — surface a clear error, do not silently succeed.
+    addToast('error', isZh ? `暂不支持导入类型：${payload.type}` : `Unsupported type: ${payload.type}`)
+    close()
   }
 
   return (
@@ -86,11 +112,15 @@ export function DeepLinkImportModal() {
 
           {isProvider ? (
             <ProviderPreview data={data} isZh={!!isZh} />
+          ) : isMCP ? (
+            <MCPPreview data={payload.data as Record<string, unknown>} isZh={!!isZh} />
+          ) : isPrompt ? (
+            <PromptPreview data={payload.data as Record<string, unknown>} isZh={!!isZh} />
           ) : (
             <div className="text-sm text-muted-foreground py-4">
               {isZh
-                ? `当前版本仅支持 provider 类型导入。完整 URL：`
-                : `Only provider imports are supported in this build. Raw URL:`}
+                ? `暂不支持导入类型 "${payload.type}"。完整 URL：`
+                : `Type "${payload.type}" is not yet supported. Raw URL:`}
               <pre className="mt-2 text-xs bg-muted p-2 rounded break-all whitespace-pre-wrap">
                 {payload.raw}
               </pre>
@@ -107,7 +137,7 @@ export function DeepLinkImportModal() {
           </button>
           <button
             onClick={handleApply}
-            disabled={!isProvider || !data.baseUrl}
+            disabled={!isApplicable}
             className="px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isZh ? '应用' : 'Apply'}
@@ -146,6 +176,59 @@ function ProviderPreview({ data, isZh }: { data: DeepLinkProviderData; isZh: boo
         {isZh
           ? '点击应用后会写入网关 baseURL，请在网关页粘贴你自己的 API Key 启用。'
           : 'Apply writes the baseURL to your gateway settings. Paste your own API key on the Gateway page to activate.'}
+      </div>
+    </div>
+  )
+}
+
+function MCPPreview({ data, isZh }: { data: Record<string, unknown>; isZh: boolean }) {
+  const server = (data.server ?? {}) as Record<string, unknown>
+  return (
+    <div className="space-y-3">
+      <Field label={isZh ? '名称' : 'Name'} value={data.name as string} mono={false} />
+      {Boolean(data.description) && (
+        <Field label={isZh ? '说明' : 'Description'} value={data.description as string} mono={false} />
+      )}
+      <Field label={isZh ? '传输类型' : 'Transport'} value={server.type as string} mono />
+      {Boolean(server.command) && (
+        <Field label={isZh ? '命令' : 'Command'} value={server.command as string} mono />
+      )}
+      {Boolean(server.url) && (
+        <Field label={isZh ? '地址' : 'URL'} value={server.url as string} mono />
+      )}
+      {Array.isArray(data.tags) && data.tags.length > 0 && (
+        <Field label={isZh ? '标签' : 'Tags'} value={(data.tags as string[]).join(', ')} mono={false} />
+      )}
+      <div className="mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
+        {isZh ? '点击应用后保存至 MCP 预设库。' : 'Apply saves this server to your MCP preset library.'}
+      </div>
+    </div>
+  )
+}
+
+function PromptPreview({ data, isZh }: { data: Record<string, unknown>; isZh: boolean }) {
+  return (
+    <div className="space-y-3">
+      <Field label={isZh ? '名称' : 'Name'} value={data.name as string} mono={false} />
+      {Boolean(data.category) && (
+        <Field label={isZh ? '分类' : 'Category'} value={data.category as string} mono={false} />
+      )}
+      {Boolean(data.content) && (
+        <div>
+          <div className="text-xs font-medium text-muted-foreground mb-0.5">
+            {isZh ? '内容预览' : 'Content preview'}
+          </div>
+          <pre className="text-xs bg-muted p-2 rounded break-all whitespace-pre-wrap max-h-32 overflow-y-auto">
+            {(data.content as string).slice(0, 300)}
+            {(data.content as string).length > 300 ? '…' : ''}
+          </pre>
+        </div>
+      )}
+      {Array.isArray(data.tags) && data.tags.length > 0 && (
+        <Field label={isZh ? '标签' : 'Tags'} value={(data.tags as string[]).join(', ')} mono={false} />
+      )}
+      <div className="mt-4 pt-3 border-t border-border text-xs text-muted-foreground">
+        {isZh ? '点击应用后保存至提示词库。' : 'Apply saves this prompt to your prompt library.'}
       </div>
     </div>
   )
