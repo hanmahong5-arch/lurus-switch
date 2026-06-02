@@ -108,10 +108,11 @@ describe('ResellerSetupWizard — step 1: pick provider', () => {
     })
   })
 
-  it('shows "coming soon" badge for un-implemented kinds', async () => {
+  it('shows an "unavailable" badge for un-implemented (cloud) kinds', async () => {
     render(<ResellerSetupWizard onComplete={vi.fn()} />)
     await waitFor(() => {
-      expect(screen.getByText('coming soon')).toBeDefined()
+      // Auto-deploy backends are stubs; the wizard honestly marks them 暂不可用.
+      expect(screen.getAllByText('暂不可用').length).toBeGreaterThan(0)
     })
   })
 
@@ -132,13 +133,15 @@ describe('ResellerSetupWizard — step 1: pick provider', () => {
     })
   })
 
-  it('also navigates to manual step when a coming-soon (stub) kind is clicked', async () => {
+  it('does NOT navigate when a not-yet-available (cloud) kind is clicked — it is gated', async () => {
     render(<ResellerSetupWizard onComplete={vi.fn()} />)
     await waitFor(() => screen.getByText('云托管'))
     fireEvent.click(screen.getByText('云托管'))
-    await waitFor(() => {
-      expect(screen.getByText('填写 Hub 连接信息')).toBeDefined()
-    })
+    // Cloud auto-deploy is a backend stub, so the option is disabled + guarded:
+    // clicking must NOT advance to the manual hub-connection step.
+    await new Promise((r) => setTimeout(r, 30))
+    expect(screen.queryByText('填写 Hub 连接信息')).toBeNull()
+    expect(screen.getByText('云托管')).toBeDefined()
   })
 })
 

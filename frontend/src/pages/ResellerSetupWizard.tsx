@@ -113,12 +113,11 @@ export function ResellerSetupWizard({ onComplete }: Props) {
   const descOf = (k: DeployKindEntry) => isZh ? k.descriptionZh : k.descriptionEn
 
   const handlePickKind = (kind: string, implemented: boolean) => {
+    // Non-implemented providers are rendered as disabled buttons; this guard
+    // is a defensive fallback so a future refactor can never silently skip past
+    // the gate and route a user onto a dead code path.
+    if (!implemented) return
     setPickedKind(kind)
-    if (!implemented) {
-      // Stub providers — collect intent but route through manual entry.
-      setStep('manual')
-      return
-    }
     setStep('manual')
   }
 
@@ -217,10 +216,14 @@ export function ResellerSetupWizard({ onComplete }: Props) {
               {kinds.map((k) => (
                 <button
                   key={k.kind}
+                  disabled={!k.implemented}
                   onClick={() => handlePickKind(k.kind, k.implemented)}
+                  aria-disabled={!k.implemented}
                   className={
                     'text-left rounded-lg border p-4 transition-colors ' +
-                    (pickedKind === k.kind
+                    (!k.implemented
+                      ? 'border-border opacity-50 cursor-not-allowed'
+                      : pickedKind === k.kind
                       ? 'border-purple-500 bg-purple-950/20'
                       : 'border-border hover:bg-muted/30')
                   }
@@ -228,12 +231,17 @@ export function ResellerSetupWizard({ onComplete }: Props) {
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{labelOf(k)}</span>
                     {!k.implemented && (
-                      <span className="text-[10px] uppercase tracking-wide rounded bg-amber-500/15 text-amber-300 px-1.5 py-0.5">
-                        {t('reseller.setup.comingSoon', 'coming soon')}
+                      <span className="text-[10px] uppercase tracking-wide rounded bg-muted text-muted-foreground px-1.5 py-0.5">
+                        {t('reseller.setup.unavailable', '暂不可用')}
                       </span>
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">{descOf(k)}</p>
+                  {!k.implemented && (
+                    <p className="text-xs text-amber-400/80 mt-1">
+                      {t('reseller.setup.unavailableHint', '自动部署尚未就绪，请选择「手动接入」完成配置。')}
+                    </p>
+                  )}
                 </button>
               ))}
             </div>
